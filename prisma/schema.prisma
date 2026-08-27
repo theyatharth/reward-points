@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Stores the rolling point balance per customer per shop.
+// shopifyCustomerId is only unique WITHIN a shop — the same numeric Shopify
+// customer ID can legitimately exist on two different stores, so the old
+// global @unique allowed one shop's redeem/adjust calls to read or mutate
+// another shop's customer balance (cross-tenant IDOR).
+model CustomerPoint {
+  id                String   @id @default(uuid())
+  shopifyCustomerId String
+  shop              String   // Which store this customer belongs to
+  points            Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([shop, shopifyCustomerId])
+  @@index([shop])
+}
+
+// Reward points earn/redeem/adjust transaction ledger
+// Replaces the old Shopify Metafield-based history (which was capped at 20 entries)
+model PointTransaction {
+  id                String   @id @default(uuid())
+  shopifyCustomerId String
+  shop              String
+  action            String   // Human-readable: "Order #1234", "Redeemed ₹100 Coupon", "Manual Award: Birthday"
+  points            Int      // Positive = earned, Negative = deducted
+  status            String   @default("Approved") // "Approved" | "Reversed"
+  orderId           String?  // Order ID that triggered this transaction (for dedup reference)
+  createdAt         DateTime @default(now())
+
+  @@index([shopifyCustomerId])
+  @@index([shop])
+}
+
+// Idempotency table: tracks orders we have already processed
+// Prevents double-awarding points when Shopify redelivers a webhook
+model ProcessedOrder {
+  id        String   @id @default(uuid())
+  orderId   String
+  shop      String
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, shop], name: "orderId_shop")
+  @@index([shop])
+}
+
+// Idempotency table: tracks refunds we have already clawed back points for.
+// Keyed on the REFUND's own id, not the order id — one order can have
+// several distinct refunds, each of which must be processed exactly once.
+model ProcessedRefund {
+  id        String   @id @default(uuid())
+  refundId  String
+  shop      String
+  createdAt DateTime @default(now())
+
+  @@unique([refundId, shop], name: "refundId_shop")
+  @@index([shop])
+}
+
+// Rate-limits redemption attempts per (shop, customer). One row per pair,
+// upserted atomically — replaces an in-memory Map that was per-process (each
+// app instance behind a load balancer got its own independent budget) and
+// unbounded (never evicted, only safe post-Patch-1 because the key became a
+// Shopify-verified customer GID instead of an attacker-suppliable value).
+model RedemptionAttempt {
+  id          String   @id @default(uuid())
+  shop        String
+  customerGid String
+  windowStart DateTime @default(now())
+  count       Int      @default(1)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shop, customerGid])
+}
+
+// Shopify OAuth session storage, backing PrismaSessionStorage from
+// @shopify/shopify-app-session-storage-prisma. Previously this lived in a
+// SQLite file on the container's local disk (web/database.sqlite), which is
+// wiped on every redeploy/restart and never shared across instances — after
+// any scale-out or redeploy, getClientForShop() would silently start
+// returning null and every metafield sync would go dead with no error.
+// Shape is dictated by the adapter; see its README for the required columns.
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean?
+  locale        String?
+  collaborator  Boolean?
+  emailVerified Boolean?
+
+  @@index([shop])
+}
+
+// Per-store merchant configuration for the reward program
+model ShopSettings {
+  id            String   @id @default(uuid())
+  shop          String   @unique
+  spendAmount   Int      @default(100)  // Customer spends this much (in store currency)
+  earnPoints    Int      @default(1)    // To earn this many points
+  redeemPoints  Int      @default(100)  // Customer needs this many points
+  discountValue Int      @default(10)   // To get this much discount (in store currency)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

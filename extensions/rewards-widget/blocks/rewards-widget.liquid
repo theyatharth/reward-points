@@ -1,0 +1,418 @@
+{% comment %} Fetch points and active code securely via Liquid {% endcomment %}
+{% assign current_points = 0 %}
+{% assign active_code = blank %}
+{% if customer %}
+  {% assign current_points = customer.metafields.custom.reward_points.value | default: 0 | plus: 0 %}
+  {% assign active_code = customer.metafields.custom.earned_discount_code.value | default: blank %}
+{% endif %}
+
+<div class="rw-widget-container">
+  <!-- Floating Toggle Button -->
+  <button class="rw-toggle-btn" id="rwToggleBtn" onclick="toggleRwPanel()" aria-label="Open Rewards">
+    <span class="rw-icon">🎁</span>
+    <span>Rewards</span>
+    {% if customer and current_points > 0 %}
+      <span class="rw-badge">{{ current_points }}</span>
+    {% endif %}
+  </button>
+
+  <!-- Main Panel -->
+  <div class="rw-panel" id="rwPanel" role="dialog" aria-label="My Rewards" aria-hidden="true">
+    <div class="rw-header">
+      <div class="rw-header-left">
+        <span class="rw-header-icon">🎁</span>
+        <h3>My Rewards</h3>
+      </div>
+      <button class="rw-close-btn" onclick="toggleRwPanel()" aria-label="Close rewards panel">✕</button>
+    </div>
+
+    <div class="rw-body">
+      {% if customer %}
+        <!-- ALWAYS show points balance -->
+        <div class="rw-points-display">
+          <span class="rw-points-value">{{ current_points }}</span>
+          <span class="rw-points-label">Points Balance</span>
+        </div>
+
+        {% assign redeem_threshold = 100 %}
+
+        {% if active_code != blank and active_code != "NONE" %}
+          <!-- STATE 1: Active discount code -->
+          <div class="rw-active-code-box">
+            <span class="rw-active-code-label">🎉 Active Reward!</span>
+            <span class="rw-active-code-value">{{ active_code }}</span>
+            <button
+              class="rw-copy-btn"
+              id="rwCopyBtn"
+              onclick="copyRewardCode('{{ active_code }}')"
+            >
+              Copy Code
+            </button>
+          </div>
+
+          <div class="rw-actions">
+            <button class="rw-btn rw-btn-secondary" onclick="window.location.href='/pages/rewards'">View Dashboard</button>
+          </div>
+
+        {% else %}
+          <!-- STATE 2: Progress bar + Redeem button -->
+          <div class="rw-progress-section">
+            {% if current_points >= redeem_threshold %}
+              <p class="rw-progress-label rw-progress-ready">🎉 You're ready to redeem!</p>
+            {% else %}
+              {% assign points_needed = redeem_threshold | minus: current_points %}
+              <p class="rw-progress-label">{{ points_needed }} more points to unlock your reward</p>
+            {% endif %}
+            <div class="rw-progress-bar-track">
+              {% assign pct = current_points | times: 100 | divided_by: redeem_threshold %}
+              {% if pct > 100 %}{% assign pct = 100 %}{% endif %}
+              <div class="rw-progress-bar-fill" style="width: {{ pct }}%;"></div>
+            </div>
+            <div class="rw-progress-meta">
+              <span>0</span>
+              <span>{{ redeem_threshold }} pts</span>
+            </div>
+          </div>
+
+          <div class="rw-actions">
+            {% if current_points >= redeem_threshold %}
+              <button class="rw-btn rw-btn-primary" id="rwRedeemBtn" onclick="redeemInstantly(event)">
+                Redeem Now
+              </button>
+            {% else %}
+              <button class="rw-btn rw-btn-primary" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                Need {{ redeem_threshold }} Points to Redeem
+              </button>
+            {% endif %}
+            <button class="rw-btn rw-btn-secondary" onclick="window.location.href='/pages/rewards'">View Dashboard</button>
+          </div>
+        {% endif %}
+
+        <!-- Inline notification (replaces alert()) -->
+        <div class="rw-notification" id="rwNotification" aria-live="polite"></div>
+
+      {% else %}
+        <!-- STATE 3: Logged out -->
+        <div class="rw-logged-out">
+          <span class="rw-logged-out-icon">🎁</span>
+          <p>Join our rewards program and earn points with every purchase!</p>
+          <button class="rw-btn rw-btn-primary" onclick="window.location.href='{{ routes.account_login_url }}'">
+            Log In / Sign Up
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .rw-widget-container {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    z-index: 2147483647;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* --- Toggle Button --- */
+  .rw-toggle-btn {
+    background: linear-gradient(135deg, #111 0%, #333 100%);
+    color: #fff;
+    border: none;
+    padding: 14px 22px;
+    border-radius: 50px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+  }
+  .rw-toggle-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+  }
+  .rw-icon { font-size: 18px; }
+  .rw-badge {
+    background: #e53935;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  /* --- Panel --- */
+  .rw-panel {
+    display: none;
+    position: absolute;
+    bottom: 74px;
+    left: 0;
+    width: 340px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.06);
+    transform-origin: bottom left;
+  }
+  .rw-panel.rw-active {
+    display: block;
+    animation: rwSlideUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+  @keyframes rwSlideUp {
+    0%  { opacity: 0; transform: scale(0.9) translateY(20px); }
+    100%{ opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* --- Header --- */
+  .rw-header {
+    background: linear-gradient(135deg, #111 0%, #333 100%);
+    color: #fff;
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .rw-header-left { display: flex; align-items: center; gap: 10px; }
+  .rw-header-icon { font-size: 22px; }
+  .rw-header h3 { margin: 0; font-size: 17px; font-weight: 700; color: #fff; }
+  .rw-close-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .rw-close-btn:hover { background: rgba(255,255,255,0.3); }
+
+  /* --- Body --- */
+  .rw-body { padding: 20px; }
+
+  /* Points Display */
+  .rw-points-display {
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 14px;
+    padding: 18px;
+    border: 1px solid #edf2f7;
+    margin-bottom: 16px;
+  }
+  .rw-points-value {
+    display: block;
+    font-size: 44px;
+    font-weight: 800;
+    color: #111;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .rw-points-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+
+  /* Active Code Box */
+  .rw-active-code-box {
+    background: #fdfbf7;
+    border: 2px dashed #c8b87a;
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .rw-active-code-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #2e7d32;
+    margin-bottom: 8px;
+  }
+  .rw-active-code-value {
+    display: block;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #111;
+    margin-bottom: 12px;
+  }
+  .rw-copy-btn {
+    background: #111; color: #fff;
+    border: none; padding: 9px 20px;
+    border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .rw-copy-btn:hover { background: #333; }
+  .rw-copy-btn.rw-copied { background: #2e7d32; }
+
+  /* Progress Bar */
+  .rw-progress-section { margin-bottom: 14px; }
+  .rw-progress-label {
+    font-size: 13px;
+    color: #555;
+    margin: 0 0 8px 0;
+    text-align: center;
+  }
+  .rw-progress-label.rw-progress-ready { color: #2e7d32; font-weight: 600; }
+  .rw-progress-bar-track {
+    background: #edf2f7;
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 5px;
+  }
+  .rw-progress-bar-fill {
+    background: linear-gradient(90deg, #111 0%, #555 100%);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.6s ease;
+  }
+  .rw-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #aaa;
+  }
+
+  /* Buttons */
+  .rw-actions { display: flex; flex-direction: column; gap: 10px; }
+  .rw-btn {
+    width: 100%; padding: 13px;
+    border-radius: 12px; font-size: 14px;
+    font-weight: 600; cursor: pointer;
+    transition: all 0.2s ease; border: none;
+  }
+  .rw-btn-primary { background: #111; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .rw-btn-primary:hover { background: #333; transform: translateY(-2px); }
+  .rw-btn-secondary { background: #fff; color: #111; border: 2px solid #e0e0e0; }
+  .rw-btn-secondary:hover { border-color: #111; }
+
+  /* Inline notification (replaces alert) */
+  .rw-notification {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    min-height: 0;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    padding: 0;
+  }
+  .rw-notification.rw-notify-success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 10px;
+  }
+  .rw-notification.rw-notify-error {
+    background: #ffebee;
+    color: #c62828;
+    padding: 10px;
+  }
+
+  /* Logged out */
+  .rw-logged-out { text-align: center; padding: 10px 0; }
+  .rw-logged-out-icon { font-size: 36px; display: block; margin-bottom: 12px; }
+  .rw-logged-out p { font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 16px 0; }
+</style>
+
+<script>
+  function toggleRwPanel() {
+    var panel = document.getElementById('rwPanel');
+    var isOpen = panel.classList.toggle('rw-active');
+    panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+  }
+
+  // Close panel when clicking outside
+  document.addEventListener('click', function(e) {
+    var container = document.querySelector('.rw-widget-container');
+    if (container && !container.contains(e.target)) {
+      var panel = document.getElementById('rwPanel');
+      if (panel) {
+        panel.classList.remove('rw-active');
+        panel.setAttribute('aria-hidden', 'true');
+      }
+    }
+  });
+
+  function showNotification(message, type) {
+    var el = document.getElementById('rwNotification');
+    if (!el) return;
+    el.textContent = message;
+    el.className = 'rw-notification rw-notify-' + type;
+    setTimeout(function() {
+      el.className = 'rw-notification';
+      el.textContent = '';
+    }, 4000);
+  }
+
+  function copyRewardCode(code) {
+    navigator.clipboard.writeText(code).then(function() {
+      var btn = document.getElementById('rwCopyBtn');
+      if (btn) {
+        btn.textContent = '✓ Copied!';
+        btn.classList.add('rw-copied');
+        setTimeout(function() {
+          btn.textContent = 'Copy Code';
+          btn.classList.remove('rw-copied');
+        }, 2500);
+      }
+    }).catch(function() {
+      showNotification('Could not copy automatically. Code: ' + code, 'error');
+    });
+  }
+
+  async function redeemInstantly(e) {
+    e.preventDefault();
+    var btn = document.getElementById('rwRedeemBtn');
+    if (!btn) return;
+    var originalText = btn.innerText;
+
+    btn.innerText = 'Generating Code…';
+    btn.disabled = true;
+
+    try {
+      // No customerId is sent here — the backend derives the caller's identity
+      // from Shopify's own signed App Proxy query params (logged_in_customer_id),
+      // never from anything the browser supplies. A body value would be spoofable.
+      var response = await fetch('/apps/rewards/redeem', { method: 'POST' });
+
+      var data = await response.json();
+
+      if (data.success) {
+        showNotification('🎉 Code ready: ' + data.discountCode, 'success');
+        btn.innerText = '✓ Code Generated!';
+        btn.style.background = '#2e7d32';
+        // Reload after 2.5s to refresh UI with the new active code
+        setTimeout(function() { window.location.reload(); }, 2500);
+      } else {
+        showNotification(data.error || 'Failed to redeem points.', 'error');
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      showNotification('Network error. Please try again.', 'error');
+      btn.innerText = originalText;
+      btn.disabled = false;
+    }
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Floating Rewards Widget",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

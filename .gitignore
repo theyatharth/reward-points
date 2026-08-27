@@ -1,0 +1,53 @@
+# Environment Configuration
+.env
+.env.*
+
+# Dependency directory
+node_modules
+
+# Test coverage directory
+coverage
+
+# Ignore Apple macOS Desktop Services Store
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# ngrok tunnel file
+config/tunnel.pid
+
+# vite build output
+dist/
+
+# extensions build output
+extensions/*/build
+
+# Node library SQLite database
+web/database.sqlite
+
+# Stray local dev artifact — unreferenced anywhere in the codebase (DB is
+# Postgres via DATABASE_URL); leftover from before the Postgres migration.
+dev.db
+
+# Ignore shopify files created during app dev
+.shopify/*
+.shopify.lock
+
+# AI coding tool skill caches — identical reference-doc bundles auto-installed
+# under three different tool conventions, not part of the app itself.
+.agents/
+.claude/
+.windsurf/
+
+# Prisma generated client — regenerated from schema.prisma via `npx prisma
+# generate`, doesn't need to be committed.
+prisma/generated/
+
+# Stale generated-client artifact from an earlier Prisma generator setup
+# (root-level, unreferenced anywhere — the active client lives under
+# prisma/generated/, per the `output` path in prisma/schema.prisma). The old
+# gitignore pattern here, /generated/prisma, was meant for this but never
+# actually matched it.
+/generated/

@@ -1,0 +1,417 @@
+<div class="rp-container">
+  {% if customer %}
+    {% assign current_points = customer.metafields.custom.reward_points.value | default: 0 | plus: 0 %}
+    {% assign discount_code = customer.metafields.custom.earned_discount_code.value | default: blank %}
+
+    <!-- 1. Hero Section -->
+    <div class="rp-hero">
+      <div class="rp-hero-content">
+        <h2>Welcome back, {{ customer.first_name }}! 👋</h2>
+        <p>You're earning exclusive perks with every purchase.</p>
+      </div>
+      <div class="rp-hero-balance">
+        <span class="rp-balance-label">Available Balance</span>
+        <div class="rp-balance-value">{{ current_points }} <span class="rp-pts">PTS</span></div>
+      </div>
+    </div>
+
+    <!-- 2. Main Dashboard Grid -->
+    <div class="rp-grid">
+
+      <!-- Left Column: Active Rewards / Redeem -->
+      <div class="rp-card rp-active-rewards">
+        <div class="rp-card-header">
+          <h3>🎟️ Your Active Rewards</h3>
+        </div>
+        <div class="rp-card-body">
+
+          {% assign redeem_threshold = 100 %}
+
+          {% if discount_code != blank and discount_code != "NONE" %}
+            <!-- Has an active code -->
+            <p class="rp-reward-instruction">
+              You have an active reward! Use this code at checkout.
+            </p>
+            <div class="rp-coupon-box">
+              <span class="rp-coupon-code">{{ discount_code }}</span>
+              <button
+                class="rp-copy-btn"
+                id="rpCopyBtn"
+                onclick="copyCode('{{ discount_code }}')"
+              >Copy</button>
+            </div>
+            <div id="rpCopyMsg" class="rp-copy-msg"></div>
+
+          {% else %}
+            <!-- Progress toward next redemption -->
+            <div class="rp-progress-section">
+              {% if current_points >= redeem_threshold %}
+                <p class="rp-progress-label rp-progress-ready">
+                  🎉 You have enough points to redeem a reward!
+                </p>
+              {% else %}
+                {% assign pts_needed = redeem_threshold | minus: current_points %}
+                <p class="rp-progress-label">
+                  <strong>{{ pts_needed }} more points</strong> until your next reward
+                </p>
+              {% endif %}
+
+              <div class="rp-progress-track">
+                {% assign pct = current_points | times: 100 | divided_by: redeem_threshold %}
+                {% if pct > 100 %}{% assign pct = 100 %}{% endif %}
+                <div class="rp-progress-fill" style="width: {{ pct }}%;"></div>
+              </div>
+              <div class="rp-progress-meta">
+                <span>0 pts</span>
+                <span>{{ current_points }} / {{ redeem_threshold }} pts</span>
+              </div>
+            </div>
+
+            {% if current_points >= redeem_threshold %}
+              <button class="rp-btn-redeem" id="rpRedeemBtn" onclick="rpRedeem(event)">
+                Redeem My Points
+              </button>
+            {% else %}
+              <button class="rp-btn-redeem rp-btn-disabled" disabled>
+                Need {{ redeem_threshold }} Points to Redeem
+              </button>
+            {% endif %}
+
+            <div id="rpRedeemMsg" class="rp-redeem-msg" aria-live="polite"></div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- Right Column: How to Earn -->
+      <div class="rp-card">
+        <div class="rp-card-header">
+          <h3>⭐ How to Earn Points</h3>
+        </div>
+        <div class="rp-card-body">
+          <ul class="rp-earn-list">
+            <li>
+              <div class="rp-earn-icon">🛍️</div>
+              <div class="rp-earn-text">
+                <strong>Make a Purchase</strong>
+                <span>Earn points automatically on every paid order.</span>
+              </div>
+              <div class="rp-earn-reward">+Points</div>
+            </li>
+            <li>
+              <div class="rp-earn-icon">🎁</div>
+              <div class="rp-earn-text">
+                <strong>Special Bonuses</strong>
+                <span>Our team occasionally awards bonus points to loyal customers.</span>
+              </div>
+              <div class="rp-earn-reward">Varies</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Reward History Table (loaded from local DB via API) -->
+    <div class="rp-card rp-history-section">
+      <div class="rp-card-header">
+        <h3>🕰️ Reward History</h3>
+        <p class="rp-header-sub">Your recent point activity and redemptions.</p>
+      </div>
+      <div class="rp-table-responsive" id="rpHistoryContainer">
+        <div class="rp-loading">Loading history…</div>
+      </div>
+    </div>
+
+  {% else %}
+    <!-- Logged Out State -->
+    <div class="rp-hero rp-logged-out-hero">
+      <div class="rp-hero-content" style="text-align: center; width: 100%;">
+        <h2>Join Our Rewards Program 🎁</h2>
+        <p>
+          Create an account today to start earning points for every purchase,
+          get exclusive discount codes, and unlock special perks.
+        </p>
+        <a href="{{ routes.account_login_url }}" class="rp-btn-primary">
+          Log In / Create Account
+        </a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<style>
+  .rp-container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1a1a1a;
+  }
+
+  /* Hero */
+  .rp-hero {
+    background: linear-gradient(135deg, #111 0%, #333 100%);
+    border-radius: 16px;
+    padding: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    margin-bottom: 28px;
+  }
+  .rp-hero-content h2 { margin: 0 0 8px 0; font-size: 30px; color: #fff; }
+  .rp-hero-content p { margin: 0; font-size: 15px; opacity: 0.8; }
+  .rp-hero-balance {
+    background: rgba(255,255,255,0.12);
+    padding: 20px 28px;
+    border-radius: 12px;
+    text-align: right;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .rp-balance-label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 4px; }
+  .rp-balance-value { font-size: 46px; font-weight: 800; line-height: 1; }
+  .rp-pts { font-size: 18px; font-weight: 600; opacity: 0.75; }
+
+  /* Grid */
+  .rp-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; margin-bottom: 24px; }
+  @media (max-width: 768px) {
+    .rp-hero { flex-direction: column; text-align: center; gap: 20px; }
+    .rp-hero-balance { text-align: center; width: 100%; box-sizing: border-box; }
+    .rp-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Cards */
+  .rp-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #f0f0f0; overflow: hidden; }
+  .rp-card-header { background: #fafafa; padding: 18px 22px; border-bottom: 1px solid #f0f0f0; }
+  .rp-card-header h3 { margin: 0; font-size: 17px; font-weight: 700; color: #111; }
+  .rp-header-sub { margin: 4px 0 0 0; font-size: 13px; color: #888; }
+  .rp-card-body { padding: 22px; }
+
+  /* Progress Bar */
+  .rp-progress-section { margin-bottom: 18px; }
+  .rp-progress-label { font-size: 14px; color: #444; margin: 0 0 10px 0; }
+  .rp-progress-label.rp-progress-ready { color: #2e7d32; font-weight: 600; }
+  .rp-progress-track { background: #edf2f7; border-radius: 10px; height: 10px; overflow: hidden; margin-bottom: 6px; }
+  .rp-progress-fill { background: linear-gradient(90deg, #111 0%, #555 100%); height: 100%; border-radius: 10px; transition: width 0.6s ease; }
+  .rp-progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: #999; }
+
+  /* Redeem Button */
+  .rp-btn-redeem {
+    width: 100%; padding: 14px;
+    background: #111; color: #fff;
+    border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .rp-btn-redeem:hover { background: #333; transform: translateY(-2px); }
+  .rp-btn-disabled { opacity: 0.45; cursor: not-allowed; }
+  .rp-btn-disabled:hover { background: #111; transform: none; }
+
+  /* Redeem message */
+  .rp-redeem-msg {
+    margin-top: 12px; font-size: 13px;
+    font-weight: 600; text-align: center;
+    border-radius: 8px; padding: 0;
+    transition: all 0.3s;
+  }
+  .rp-redeem-msg.success { background: #e8f5e9; color: #2e7d32; padding: 10px; }
+  .rp-redeem-msg.error { background: #ffebee; color: #c62828; padding: 10px; }
+
+  /* Active Coupon */
+  .rp-reward-instruction { margin: 0 0 14px 0; font-size: 14px; color: #444; }
+  .rp-coupon-box {
+    background: #fdfbf7; border: 2px dashed #c8b87a;
+    padding: 18px; border-radius: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .rp-coupon-code { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #111; }
+  .rp-copy-btn {
+    background: #111; color: #fff; border: none;
+    padding: 9px 16px; border-radius: 8px;
+    font-weight: 600; cursor: pointer; transition: background 0.2s;
+  }
+  .rp-copy-btn:hover { background: #333; }
+  .rp-copy-btn.copied { background: #2e7d32; }
+  .rp-copy-msg { font-size: 12px; color: #2e7d32; font-weight: 600; min-height: 16px; text-align: center; }
+
+  /* Earn List */
+  .rp-earn-list { list-style: none; padding: 0; margin: 0; }
+  .rp-earn-list li { display: flex; align-items: center; padding: 16px 0; border-bottom: 1px solid #f0f0f0; gap: 14px; }
+  .rp-earn-list li:last-child { border-bottom: none; padding-bottom: 0; }
+  .rp-earn-icon { font-size: 26px; background: #f5f5f5; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 12px; flex-shrink: 0; }
+  .rp-earn-text { flex: 1; }
+  .rp-earn-text strong { display: block; font-size: 14px; margin-bottom: 3px; }
+  .rp-earn-text span { font-size: 12px; color: #888; display: block; }
+  .rp-earn-reward { font-weight: 700; color: #2e7d32; background: #e8f5e9; padding: 5px 10px; border-radius: 20px; font-size: 13px; white-space: nowrap; }
+
+  /* History Table */
+  .rp-history-section { margin-top: 0; }
+  .rp-table-responsive { overflow-x: auto; }
+  .rp-history-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .rp-history-table th { background: #fff; padding: 14px 22px; font-size: 12px; text-transform: uppercase; color: #888; border-bottom: 2px solid #f0f0f0; }
+  .rp-history-table td { padding: 14px 22px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #333; }
+  .rp-history-table tr:last-child td { border-bottom: none; }
+  .rp-points-plus { color: #2e7d32; font-weight: 700; text-align: right; }
+  .rp-points-minus { color: #d32f2f; font-weight: 700; text-align: right; }
+  .rp-badge { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .rp-badge-success { background: #e8f5e9; color: #2e7d32; }
+  .rp-badge-neutral { background: #f5f5f5; color: #666; }
+  .rp-loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+
+  /* Logged Out */
+  .rp-logged-out-hero { flex-direction: column; padding: 60px 20px; }
+  .rp-btn-primary {
+    display: inline-block; background: #fff; color: #111;
+    padding: 16px 32px; text-decoration: none;
+    border-radius: 30px; font-weight: 700; margin-top: 24px;
+    transition: transform 0.2s;
+  }
+  .rp-btn-primary:hover { transform: translateY(-2px); }
+</style>
+
+<script>
+  function copyCode(code) {
+    navigator.clipboard.writeText(code).then(function() {
+      var btn = document.getElementById('rpCopyBtn');
+      var msg = document.getElementById('rpCopyMsg');
+      if (btn) { btn.textContent = '✓ Copied!'; btn.classList.add('copied'); }
+      if (msg) { msg.textContent = 'Code copied to clipboard!'; }
+      setTimeout(function() {
+        if (btn) { btn.textContent = 'Copy'; btn.classList.remove('copied'); }
+        if (msg) { msg.textContent = ''; }
+      }, 2500);
+    }).catch(function() {
+      var msg = document.getElementById('rpCopyMsg');
+      if (msg) { msg.textContent = 'Could not copy: ' + code; }
+    });
+  }
+
+  async function rpRedeem(e) {
+    e.preventDefault();
+    var btn = document.getElementById('rpRedeemBtn');
+    var msg = document.getElementById('rpRedeemMsg');
+    if (!btn) return;
+
+    btn.textContent = 'Generating Code…';
+    btn.disabled = true;
+
+    try {
+      var response = await fetch('/apps/rewards/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: "{{ customer.id }}" })
+      });
+      var data = await response.json();
+
+      if (data.success) {
+        msg.className = 'rp-redeem-msg success';
+        msg.textContent = '🎉 Your discount code: ' + data.discountCode + ' — page will refresh in 3 seconds.';
+        setTimeout(function() { window.location.reload(); }, 3000);
+      } else {
+        msg.className = 'rp-redeem-msg error';
+        msg.textContent = data.error || 'Failed to redeem. Please try again.';
+        btn.textContent = 'Redeem My Points';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      msg.className = 'rp-redeem-msg error';
+      msg.textContent = 'Network error. Please try again.';
+      btn.textContent = 'Redeem My Points';
+      btn.disabled = false;
+    }
+  }
+
+  // Load reward history.
+  // Strategy: read Shopify Metafield history (injected via Liquid) as the primary source —
+  // this restores all previously recorded history immediately. Then supplement with any
+  // newer entries from the DB API (records from after the new system was deployed).
+  async function loadHistory() {
+    var container = document.getElementById('rpHistoryContainer');
+    if (!container) return;
+
+    {% if customer %}
+
+    // --- Source 1: Metafield history (still populated from before the upgrade) ---
+    var metafieldHistory = [];
+    {% assign raw_history = customer.metafields.custom.reward_history.value %}
+    {% if raw_history != blank %}
+      {% for entry in raw_history %}
+        metafieldHistory.push({
+          createdAt: "{{ entry.date }}",
+          action: "{{ entry.action | escape }}",
+          status: "{{ entry.status | default: 'Approved' }}",
+          points: {{ entry.points | default: 0 }},
+          source: 'legacy'
+        });
+      {% endfor %}
+    {% endif %}
+
+    // --- Source 2: DB API history (new entries after the upgrade) ---
+    var dbHistory = [];
+    try {
+      // No customerId/shop query params — Shopify's App Proxy injects and signs
+      // its own logged_in_customer_id/shop on every forwarded request, and the
+      // backend trusts only those, never anything the client appends itself.
+      var response = await fetch('/apps/rewards/history');
+      var data = await response.json();
+      if (data.success && data.history.length > 0) {
+        dbHistory = data.history.map(function(e) {
+          return { createdAt: e.createdAt, action: e.action, status: e.status, points: e.points, source: 'db' };
+        });
+      }
+    } catch (err) {
+      // DB not yet set up — that's OK, metafield history still shows
+    }
+
+    // Merge: DB entries come first (newest), then legacy metafield entries
+    var combined = dbHistory.concat(metafieldHistory);
+
+    if (combined.length === 0) {
+      container.innerHTML = '<table class="rp-history-table"><tbody><tr><td colspan="4" style="text-align:center;padding:40px;color:#888;">No reward history yet. Make a purchase to start earning!</td></tr></tbody></table>';
+      return;
+    }
+
+    var rows = combined.map(function(event) {
+      var dateStr = '';
+      try {
+        dateStr = new Date(event.createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit', month: 'short', year: 'numeric'
+        });
+      } catch(e) { dateStr = event.createdAt || '—'; }
+      var ptsCls = event.points > 0 ? 'rp-points-plus' : 'rp-points-minus';
+      var ptsStr = (event.points > 0 ? '+' : '') + event.points;
+      var badgeCls = event.status === 'Approved' ? 'rp-badge-success' : 'rp-badge-neutral';
+      return '<tr>'
+        + '<td>' + dateStr + '</td>'
+        + '<td>' + event.action + '</td>'
+        + '<td><span class="rp-badge ' + badgeCls + '">' + event.status + '</span></td>'
+        + '<td class="' + ptsCls + '">' + ptsStr + '</td>'
+        + '</tr>';
+    }).join('');
+
+    container.innerHTML =
+      '<table class="rp-history-table">'
+      + '<thead><tr><th>Date</th><th>Action</th><th>Status</th><th style="text-align:right;">Points</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '</table>';
+
+    {% else %}
+    container.innerHTML = '';
+    {% endif %}
+  }
+
+  document.addEventListener('DOMContentLoaded', loadHistory);
+
+</script>
+
+{% schema %}
+{
+  "name": "Rewards Page Dashboard",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
