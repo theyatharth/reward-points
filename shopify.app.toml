@@ -2,7 +2,7 @@
 
 client_id = "8f0594c80b6d94776d96b472d9a8cecc"
 name = "Reward Points"
-application_url = "https://example.com"
+application_url = "https://rewards.platinuminfo.tech"
 embedded = true
 
 [build]
@@ -20,9 +20,9 @@ api_version = "2026-10"
 scopes = "write_customers, read_customers, write_products, read_discounts, write_discounts, read_orders"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://rewards.platinuminfo.tech/api/auth" ]
 
 [app_proxy]
-url = "https://example.com/api/proxy"
+url = "https://rewards.platinuminfo.tech/api/proxy"
 subpath = "rewards"
 prefix = "apps"
