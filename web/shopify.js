@@ -14,7 +14,7 @@ try {
   // dotenv not available — rely on real env vars set by the environment
 }
 
-import { LATEST_API_VERSION } from "@shopify/shopify-api";
+import { ApiVersion, LogSeverity } from "@shopify/shopify-api";
 import { shopifyApp } from "@shopify/shopify-app-express";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { restResources } from "@shopify/shopify-api/rest/admin/2024-10";
@@ -37,7 +37,7 @@ const sessionStorage = new PrismaSessionStorage(prisma);
 
 const shopify = shopifyApp({
   api: {
-    apiVersion: LATEST_API_VERSION,
+    apiVersion: ApiVersion.October24,
     restResources,
     future: {
       customerAddressDefaultFix: true,
@@ -45,6 +45,9 @@ const shopify = shopifyApp({
       unstable_managedPricingSupport: true,
     },
     billing: undefined,
+    logger: {
+      level: LogSeverity.Debug,
+    },
   },
   auth: {
     path: "/api/auth",
@@ -52,6 +55,14 @@ const shopify = shopifyApp({
   },
   webhooks: {
     path: "/api/webhooks",
+  },
+  future: {
+    tokenExchange: true,
+  },
+  hooks: {
+    afterAuth: async ({ session }) => {
+      await shopify.registerWebhooks({ session });
+    },
   },
   sessionStorage,
 });

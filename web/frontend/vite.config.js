@@ -45,6 +45,7 @@ if (host === "localhost") {
 }
 
 export default defineConfig({
+  base: "/reward-points/", // <--- ADD THIS EXACT LINE
   root: dirname(fileURLToPath(import.meta.url)),
   plugins: [react()],
   resolve: {

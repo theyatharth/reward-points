@@ -32,7 +32,7 @@ export default function HomePage() {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const response = await fetch("/api/settings");
+        const response = await fetch("/reward-points/api/settings");
         if (response.ok) {
           const data = await response.json();
           setSpendAmount(String(data.spendAmount));
@@ -79,7 +79,7 @@ export default function HomePage() {
     setIsSaving(true);
 
     try {
-      const response = await fetch("/api/settings", {
+      const response = await fetch("/reward-points/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ spendAmount, earnPoints, redeemPoints, discountValue }),

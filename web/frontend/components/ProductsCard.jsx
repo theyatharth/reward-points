@@ -17,7 +17,7 @@ export function ProductsCard() {
   } = useQuery({
     queryKey: ["productCount"],
     queryFn: async () => {
-      const response = await fetch("/api/products/count");
+      const response = await fetch("/reward-points/api/products/count");
       return await response.json();
     },
     refetchOnWindowFocus: false,
@@ -30,7 +30,7 @@ export function ProductsCard() {
 
   const handlePopulate = async () => {
     setPopulating(true);
-    const response = await fetch("/api/products", { method: "POST" });
+    const response = await fetch("/reward-points/api/products", { method: "POST" });
 
     if (response.ok) {
       await refetchProductCount();

@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@shopify/shopify-app-session-storage-prisma": "^9.0.1",
     "@shopify/ui-extensions": "2025.7.3",
     "@shopify/ui-extensions-react": "2025.7.3",
     "react-reconciler": "^0.33.0"

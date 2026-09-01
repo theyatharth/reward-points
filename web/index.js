@@ -47,7 +47,7 @@ app.use('/api/proxy', proxyRouter);
 // 4. AUTHENTICATED ADMIN ROUTES — All routes below require a valid Shopify
 //    admin session. shopify.validateAuthenticatedSession() enforces this.
 // ---------------------------------------------------------------------------
-app.use('/api/*', shopify.validateAuthenticatedSession());
+app.use('/api/*splat', shopify.validateAuthenticatedSession());
 app.use(express.json()); // JSON body parser for admin API routes
 
 // Mount all authenticated admin API routes under /api
@@ -59,7 +59,7 @@ app.use('/api', settingsRouter);
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 
-app.use('/*', shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
+app.use('/{*splat}', shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
   return res
     .status(200)
     .set('Content-Type', 'text/html')

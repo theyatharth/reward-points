@@ -15,7 +15,7 @@ export default function App() {
 
   return (
     <PolarisProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/reward-points">
         <QueryProvider>
           <NavMenu>
             <a href="/" rel="home" />
