@@ -140,3 +140,31 @@ export async function getClientForShop(shopifyConfig, shop) {
   if (!offlineSession) return null;
   return new shopifyConfig.api.clients.Graphql({ session: offlineSession });
 }
+/**
+ * Syncs the customer's pending (not-yet-spendable) points total and the
+ * date the earliest batch becomes available, so the storefront can show
+ * "X points pending" instead of leaving customers wondering why their
+ * balance didn't move after a purchase.
+ * @param {import('@shopify/shopify-api').GraphqlClient} client
+ * @param {string} shopifyGid
+ * @param {number} pendingTotal
+ * @param {Date | null} nextEligibleAt
+ */
+export async function syncPendingSummary(client, shopifyGid, pendingTotal, nextEligibleAt) {
+  return syncMetafields(client, [
+    {
+      ownerId: shopifyGid,
+      namespace: 'custom',
+      key: 'pending_points',
+      value: pendingTotal.toString(),
+      type: 'number_integer',
+    },
+    {
+      ownerId: shopifyGid,
+      namespace: 'custom',
+      key: 'pending_points_available_at',
+      value: nextEligibleAt ? nextEligibleAt.toISOString() : '',
+      type: 'single_line_text_field',
+    },
+  ]);
+}

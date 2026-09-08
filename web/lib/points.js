@@ -1,5 +1,10 @@
 // @ts-check
 import crypto from 'crypto';
+// How long earned points sit unspendable before becoming redeemable.
+// Long enough to cover a typical return/cancellation window, so that by
+// the time points are spendable, the order that earned them is very
+// unlikely to still be refunded.
+export const HOLD_PERIOD_DAYS = 30;
 
 /**
  * Calculates how many points a customer earns for a given order subtotal.

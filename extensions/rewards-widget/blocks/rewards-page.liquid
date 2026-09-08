@@ -13,6 +13,18 @@
         <span class="rp-balance-label">Available Balance</span>
         <div class="rp-balance-value">{{ current_points }} <span class="rp-pts">PTS</span></div>
       </div>
+      {% assign pending_points = customer.metafields.custom.pending_points.value | default: 0 | plus: 0 %}
+{% assign pending_available_at = customer.metafields.custom.pending_points_available_at.value | default: blank %}
+
+{% if pending_points > 0 %}
+  <div class="rp-pending-banner">
+    ⏳ <strong>{{ pending_points }} points pending</strong>
+    {% if pending_available_at != blank %}
+      — available on {{ pending_available_at | date: "%B %d, %Y" }}
+    {% endif %}
+    <span class="rp-pending-sub">New orders hold points for 30 days before they're spendable, to keep the rewards program fair for everyone.</span>
+  </div>
+{% endif %}
     </div>
 
     <!-- 2. Main Dashboard Grid -->
@@ -262,6 +274,7 @@
   .rp-badge-neutral { background: #f5f5f5; color: #666; }
   .rp-loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
 
+
   /* Logged Out */
   .rp-logged-out-hero { flex-direction: column; padding: 60px 20px; }
   .rp-btn-primary {
@@ -271,6 +284,17 @@
     transition: transform 0.2s;
   }
   .rp-btn-primary:hover { transform: translateY(-2px); }
+
+    .rp-pending-banner {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    color: #7a5c00;
+  }
+  .rp-pending-sub { display: block; font-size: 12px; color: #9c7a1a; margin-top: 4px; }
 </style>
 
 <script>

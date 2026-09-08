@@ -25,6 +25,26 @@ model CustomerPoint {
   @@index([shop])
 }
 
+// Points earned but not yet spendable. Created on ORDERS_PAID, held for
+// HOLD_PERIOD_DAYS, then either promoted into CustomerPoint.points (if the
+// order is still clean) or discarded (if refunded/cancelled first) — never
+// both. This is what prevents "order -> redeem instantly -> cancel" from
+// ever working: points aren't spendable until the return window has
+// realistically passed.
+model PendingPoint {
+  id                String   @id @default(uuid())
+  shopifyCustomerId String
+  shop              String
+  orderId           String
+  points            Int
+  eligibleAt        DateTime // createdAt + HOLD_PERIOD_DAYS — checked, not trusted blindly
+  createdAt         DateTime @default(now())
+
+  @@unique([orderId, shop])
+  @@index([shop, shopifyCustomerId])
+  @@index([eligibleAt])
+}
+
 // Reward points earn/redeem/adjust transaction ledger
 // Replaces the old Shopify Metafield-based history (which was capped at 20 entries)
 model PointTransaction {

@@ -8,6 +8,7 @@ import {
   generateDiscountCode,
 } from '../lib/points.js';
 import { syncBalanceAndCode, recordTransaction, getClientForShop } from '../lib/shopify-sync.js';
+import { promotePendingPoints } from '../lib/promotion.js';
 
 const router = express.Router();
 
@@ -203,6 +204,17 @@ router.post(
     const shopifyGid = res.locals.customerGid;
     const shop = res.locals.shop;
 
+    const shopify = (await import('../shopify.js')).default;
+
+    // Reconcile any points that came due before we look at the balance —
+    // this is what makes "spend a big order, redeem instantly, cancel"
+    // impossible: nothing is spendable here until it's survived the hold.
+    const client = await getClientForShop(
+      { sessionStorage: shopify.config.sessionStorage, api: shopify.api },
+      shop
+    );
+    await promotePendingPoints(shop, shopifyGid, async () => client);
+
     try {
       const settings =
         (await prisma.shopSettings.findUnique({ where: { shop } })) ||
@@ -242,11 +254,6 @@ router.post(
       }
       const newBalance = reserved[0].points;
 
-      const shopify = (await import('../shopify.js')).default;
-      const client = await getClientForShop(
-        { sessionStorage: shopify.config.sessionStorage, api: shopify.api },
-        shop
-      );
       if (!client) {
         await refundReservation(shop, shopifyGid, redemption.pointsToDeduct);
         return res.status(500).json({ error: 'Store session not found. Please reinstall the app.' });
@@ -287,7 +294,10 @@ router.post(
       // The code now genuinely exists in Shopify — points are truly spent.
       // Sync + history are best-effort from here on; their failure must NOT
       // re-credit points, since the customer already holds a real, usable code.
-      await syncBalanceAndCode(client, shopifyGid, newBalance, discountCode);
+      // Floor at 0 for the customer-facing metafield — real (possibly
+      // negative, in the rare post-hold-refund case) balance stays in the
+      // DB, only what's shown to the customer is ever clamped.
+      await syncBalanceAndCode(client, shopifyGid, Math.max(0, newBalance), discountCode);
 
       await recordTransaction(
         shopifyGid,
@@ -298,7 +308,7 @@ router.post(
 
       return res.json({
         success: true,
-        newBalance,
+        newBalance: Math.max(0, newBalance),
         discountCode,
       });
     } catch (error) {
@@ -319,6 +329,14 @@ router.get('/history', verifyAppProxySignature, requireLoggedInCustomer, async (
   const shop = res.locals.shop;
 
   try {
+    // Reconcile before returning history so a customer who's been away for
+    // 30+ days sees their pending points already promoted (or discarded)
+    // rather than stale rows sitting in an intermediate state.
+    const shopify = (await import('../shopify.js')).default;
+    await promotePendingPoints(shop, shopifyGid, () =>
+      getClientForShop({ sessionStorage: shopify.config.sessionStorage, api: shopify.api }, shop)
+    );
+
     const transactions = await prisma.pointTransaction.findMany({
       where: { shopifyCustomerId: shopifyGid, shop },
       orderBy: { createdAt: 'desc' },
