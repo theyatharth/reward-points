@@ -2,7 +2,8 @@
 
 client_id = "6e567e94d670cf3de3188db6baa5f026"
 name = "Reward Points"
-application_url = "https://shopify.platinuminfo.tech/reward-points"
+application_url = "https://integrations.platinuminfo.tech/reward-points"
+
 embedded = true
 
 [build]
@@ -20,10 +21,10 @@ api_version = "2026-10"
 scopes = "write_customers, read_customers, write_products, read_discounts, write_discounts, read_orders"
 
 [auth]
-redirect_urls = [ "https://shopify.platinuminfo.tech/reward-points/api/auth",
-  "https://shopify.platinuminfo.tech/reward-points/api/auth/callback"]
+redirect_urls = [ "https://integrations.platinuminfo.tech/reward-points/api/auth",
+  "https://integrations.platinuminfo.tech/reward-points/api/auth/callback"]
 
 [app_proxy]
-url = "https://shopify.platinuminfo.tech/reward-points/api/proxy"
+url = "https://integrations.platinuminfo.tech/reward-points/api/proxy"
 subpath = "rewards"
 prefix = "apps"

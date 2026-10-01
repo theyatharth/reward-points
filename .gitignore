@@ -51,3 +51,4 @@ prisma/generated/
 # gitignore pattern here, /generated/prisma, was meant for this but never
 # actually matched it.
 /generated/
+scripts/reconciliation-report-*.json

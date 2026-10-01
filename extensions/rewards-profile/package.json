@@ -1,9 +1,0 @@
-{
-  "name": "rewards-profile",
-  "private": true,
-  "dependencies": {
-    "@shopify/ui-extensions": "2025.7.3",
-    "@shopify/ui-extensions-react": "2025.7.3",
-    "react": "^18.3.1"
-  }
-}
