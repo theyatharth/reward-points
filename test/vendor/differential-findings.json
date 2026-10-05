@@ -1,0 +1,13 @@
+{
+  "summary": {
+    "total": 10000,
+    "matched": 10000,
+    "floatDefects": 0,
+    "unexplained": 0
+  },
+  "intendedDifferences": [
+    "Gift card + explicit discount_allocations: our engine uses Shopify allocations (559 pts); client engine uses proportional share (619 pts). Both tested explicitly in earning.test.js.",
+    "Refund: client engine rounds per-refund independently; our engine uses cumulative target. Difference ≤ N points for N partial refunds."
+  ],
+  "findings": []
+}

@@ -1,0 +1,33 @@
+{
+  "_note": "Shopify orders/paid webhook payload — no discount, no tax. Captured from platinum-ecofynd-test-store. Real emails/names removed.",
+  "_topic": "orders/paid",
+  "_captured": "Earlier session (pre-phase1)",
+  "_store": "platinum-ecofynd-test-store.myshopify.com",
+  "_currency": "USD",
+  "id": 5678901234567,
+  "admin_graphql_api_id": "gid://shopify/Order/5678901234567",
+  "name": "#1001",
+  "financial_status": "paid",
+  "processed_at": "2026-09-20T10:00:00+05:30",
+  "taxes_included": false,
+  "line_items": [
+    {
+      "id": 1001,
+      "title": "Test Product",
+      "quantity": 1,
+      "price": "100.00",
+      "gift_card": false,
+      "tax_lines": [],
+      "discount_allocations": []
+    }
+  ],
+  "shipping_lines": [
+    { "price": "0.00" }
+  ],
+  "customer": {
+    "id": 9001,
+    "admin_graphql_api_id": "gid://shopify/Customer/9001"
+  },
+  "order_adjustments": [],
+  "refund_line_items": []
+}

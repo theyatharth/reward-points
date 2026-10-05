@@ -1,0 +1,33 @@
+{
+  "_note": "Shopify orders/paid with 18% GST included (taxes_included:true). USD store, but tax-line mechanism is currency-neutral. Real emails/names removed. Used for T1.5 GST arithmetic test.",
+  "_topic": "orders/paid",
+  "_captured": "Phase 1 prep session",
+  "_store": "platinum-ecofynd-test-store.myshopify.com",
+  "_currency": "USD",
+  "_fixture_intent": "Proves taxes_included handling. ₹419 equivalent: full price minus 5% GST = 399 pts. USD values used here; INR arithmetic covered by T1.5 unit tests.",
+  "id": 5678901234568,
+  "admin_graphql_api_id": "gid://shopify/Order/5678901234568",
+  "name": "#1002",
+  "financial_status": "paid",
+  "processed_at": "2026-09-22T10:00:00+05:30",
+  "taxes_included": true,
+  "line_items": [
+    {
+      "id": 1002,
+      "title": "GST Product",
+      "quantity": 1,
+      "price": "419.00",
+      "gift_card": false,
+      "tax_lines": [
+        { "title": "GST", "rate": 0.18, "price": "64.12", "price_set": { "shop_money": { "amount": "64.12", "currency_code": "USD" } } }
+      ],
+      "discount_allocations": []
+    }
+  ],
+  "shipping_lines": [{ "price": "0.00" }],
+  "customer": {
+    "id": 9001,
+    "admin_graphql_api_id": "gid://shopify/Customer/9001"
+  },
+  "order_adjustments": []
+}

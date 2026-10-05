@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [phase1]
+  pull_request:
+    branches: [phase1, main]
+
+jobs:
+  test:
+    name: Test (Node 22, Postgres 17)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: reward_points_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # The test database — name MUST end in _test (enforced by test/runner.js)
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reward_points_ci_test?schema=public
+      # The migration database — same DB, used by prisma migrate deploy
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reward_points_ci_test?schema=public
+      # Prevent any accidental writes to real databases
+      PROTECTED_DATABASES: reward_points
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install web dependencies
+        run: npm ci --ignore-scripts
+        working-directory: web
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: .
+
+      - name: Run migrations on CI test database
+        run: npx prisma migrate deploy
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reward_points_ci_test?schema=public
+
+      - name: Run test suite
+        run: npm test
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reward_points_ci_test?schema=public
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reward_points_ci_test?schema=public
+          PROTECTED_DATABASES: reward_points
+          NODE_ENV: test

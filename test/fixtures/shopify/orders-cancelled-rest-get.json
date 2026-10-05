@@ -1,0 +1,34 @@
+{
+  "_note": "Shopify orders/cancelled payload. Source: REST GET /orders/{id}.json — NOT a live webhook delivery (live orders/cancelled webhook pending, to be triggered once the dev app subscribes — T2.2). Real emails/names removed.",
+  "_topic": "orders/cancelled",
+  "_captured": "Phase 1 prep session via REST GET",
+  "_store": "platinum-ecofynd-test-store.myshopify.com",
+  "_currency": "USD",
+  "_fixture_intent": "Cancellation payload structure. cancel adapter will also be validated against one live orders/cancelled delivery (T2.2).",
+  "id": 5678901234571,
+  "admin_graphql_api_id": "gid://shopify/Order/5678901234571",
+  "name": "#1005",
+  "financial_status": "paid",
+  "cancel_reason": "customer",
+  "cancelled_at": "2026-09-25T10:00:00+05:30",
+  "processed_at": "2026-09-24T09:00:00+05:30",
+  "taxes_included": false,
+  "line_items": [
+    {
+      "id": 1006,
+      "title": "Cancelled Product",
+      "quantity": 1,
+      "price": "200.00",
+      "gift_card": false,
+      "tax_lines": [],
+      "discount_allocations": []
+    }
+  ],
+  "shipping_lines": [{ "price": "0.00" }],
+  "customer": {
+    "id": 9001,
+    "admin_graphql_api_id": "gid://shopify/Customer/9001"
+  },
+  "refunds": [],
+  "order_adjustments": []
+}

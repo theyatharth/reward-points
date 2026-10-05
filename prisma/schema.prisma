@@ -8,6 +8,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =============================================================================
+// EXISTING TABLES — kept in place until M5 cutover migration drops them.
+// =============================================================================
+
 // Stores the rolling point balance per customer per shop.
 // shopifyCustomerId is only unique WITHIN a shop — the same numeric Shopify
 // customer ID can legitimately exist on two different stores, so the old
@@ -141,4 +145,384 @@ model ShopSettings {
   discountValue Int      @default(10)   // To get this much discount (in store currency)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// =============================================================================
+// NEW TABLES — M1 Phase 1 schema
+// All amounts are integer paise (smallest currency unit).
+// =============================================================================
+
+// Per-shop loyalty program configuration.
+// Editable from the admin Rules page; every change is recorded in AuditLog.
+model LoyaltyConfig {
+  id     String @id @default(uuid())
+  shop   String @unique
+
+  // Earning rule
+  earnMode          String  @default("per_currency_unit") // "per_currency_unit" | "fixed_per_order"
+  pointsPerUnit     Int     @default(1)   // points earned per 1 unit of currency (paise)
+  taxHandling       String  @default("exclusive") // "inclusive" | "exclusive"
+  shippingEarning   Boolean @default(false)
+  pointsRounding    String  @default("floor") // "floor" | "round" | "block"
+
+  // Redemption rule
+  pointsPerReward   Int     @default(100)  // points needed to earn one reward
+  rewardValue       Int     @default(1000) // reward value in paise (e.g. 1000 = ₹10)
+  rewardExpiryDays  Int     @default(90)   // days until a Shopify discount code expires
+
+  // Holding period before earned points become spendable (anti-fraud)
+  holdPeriodDays    Int     @default(30)
+
+  // Shortfall policy: what to do when the customer owes points
+  // Phase 1: "owe_only" — no write-off, owed balance stays until paid off
+  shortfallPolicy   String  @default("owe_only")
+
+  // Phase 1 restrictions (not yet configurable):
+  //   campaignEnabled = false (always)
+  //   expiryEnabled   = false (always; rewardExpiryDays is for discount codes only)
+  campaignEnabled   Boolean @default(false)
+  expiryEnabled     Boolean @default(false)
+
+  // When new ledger entries start being recorded. Orders paid before this
+  // timestamp are ignored ("predates the ledger"). Set at M5 cutover.
+  ledgerStartAt     DateTime?
+
+  // Which currency the store uses (e.g. "INR"). Stored for display; all
+  // arithmetic uses integer paise regardless of currency.
+  currency          String  @default("INR")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts LoyaltyAccount[]
+}
+
+// Per-customer loyalty account. One row per (shop, shopifyCustomerId).
+// Balances are in integer points; amounts in paise.
+model LoyaltyAccount {
+  id                String @id @default(uuid())
+  shop              String
+  shopifyCustomerId String // Shopify numeric customer ID (string for safety)
+
+  // Point balances
+  available Int @default(0) // spendable points (may be negative: owed balance)
+  pending   Int @default(0) // earned but not yet spendable
+  debt      Int @default(0) // points owed from overspend; always >= 0
+
+  config   LoyaltyConfig @relation(fields: [shop], references: [shop])
+  entries  LedgerEntry[]
+  lots     PointLot[]
+  orders   LoyaltyOrder[]
+  refunds  LoyaltyRefund[]
+  redemptions Redemption[]
+  rewards  Reward[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, shopifyCustomerId])
+  @@index([shop])
+}
+
+// Immutable point ledger. Rows are never updated (except status) or deleted.
+// A trigger enforces this at the database level (T1.2).
+model LedgerEntry {
+  id        String @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+
+  // Entry kind:
+  //   earn          — points earned from an order (held in a PointLot)
+  //   activate      — pending lot promoted to available
+  //   refund        — points reversed for a refund
+  //   cancel        — points reversed for an order cancellation
+  //   reward_return — points returned when a discount code expires unused (J2)
+  //   redemption    — points deducted when a reward code is created
+  //   adjustment    — manual admin adjustment
+  //   owe           — debt entry when a refund exceeds available balance
+  type      String
+
+  // Signed point change (positive = gain, negative = loss)
+  points    Int
+
+  // Processing status (the ONLY mutable column):
+  //   pending  — earned, not yet spendable (lot still in hold period)
+  //   active   — spendable
+  //   reversed — cancelled by a later refund/cancel event
+  //   dead     — permanently skipped (pre-ledger order, webhook parse error)
+  //   skipped  — event stored but intentionally not processed (e.g. predates ledger)
+  status    String @default("active")
+
+  // De-duplication key: prevents the same logical event from being applied twice.
+  // Format depends on type:
+  //   earn/activate: "earn:{shopifyOrderId}"
+  //   refund: "refund:{shopifyRefundId}"
+  //   cancel: "cancel:{shopifyOrderId}"
+  //   redemption: caller-supplied idempotency key
+  //   adjustment: "adjust:{adminUserId}:{timestamp}"
+  dedupeKey String?
+
+  // Human-readable note (shown in admin history)
+  note      String?
+
+  // Links to related rows (nullable — not all entry types have all links)
+  lotId       String?
+  lot         PointLot?   @relation(fields: [lotId], references: [id])
+  orderId     String?     // LoyaltyOrder.id (not Shopify order ID)
+  refundId    String?     // LoyaltyRefund.id
+  redemptionId String?    // Redemption.id
+  rewardId    String?     // Reward.id (reward_return type)
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([dedupeKey])
+}
+
+// A "lot" of points earned from a single order. Points sit in the lot during
+// the hold period, then are consumed (oldest first) when points are redeemed
+// or lost when the order is refunded/cancelled.
+model PointLot {
+  id        String @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+
+  originalPoints Int       // points created when the order was paid
+  remaining      Int       // points not yet consumed or reversed; always >= 0
+  status         String    @default("pending") // "pending" | "active" | "exhausted" | "cancelled"
+
+  // The Shopify order ID that created this lot (for look-up and dedup)
+  shopifyOrderId String
+
+  // When the hold period ends and the lot becomes spendable
+  activatesAt    DateTime
+
+  entries  LedgerEntry[]
+  orders   LoyaltyOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId, status])
+  @@index([activatesAt])
+}
+
+// Record of a processed orders/paid event.
+// One row per Shopify order (per account). The dedupeKey on LedgerEntry
+// handles the idempotency; this table is for look-up (T2.8 pre-ledger check).
+model LoyaltyOrder {
+  id        String @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+
+  shopifyOrderId   String
+  shop             String
+  pointsEarned     Int      // gross points before any reversal
+  eligibleAmountPaise Int   // order value used for the earning calculation
+  processedAt      DateTime // Shopify's processed_at (UTC)
+
+  lot      PointLot? @relation(fields: [lotId], references: [id])
+  lotId    String?
+  refunds  LoyaltyRefund[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([shop, shopifyOrderId])
+  @@index([accountId])
+}
+
+// Record of a processed refunds/create or orders/cancelled event.
+// One row per Shopify refund event processed (a single order may have many).
+model LoyaltyRefund {
+  id        String @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+
+  shopifyRefundId  String?  // null for cancellations
+  shopifyOrderId   String
+  shop             String
+  pointsReversed   Int      // total points reversed by this refund event
+  refundAmountPaise Int     // refund value in paise used for the reversal calc
+  isFullCancellation Boolean @default(false)
+
+  loyaltyOrder   LoyaltyOrder? @relation(fields: [loyaltyOrderId], references: [id])
+  loyaltyOrderId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([shopifyOrderId])
+}
+
+// A redemption: points deducted, Shopify discount code created.
+// Once inserted as "creating", the Shopify call is made; on success the row
+// is updated to "active". On failure a compensating reward_return LedgerEntry
+// is written instead.
+model Redemption {
+  id        String @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+  shop      String
+
+  // Caller-supplied idempotency key (scoped per account)
+  idempotencyKey String
+
+  pointsUsed     Int      // points deducted
+  rewardValuePaise Int    // discount value in paise
+
+  status         String @default("creating") // "creating" | "active" | "failed" | "expired" | "used"
+
+  // Shopify discount code details (set after successful creation)
+  discountCode   String?
+  discountCodeId String?
+  expiresAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, idempotencyKey])
+  @@index([shop])
+}
+
+// A reward: a Shopify discount code issued to a customer.
+// Separate from Redemption to track the code lifecycle independently.
+// reward_return entries reference this table (J2: return points on expiry).
+model Reward {
+  id        String @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+  shop      String
+
+  discountCode   String
+  discountCodeId String
+  valueInPaise   Int
+  pointsUsed     Int
+
+  status    String @default("active") // "active" | "used" | "expired" | "returned"
+  expiresAt DateTime?
+  usedAt    DateTime?
+  returnedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId])
+  @@index([shop, status])
+}
+
+// Raw webhook event store. Every incoming webhook is stored here BEFORE
+// dispatch — store first, acknowledge 200, then process. Enables retry and
+// audit of every event we ever received.
+model WebhookEvent {
+  id   String @id @default(uuid())
+  shop String
+
+  // Shopify's X-Shopify-Webhook-Id header value. Used for duplicate detection.
+  shopifyWebhookId String?
+
+  topic     String   // e.g. "orders/paid", "refunds/create"
+  payload   Json     // raw parsed JSON body
+
+  // Processing status
+  status    String  @default("pending") // "pending" | "processing" | "processed" | "failed" | "dead" | "skipped"
+  attempts  Int     @default(0)
+
+  // Next retry time (null if not yet scheduled or already terminal)
+  nextRetryAt DateTime?
+
+  // Error from the last failed attempt
+  lastError   String?
+
+  // The LedgerEntry that was created for this event (for tracing)
+  ledgerEntryId String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([shop, status])
+  @@index([shopifyWebhookId])
+  @@index([nextRetryAt])
+}
+
+// Immutable audit log. Records every config change and admin action.
+// An insert-only trigger at the database level enforces immutability (T1.2).
+model AuditLog {
+  id        String @id @default(uuid())
+  shop      String
+  adminId   String?  // AdminUser.id (null for system events)
+  admin     AdminUser? @relation(fields: [adminId], references: [id])
+
+  // What changed: "config_change" | "admin_login" | "admin_logout" |
+  //               "adjustment" | "redemption_override" | ...
+  action    String
+
+  // For config changes: JSON of { key, oldValue, newValue } per key
+  detail    Json?
+
+  // IP address of the request (for admin actions)
+  ip        String?
+
+  createdAt DateTime @default(now())
+
+  @@index([shop])
+  @@index([adminId])
+}
+
+// Admin users for the standalone /reward-points/admin UI.
+// Passwords are hashed with argon2 (or scrypt fallback).
+model AdminUser {
+  id        String @id @default(uuid())
+  shop      String
+  email     String
+
+  passwordHash String
+  // Must change on first login (set to true for newly-created users)
+  mustChangePassword Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions  AdminSession[]
+  auditLogs AuditLog[]
+
+  @@unique([shop, email])
+  @@index([shop])
+}
+
+// Admin login sessions (cookie-backed, server-side).
+model AdminSession {
+  id      String @id @default(uuid())
+  userId  String
+  user    AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique // random session token stored in httpOnly cookie
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Background job execution log.
+// The worker loop inserts a row before running a job and updates it on
+// completion. Used to detect stuck jobs and for admin visibility.
+model JobRun {
+  id      String @id @default(uuid())
+  shop    String?
+
+  jobType String   // e.g. "activate_lots", "retry_events", "reconcile"
+  status  String   @default("running") // "running" | "completed" | "failed"
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  error       String?
+
+  // Structured output / summary from the job
+  result  Json?
+
+  @@index([jobType, status])
+  @@index([startedAt])
 }

@@ -1,0 +1,168 @@
+// web/loyalty/rules/config.js
+//
+// T1.4: Loyalty program configuration — defaults, validation, Phase 1
+// restrictions, and a flatten-and-diff helper for audit records.
+//
+// No database, no Shopify, no clock — pure functions only.
+
+/**
+ * Phase 1 default configuration values.
+ * These match the client's prototype defaults and the live settings
+ * (spend 100, earn 100 points, redeem 100 pts for ₹10) seeded at M5.
+ */
+export const DEFAULT_CONFIG = {
+  earnMode: 'per_currency_unit',  // 'per_currency_unit' | 'fixed_per_order'
+  pointsPerUnit: 1,               // 1 point per ₹1 (1 point per 100 paise)
+  taxHandling: 'exclusive',       // 'inclusive' | 'exclusive'
+  shippingEarning: false,
+  pointsRounding: 'floor',        // 'floor' | 'round' | 'block'
+
+  pointsPerReward: 100,           // 100 points = 1 reward
+  rewardValue: 1000,              // 1 reward = ₹10 (1000 paise)
+  rewardExpiryDays: 90,           // discount code expires after 90 days
+
+  holdPeriodDays: 30,             // 30-day hold before points are spendable
+
+  shortfallPolicy: 'owe_only',    // Phase 1 only: owed balance stays until paid
+
+  // Phase 1 restrictions — these cannot be changed via the admin UI:
+  campaignEnabled: false,
+  expiryEnabled: false,           // reward expiry is for discount codes only
+
+  currency: 'INR',
+  ledgerStartAt: null,            // set at M5 cutover
+};
+
+// ---------------------------------------------------------------------------
+// Phase 1 restrictions: these fields cannot be changed even if supplied.
+// ---------------------------------------------------------------------------
+const PHASE1_LOCKED = {
+  campaignEnabled: false,
+  expiryEnabled: false,
+  shortfallPolicy: 'owe_only',
+};
+
+const VALID_EARN_MODES    = ['per_currency_unit', 'fixed_per_order'];
+const VALID_TAX_HANDLING  = ['inclusive', 'exclusive'];
+const VALID_ROUNDING      = ['floor', 'round', 'block'];
+const VALID_SHORTFALL     = ['owe_only'];
+
+/**
+ * Validate and normalise an incoming config change object.
+ *
+ * Throws a descriptive Error for any invalid value.
+ * Silently enforces Phase 1 locked fields (they are not user-changeable).
+ *
+ * @param {Partial<typeof DEFAULT_CONFIG>} incoming
+ * @param {typeof DEFAULT_CONFIG} [current] - existing config (defaults to DEFAULT_CONFIG)
+ * @returns {typeof DEFAULT_CONFIG} normalised, fully-populated config
+ */
+export function validateConfig(incoming, current = DEFAULT_CONFIG) {
+  const merged = { ...current, ...incoming };
+
+  // Enforce Phase 1 locked values regardless of what was supplied.
+  Object.assign(merged, PHASE1_LOCKED);
+
+  // earnMode
+  if (!VALID_EARN_MODES.includes(merged.earnMode)) {
+    throw new Error(`[config] earnMode must be one of: ${VALID_EARN_MODES.join(', ')} (got "${merged.earnMode}")`);
+  }
+
+  // pointsPerUnit: must be a positive integer
+  if (!Number.isInteger(merged.pointsPerUnit) || merged.pointsPerUnit < 1) {
+    throw new Error(`[config] pointsPerUnit must be a positive integer (got ${merged.pointsPerUnit})`);
+  }
+
+  // taxHandling
+  if (!VALID_TAX_HANDLING.includes(merged.taxHandling)) {
+    throw new Error(`[config] taxHandling must be one of: ${VALID_TAX_HANDLING.join(', ')} (got "${merged.taxHandling}")`);
+  }
+
+  // shippingEarning: boolean
+  if (typeof merged.shippingEarning !== 'boolean') {
+    throw new Error(`[config] shippingEarning must be a boolean (got ${typeof merged.shippingEarning})`);
+  }
+
+  // pointsRounding
+  if (!VALID_ROUNDING.includes(merged.pointsRounding)) {
+    throw new Error(`[config] pointsRounding must be one of: ${VALID_ROUNDING.join(', ')} (got "${merged.pointsRounding}")`);
+  }
+
+  // pointsPerReward: positive integer
+  if (!Number.isInteger(merged.pointsPerReward) || merged.pointsPerReward < 1) {
+    throw new Error(`[config] pointsPerReward must be a positive integer (got ${merged.pointsPerReward})`);
+  }
+
+  // rewardValue: positive integer paise
+  if (!Number.isInteger(merged.rewardValue) || merged.rewardValue < 1) {
+    throw new Error(`[config] rewardValue must be a positive integer (paise) (got ${merged.rewardValue})`);
+  }
+
+  // rewardExpiryDays: positive integer
+  if (!Number.isInteger(merged.rewardExpiryDays) || merged.rewardExpiryDays < 1) {
+    throw new Error(`[config] rewardExpiryDays must be a positive integer (got ${merged.rewardExpiryDays})`);
+  }
+
+  // holdPeriodDays: non-negative integer
+  if (!Number.isInteger(merged.holdPeriodDays) || merged.holdPeriodDays < 0) {
+    throw new Error(`[config] holdPeriodDays must be a non-negative integer (got ${merged.holdPeriodDays})`);
+  }
+
+  // shortfallPolicy (Phase 1: always owe_only — locked above, validated for completeness)
+  if (!VALID_SHORTFALL.includes(merged.shortfallPolicy)) {
+    throw new Error(`[config] shortfallPolicy must be one of: ${VALID_SHORTFALL.join(', ')} (got "${merged.shortfallPolicy}")`);
+  }
+
+  // ledgerStartAt: Date, null, or ISO string
+  if (merged.ledgerStartAt !== null && merged.ledgerStartAt !== undefined) {
+    const d = merged.ledgerStartAt instanceof Date
+      ? merged.ledgerStartAt
+      : new Date(merged.ledgerStartAt);
+    if (isNaN(d.getTime())) {
+      throw new Error(`[config] ledgerStartAt must be a valid date (got "${merged.ledgerStartAt}")`);
+    }
+    merged.ledgerStartAt = d;
+  } else {
+    merged.ledgerStartAt = null;
+  }
+
+  // currency: non-empty string
+  if (typeof merged.currency !== 'string' || merged.currency.trim() === '') {
+    throw new Error(`[config] currency must be a non-empty string (got "${merged.currency}")`);
+  }
+
+  return merged;
+}
+
+/**
+ * Flatten a config object to a map of key → value pairs, then diff two
+ * flattened configs and return an array of per-key audit records.
+ *
+ * Each audit record is:
+ *   { key: string, oldValue: any, newValue: any }
+ *
+ * Only changed keys are included.
+ *
+ * @param {typeof DEFAULT_CONFIG} oldConfig
+ * @param {typeof DEFAULT_CONFIG} newConfig
+ * @returns {Array<{ key: string, oldValue: any, newValue: any }>}
+ */
+export function diffConfig(oldConfig, newConfig) {
+  const changes = [];
+  const allKeys = new Set([...Object.keys(oldConfig), ...Object.keys(newConfig)]);
+
+  for (const key of allKeys) {
+    const oldVal = oldConfig[key];
+    const newVal = newConfig[key];
+
+    // Compare by value (handle Date objects and primitives)
+    const oldStr = oldVal instanceof Date ? oldVal.toISOString() : String(oldVal);
+    const newStr = newVal instanceof Date ? newVal.toISOString() : String(newVal);
+
+    if (oldStr !== newStr) {
+      changes.push({ key, oldValue: oldVal, newValue: newVal });
+    }
+  }
+
+  return changes;
+}

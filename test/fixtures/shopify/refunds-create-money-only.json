@@ -1,0 +1,28 @@
+{
+  "_note": "Shopify refunds/create — money-only refund (no line items). refund_line_items:[] confirms this reverses no points. Captured from platinum-ecofynd-test-store. Real emails/names removed.",
+  "_topic": "refunds/create",
+  "_captured": "Earlier session (pre-phase1)",
+  "_store": "platinum-ecofynd-test-store.myshopify.com",
+  "id": 1100000001,
+  "order_id": 5678901234567,
+  "admin_graphql_api_id": "gid://shopify/Refund/1100000001",
+  "created_at": "2026-09-21T10:00:00+05:30",
+  "refund_line_items": [],
+  "order_adjustments": [
+    {
+      "id": 1,
+      "amount": "-50.00",
+      "tax_amount": "0.00",
+      "kind": "shipping_refund",
+      "reason": "Shipping refund"
+    }
+  ],
+  "transactions": [
+    {
+      "id": 2001,
+      "amount": "50.00",
+      "kind": "refund",
+      "status": "success"
+    }
+  ]
+}

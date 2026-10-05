@@ -1,0 +1,36 @@
+{
+  "_note": "Shopify orders/paid with 10% discount across all lines. discount_allocations shows the allocation per line. Real emails/names removed. Confirms J4: discount allocations touch only non-gift-card lines.",
+  "_topic": "orders/paid",
+  "_captured": "Phase 1 prep session",
+  "_store": "platinum-ecofynd-test-store.myshopify.com",
+  "_currency": "USD",
+  "_fixture_intent": "10% discount. allocation is explicit on the line so earning.js uses it directly, not proportional share.",
+  "id": 5678901234569,
+  "admin_graphql_api_id": "gid://shopify/Order/5678901234569",
+  "name": "#1003",
+  "financial_status": "paid",
+  "processed_at": "2026-09-23T10:00:00+05:30",
+  "taxes_included": false,
+  "line_items": [
+    {
+      "id": 1003,
+      "title": "Discounted Product",
+      "quantity": 2,
+      "price": "50.00",
+      "gift_card": false,
+      "tax_lines": [],
+      "discount_allocations": [
+        { "amount": "10.00", "discount_application_index": 0 }
+      ]
+    }
+  ],
+  "shipping_lines": [{ "price": "0.00" }],
+  "discount_applications": [
+    { "type": "discount_code", "value": "10.0", "value_type": "percentage", "target_type": "line_item", "target_selection": "all" }
+  ],
+  "customer": {
+    "id": 9001,
+    "admin_graphql_api_id": "gid://shopify/Customer/9001"
+  },
+  "order_adjustments": []
+}

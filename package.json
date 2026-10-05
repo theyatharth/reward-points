@@ -1,6 +1,7 @@
 {
   "name": "reward-points",
   "version": "1.0.0",
+  "type": "module",
   "main": "web/index.js",
   "license": "UNLICENSED",
   "scripts": {
@@ -9,7 +10,8 @@
     "dev": "shopify app dev",
     "info": "shopify app info",
     "generate": "shopify app generate",
-    "deploy": "shopify app deploy"
+    "deploy": "shopify app deploy",
+    "test": "node --test --experimental-test-isolation=none test/runner.js test/**/*.test.js"
   },
   "author": "kritinjoshi",
   "private": true,
@@ -24,6 +26,7 @@
     "prisma": "^6.19.3"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
     "@prisma/client": "^6.19.3",
     "@shopify/shopify-app-session-storage-prisma": "^9.0.1",
     "@shopify/ui-extensions": "2025.7.3",

@@ -1,0 +1,29 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "6e567e94d670cf3de3188db6baa5f026"
+name = "Reward Points"
+application_url = "https://shopify.platinuminfo.tech/reward-points"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks"
+  topics = [ "app/uninstalled", "orders/paid", "refunds/create" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_customers, read_customers, write_products, read_discounts, write_discounts, read_orders"
+
+[auth]
+redirect_urls = [ "https://shopify.platinuminfo.tech/reward-points/api/auth",
+  "https://shopify.platinuminfo.tech/reward-points/api/auth/callback"]
+
+[app_proxy]
+url = "https://shopify.platinuminfo.tech/reward-points/api/proxy"
+subpath = "rewards"
+prefix = "apps"

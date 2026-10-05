@@ -1,0 +1,45 @@
+{
+  "_note": "Shopify orders/paid with a gift card + discount. KEY FINDING (J4): discount_allocations is EMPTY on the gift-card line even though target_selection:'all'. The client's prototype test (619 pts) is wrong for real orders; real fixture asserts 559 pts. Real emails/names removed.",
+  "_topic": "orders/paid",
+  "_captured": "Phase 1 prep session",
+  "_store": "platinum-ecofynd-test-store.myshopify.com",
+  "_currency": "USD",
+  "_fixture_intent": "Gift card line has no discount_allocations. Product line has $50 allocation. Expected earning: (499 - 50) + 110 = 559 pts.",
+  "id": 5678901234570,
+  "admin_graphql_api_id": "gid://shopify/Order/5678901234570",
+  "name": "#1004",
+  "financial_status": "paid",
+  "processed_at": "2026-09-24T10:00:00+05:30",
+  "taxes_included": false,
+  "line_items": [
+    {
+      "id": 1004,
+      "title": "Physical Product",
+      "quantity": 1,
+      "price": "499.00",
+      "gift_card": false,
+      "tax_lines": [],
+      "discount_allocations": [
+        { "amount": "50.00", "discount_application_index": 0 }
+      ]
+    },
+    {
+      "id": 1005,
+      "title": "Gift Card",
+      "quantity": 1,
+      "price": "110.00",
+      "gift_card": true,
+      "tax_lines": [],
+      "discount_allocations": []
+    }
+  ],
+  "shipping_lines": [{ "price": "0.00" }],
+  "discount_applications": [
+    { "type": "discount_code", "value": "50.0", "value_type": "fixed_amount", "target_type": "line_item", "target_selection": "all" }
+  ],
+  "customer": {
+    "id": 9001,
+    "admin_graphql_api_id": "gid://shopify/Customer/9001"
+  },
+  "order_adjustments": []
+}

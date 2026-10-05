@@ -33,7 +33,14 @@ import { calculateEarnedPoints } from '../web/lib/points.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const SHOP = 'eco-fynd.myshopify.com';
+// --shop <myshopify-domain> is required
+const shopArg = process.argv.find((a) => a.startsWith('--shop='))?.slice(7)
+  ?? (process.argv[process.argv.indexOf('--shop') + 1]);
+if (!shopArg || shopArg.startsWith('--')) {
+  console.error('Usage: node scripts/reconcile-missing-orders.mjs --shop <myshopify-domain>');
+  process.exit(1);
+}
+const SHOP = shopArg;
 const START_DATE = '2026-09-08T00:00:00Z';
 
 async function main() {

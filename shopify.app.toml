@@ -1,8 +1,15 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+# Development app configuration.
+# This file is the DEFAULT Shopify CLI config — `shopify app dev` and a bare
+# `shopify app deploy` use it.  Production deploys require --config prod.
+#
+# client_id: set this to the development Partner app's client_id once you
+# create it in the Partner Dashboard.  The production client_id (6e567e94…)
+# lives in shopify.app.prod.toml only.
 
-client_id = "6e567e94d670cf3de3188db6baa5f026"
-name = "Reward Points"
-application_url = "https://shopify.platinuminfo.tech/reward-points"
+client_id = "REPLACE_WITH_DEV_APP_CLIENT_ID"
+name = "Reward Points (Dev)"
+application_url = "https://integrations.platinuminfo.tech/reward-points-dev"
+
 embedded = true
 
 [build]
@@ -13,17 +20,19 @@ api_version = "2026-10"
 
   [[webhooks.subscriptions]]
   uri = "/api/webhooks"
-  topics = [ "app/uninstalled", "orders/paid", "refunds/create" ]
+  topics = [ "app/uninstalled", "orders/paid", "refunds/create", "orders/cancelled",
+             "customers/redact", "shop/redact", "customers/data_request" ]
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_customers, read_customers, write_products, read_discounts, write_discounts, read_orders"
 
 [auth]
-redirect_urls = [ "https://shopify.platinuminfo.tech/reward-points/api/auth",
-  "https://shopify.platinuminfo.tech/reward-points/api/auth/callback"]
+redirect_urls = [
+  "https://integrations.platinuminfo.tech/reward-points-dev/api/auth",
+  "https://integrations.platinuminfo.tech/reward-points-dev/api/auth/callback"
+]
 
 [app_proxy]
-url = "https://shopify.platinuminfo.tech/reward-points/api/proxy"
+url = "https://integrations.platinuminfo.tech/reward-points-dev/api/proxy"
 subpath = "rewards"
 prefix = "apps"

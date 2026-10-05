@@ -39,7 +39,14 @@ const args = process.argv.slice(2);
 const isLive = args.includes('--live') && !args.includes('--dry-run');
 const isDryRun = !isLive;
 
-const SHOP = 'eco-fynd.myshopify.com';
+// --shop <myshopify-domain> is required
+const shopArg = args.find((a) => a.startsWith('--shop='))?.slice(7)
+  ?? (args[args.indexOf('--shop') + 1]);
+if (!shopArg || shopArg.startsWith('--')) {
+  console.error('Usage: node scripts/backfill-missing-orders.mjs --shop <myshopify-domain> [--live|--dry-run]');
+  process.exit(1);
+}
+const SHOP = shopArg;
 const BACKFILL_NOTE = 'Backfill: Sep 8-25 outage';
 
 function findLatestReport() {

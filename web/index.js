@@ -11,6 +11,14 @@ import settingsRouter from './routes/settings.routes.js';
 
 const PORT = parseInt(process.env.BACKEND_PORT || process.env.PORT || '3000', 10);
 
+// ---------------------------------------------------------------------------
+// APP_BASE_PATH — everything that depends on where the app is mounted is
+// derived from this one variable.  Set it in .env:
+//   /reward-points      (production)
+//   /reward-points-dev  (development)
+// ---------------------------------------------------------------------------
+const BASE_PATH = (process.env.APP_BASE_PATH || '/reward-points').replace(/\/$/, '');
+
 const STATIC_PATH =
   process.env.NODE_ENV === 'production'
     ? `${process.cwd()}/frontend/dist`
@@ -67,9 +75,12 @@ app.use('/{*splat}', shopify.ensureInstalledOnShop(), async (_req, res, _next) =
       readFileSync(join(STATIC_PATH, 'index.html'))
         .toString()
         .replace('%VITE_SHOPIFY_API_KEY%', process.env.SHOPIFY_API_KEY || '')
+        .replace('%VITE_APP_BASE_PATH%', BASE_PATH)
     );
 });
 
-app.listen(PORT, () => {
-  console.log(`Reward Points backend listening on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Reward Points backend listening on port ${PORT} (base path: ${BASE_PATH})`);
 });
+
+export { BASE_PATH };
