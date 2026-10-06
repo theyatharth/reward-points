@@ -74,6 +74,8 @@ export function computeEarning(input) {
   let eligiblePaise = 0;
 
   for (const line of lineItems) {
+    if (line.is_gift_card) continue;
+    
     const unitPricePaise = parsePaise(line.price);
     const qty = line.quantity || 1;
     let linePaise = unitPricePaise * qty;

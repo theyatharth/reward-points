@@ -6,14 +6,14 @@
 # create it in the Partner Dashboard.  The production client_id (6e567e94…)
 # lives in shopify.app.prod.toml only.
 
-client_id = "REPLACE_WITH_DEV_APP_CLIENT_ID"
+client_id = "0f07160caeafdddae72336eb51421e05"
 name = "Reward Points (Dev)"
 application_url = "https://integrations.platinuminfo.tech/reward-points-dev"
 
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2026-10"

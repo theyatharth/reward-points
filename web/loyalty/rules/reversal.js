@@ -28,9 +28,9 @@
  * @param {Object} params
  * @param {number} params.pointsEarned      - total points originally earned for the order
  * @param {number} params.eligibleAmountPaise - total eligible order value in paise (from LoyaltyOrder)
- * @param {number} params.refundAmountPaise  - value of this refund in paise
+ * @param {number} params.totalRefundedPaise  - cumulative total refunded in paise (including this refund)
  * @param {number} params.alreadyReversed   - points already reversed by earlier refunds on this order
- * @param {boolean} [params.isFinalRefund]  - true when refundAmountPaise covers the full remaining amount
+ * @param {boolean} [params.isFinalRefund]  - true when totalRefundedPaise covers the full remaining amount
  *                                            (used to force exact reversal and avoid rounding drift)
  * @returns {{ pointsToReverse: number, cumulativeTarget: number }}
  *   pointsToReverse  — points to reverse in this refund entry (>= 0)
@@ -39,13 +39,13 @@
 export function computeReversal({
   pointsEarned,
   eligibleAmountPaise,
-  refundAmountPaise,
+  totalRefundedPaise,
   alreadyReversed,
   isFinalRefund = false,
 }) {
   if (pointsEarned <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };
   if (eligibleAmountPaise <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };
-  if (refundAmountPaise <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };
+  if (totalRefundedPaise <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };
 
   let cumulativeTarget;
 
@@ -53,9 +53,9 @@ export function computeReversal({
     // Exact total: avoid any rounding drift on the last refund.
     cumulativeTarget = pointsEarned;
   } else {
-    // round(pointsEarned × refundAmountPaise / eligibleAmountPaise)
+    // round(pointsEarned × totalRefundedPaise / eligibleAmountPaise)
     // Integer arithmetic: multiply up by 100, divide, then round half-up.
-    const product = pointsEarned * refundAmountPaise * 100;
+    const product = pointsEarned * totalRefundedPaise * 100;
     const quotient100 = Math.floor(product / eligibleAmountPaise);
     const fraction = quotient100 % 100;
     cumulativeTarget = Math.floor(quotient100 / 100) + (fraction >= 50 ? 1 : 0);

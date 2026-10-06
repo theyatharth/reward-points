@@ -17,7 +17,7 @@ try {
 import { ApiVersion, LogSeverity } from "@shopify/shopify-api";
 import { shopifyApp } from "@shopify/shopify-app-express";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import { restResources } from "@shopify/shopify-api/rest/admin/2026-10";
+import { restResources } from "@shopify/shopify-api/rest/admin/2026-07";
 import { prisma } from "./lib/prisma.js";
 
 // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ const sessionStorage = new PrismaSessionStorage(prisma);
 
 const shopify = shopifyApp({
   api: {
-    apiVersion: ApiVersion.October26,
+    apiVersion: ApiVersion.July26,
     restResources,
     future: {
       customerAddressDefaultFix: true,
