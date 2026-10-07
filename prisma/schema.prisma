@@ -266,12 +266,20 @@ model LedgerEntry {
   status    String @default("active")
 
   // De-duplication key: prevents the same logical event from being applied twice.
-  // Format depends on type:
-  //   earn/activate: "earn:{shopifyOrderId}"
-  //   refund: "refund:{shopifyRefundId}"
-  //   cancel: "cancel:{shopifyOrderId}"
-  //   redemption: caller-supplied idempotency key
-  //   adjustment: "adjust:{adminUserId}:{timestamp}"
+  // UNIQUE ACROSS ALL SHOPS, not per shop: the partial unique index
+  // LedgerEntry_shop_dedupe_idx is on ("dedupeKey") alone (non-null keys only),
+  // despite its name. That is acceptable because every key embeds an id that
+  // Shopify issues platform-wide (numeric order and refund ids are not per-shop
+  // counters), so two shops do not realistically produce the same key. Keys
+  // built from caller input embed the account id for the same reason.
+  // Formats:
+  //   earn:        "earn:{shopifyOrderId}"
+  //   activate:    "activate:{shopifyOrderId}"
+  //   refund:      "refund:{shopifyRefundId}"
+  //   cancel:      "cancel:{shopifyOrderId}"
+  //   redemption:  "redeem:{accountId}:{idempotencyKey}"   (never the raw client key)
+  //   reward_return: "reward_return:{redemptionId}"
+  //   adjustment:  "adjust:{adminUserId}:{timestamp}"
   dedupeKey String?
 
   // Human-readable note (shown in admin history)
