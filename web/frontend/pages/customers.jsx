@@ -45,7 +45,7 @@ export default function CustomersPage() {
   const loadCustomers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/reward-points/api/customers/points");
+      const response = await fetch(`${import.meta.env.BASE_URL}api/customers/points`);
       if (response.ok) {
         const data = await response.json();
         setCustomers(Array.isArray(data) ? data : []);
@@ -98,7 +98,7 @@ export default function CustomersPage() {
     const finalPoints = adjustType === "award" ? pts : -pts;
 
     try {
-      const response = await fetch("/reward-points/api/customers/adjust", {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/customers/adjust`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

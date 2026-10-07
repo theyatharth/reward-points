@@ -15,7 +15,7 @@ export default function App() {
 
   return (
     <PolarisProvider>
-      <BrowserRouter basename="/reward-points">
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <QueryProvider>
           <NavMenu>
             <a href="/" rel="home" />
