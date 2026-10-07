@@ -25,7 +25,20 @@ try {
 import { assertNotProtected } from '../web/lib/db-guard.js';
 // prisma.js calls assertDbAllowed on import — no need to repeat here.
 import { prisma } from '../web/lib/prisma.js';
-import { DEFAULT_CONFIG } from '../web/loyalty/rules/config.js';
+import { DEFAULT_CONFIG, validateConfig } from '../web/loyalty/rules/config.js';
+
+// M5 seed profile (plan section 9, "Config to seed"). Anything not listed here
+// comes from DEFAULT_CONFIG. 'inclusive' = strip the tax included in prices
+// (₹419 with 5% GST included earns 399); spend ₹100 earns 100 points.
+const SEED_PROFILE = {
+  spendAmountPaise: 10000,
+  pointsPerUnit: 100,
+  earnBasis: 'after_discount',
+  excludeGiftCards: true,
+  taxHandling: 'inclusive',
+  restoreRewardOnFullRefund: true,
+  returnPointsOnCodeExpiry: false,
+};
 
 // ---------------------------------------------------------------------------
 // Parse CLI args
@@ -82,25 +95,32 @@ async function main() {
     return;
   }
 
-  // Upsert the full config with production defaults.
+  // Upsert the full config with the M5 seed profile (validated first).
+  const seed = validateConfig({ ...DEFAULT_CONFIG, ...SEED_PROFILE });
   const config = await prisma.loyaltyConfig.upsert({
     where: { shop: SHOP },
     update: {}, // Don't overwrite existing config on re-runs — only create if missing
     create: {
       shop: SHOP,
-      earnMode: DEFAULT_CONFIG.earnMode,
-      pointsPerUnit: DEFAULT_CONFIG.pointsPerUnit,
-      taxHandling: DEFAULT_CONFIG.taxHandling,
-      shippingEarning: DEFAULT_CONFIG.shippingEarning,
-      pointsRounding: DEFAULT_CONFIG.pointsRounding,
-      pointsPerReward: DEFAULT_CONFIG.pointsPerReward,
-      rewardValue: DEFAULT_CONFIG.rewardValue,
-      rewardExpiryDays: DEFAULT_CONFIG.rewardExpiryDays,
-      holdPeriodDays: DEFAULT_CONFIG.holdPeriodDays,
-      shortfallPolicy: DEFAULT_CONFIG.shortfallPolicy,
-      campaignEnabled: DEFAULT_CONFIG.campaignEnabled,
-      expiryEnabled: DEFAULT_CONFIG.expiryEnabled,
-      currency: DEFAULT_CONFIG.currency,
+      earnMode: seed.earnMode,
+      spendAmountPaise: seed.spendAmountPaise,
+      pointsPerUnit: seed.pointsPerUnit,
+      taxHandling: seed.taxHandling,
+      shippingEarning: seed.shippingEarning,
+      pointsRounding: seed.pointsRounding,
+      earnBasis: seed.earnBasis,
+      excludeGiftCards: seed.excludeGiftCards,
+      excludedCollectionIds: seed.excludedCollectionIds,
+      pointsPerReward: seed.pointsPerReward,
+      rewardValue: seed.rewardValue,
+      rewardExpiryDays: seed.rewardExpiryDays,
+      holdPeriodDays: seed.holdPeriodDays,
+      restoreRewardOnFullRefund: seed.restoreRewardOnFullRefund,
+      returnPointsOnCodeExpiry: seed.returnPointsOnCodeExpiry,
+      shortfallPolicy: seed.shortfallPolicy,
+      campaignEnabled: seed.campaignEnabled,
+      expiryEnabled: seed.expiryEnabled,
+      currency: seed.currency,
       ledgerStartAt: null,
     },
   });
@@ -108,8 +128,13 @@ async function main() {
   console.log(`[seed-config] LoyaltyConfig for ${SHOP}:`);
   console.log(`  id:               ${config.id}`);
   console.log(`  earnMode:         ${config.earnMode}`);
-  console.log(`  pointsPerUnit:    ${config.pointsPerUnit}`);
+  console.log(`  spend / earn:     spend ${config.spendAmountPaise} paise -> ${config.pointsPerUnit} points`);
   console.log(`  taxHandling:      ${config.taxHandling}`);
+  console.log(`  earnBasis:        ${config.earnBasis}`);
+  console.log(`  excludeGiftCards: ${config.excludeGiftCards}`);
+  console.log(`  excluded collections: ${config.excludedCollectionIds.length}`);
+  console.log(`  restoreRewardOnFullRefund: ${config.restoreRewardOnFullRefund}`);
+  console.log(`  returnPointsOnCodeExpiry:  ${config.returnPointsOnCodeExpiry}`);
   console.log(`  pointsRounding:   ${config.pointsRounding}`);
   console.log(`  pointsPerReward:  ${config.pointsPerReward}`);
   console.log(`  rewardValue:      ${config.rewardValue} paise (₹${(config.rewardValue / 100).toFixed(2)})`);

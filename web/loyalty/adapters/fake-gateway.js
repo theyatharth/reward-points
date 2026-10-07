@@ -11,6 +11,7 @@ export class FakeShopifyGateway {
     this.failures = [];
     this.discounts = new Map(); // code -> { id, ...input }
     this.loseNextCreateResponse = false;
+    this.collectionLookupCount = 0;
   }
 
   /**
@@ -104,6 +105,7 @@ export class FakeShopifyGateway {
   }
 
   async getProductCollections(productIds) {
+    this.collectionLookupCount++;
     this._checkFailure();
     return {};
   }

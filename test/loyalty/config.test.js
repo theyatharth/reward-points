@@ -134,3 +134,59 @@ test('diffConfig: unchanged fields do not appear', () => {
   const changes = diffConfig(DEFAULT_CONFIG, newCfg);
   assert.ok(!changes.find((c) => c.key === 'taxHandling'));
 });
+
+// ---------------------------------------------------------------------------
+// Migration 3 fields: spend ratio, earn basis, gift cards, collections, J2 flags
+// ---------------------------------------------------------------------------
+test('defaults for the migration-3 fields', () => {
+  assert.strictEqual(DEFAULT_CONFIG.spendAmountPaise, 100);
+  assert.strictEqual(DEFAULT_CONFIG.earnBasis, 'after_discount');
+  assert.strictEqual(DEFAULT_CONFIG.excludeGiftCards, true);
+  assert.deepStrictEqual(DEFAULT_CONFIG.excludedCollectionIds, []);
+  assert.strictEqual(DEFAULT_CONFIG.restoreRewardOnFullRefund, true);
+  assert.strictEqual(DEFAULT_CONFIG.returnPointsOnCodeExpiry, false);
+});
+
+test('the M5 seed profile is a valid config', () => {
+  const seed = validateConfig({
+    spendAmountPaise: 10000, pointsPerUnit: 100, earnBasis: 'after_discount',
+    excludeGiftCards: true, taxHandling: 'inclusive',
+    restoreRewardOnFullRefund: true, returnPointsOnCodeExpiry: false,
+  });
+  assert.strictEqual(seed.spendAmountPaise, 10000);
+  assert.strictEqual(seed.taxHandling, 'inclusive');
+});
+
+test('spendAmountPaise must be a positive integer', () => {
+  for (const bad of [0, -100, 1.5, '100', null]) {
+    assert.throws(() => validateConfig({ spendAmountPaise: bad }), /spendAmountPaise/, String(bad));
+  }
+});
+
+test('earnBasis must be after_discount or before_discount', () => {
+  assert.doesNotThrow(() => validateConfig({ earnBasis: 'before_discount' }));
+  assert.throws(() => validateConfig({ earnBasis: 'proportional' }), /earnBasis/);
+});
+
+test('excludeGiftCards, restoreRewardOnFullRefund, returnPointsOnCodeExpiry must be booleans', () => {
+  for (const key of ['excludeGiftCards', 'restoreRewardOnFullRefund', 'returnPointsOnCodeExpiry']) {
+    assert.throws(() => validateConfig({ [key]: 'yes' }), new RegExp(key));
+    assert.throws(() => validateConfig({ [key]: 1 }), new RegExp(key));
+  }
+});
+
+test('excludedCollectionIds: accepts a list of unique ids, refuses malformed lists', () => {
+  assert.deepStrictEqual(validateConfig({ excludedCollectionIds: ['111', '222'] }).excludedCollectionIds, ['111', '222']);
+  assert.throws(() => validateConfig({ excludedCollectionIds: 'abc' }), /excludedCollectionIds/);
+  assert.throws(() => validateConfig({ excludedCollectionIds: [''] }), /excludedCollectionIds/);
+  assert.throws(() => validateConfig({ excludedCollectionIds: [123] }), /excludedCollectionIds/);
+  assert.throws(() => validateConfig({ excludedCollectionIds: ['1', '1'] }), /excludedCollectionIds/);
+  assert.throws(() => validateConfig({ excludedCollectionIds: Array.from({ length: 251 }, (_, i) => String(i)) }), /excludedCollectionIds/);
+});
+
+test('diffConfig: a changed collection list is recorded once; an unchanged list is not', () => {
+  const a = { ...DEFAULT_CONFIG, excludedCollectionIds: ['1'] };
+  const changed = diffConfig(a, { ...a, excludedCollectionIds: ['1', '2'] });
+  assert.deepStrictEqual(changed.map((c) => c.key), ['excludedCollectionIds']);
+  assert.deepStrictEqual(diffConfig(a, { ...a, excludedCollectionIds: ['1'] }), []);
+});

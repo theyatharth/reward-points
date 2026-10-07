@@ -12,16 +12,26 @@
  */
 export const DEFAULT_CONFIG = {
   earnMode: 'per_currency_unit',  // 'per_currency_unit' | 'fixed_per_order'
-  pointsPerUnit: 1,               // 1 point per ₹1 (1 point per 100 paise)
+  spendAmountPaise: 100,          // spend this much (paise: 100 = ₹1) ...
+  pointsPerUnit: 1,               // ... to earn this many points (default 1 point per ₹1)
+  // 'inclusive' means "the order's prices include tax, so STRIP the included
+  // tax before earning" (₹419 with 5% GST included earns 399). 'exclusive'
+  // means use the raw line price. The names are historical; values are not renamed.
   taxHandling: 'exclusive',       // 'inclusive' | 'exclusive'
   shippingEarning: false,
   pointsRounding: 'floor',        // 'floor' | 'round' | 'block'
+  earnBasis: 'after_discount',    // 'after_discount' | 'before_discount'
+  excludeGiftCards: true,         // gift-card lines earn nothing
+  excludedCollectionIds: [],      // Shopify collection ids whose products earn nothing
 
   pointsPerReward: 100,           // 100 points = 1 reward
   rewardValue: 1000,              // 1 reward = ₹10 (1000 paise)
   rewardExpiryDays: 90,           // discount code expires after 90 days
 
   holdPeriodDays: 30,             // 30-day hold before points are spendable
+
+  restoreRewardOnFullRefund: true,   // J2: return a reward's points when its order is cancelled / fully refunded
+  returnPointsOnCodeExpiry: false,   // J2: return a reward's points when its unused code expires
 
   shortfallPolicy: 'owe_only',    // Phase 1 only: owed balance stays until paid
 
@@ -46,6 +56,8 @@ const VALID_EARN_MODES    = ['per_currency_unit', 'fixed_per_order'];
 const VALID_TAX_HANDLING  = ['inclusive', 'exclusive'];
 const VALID_ROUNDING      = ['floor', 'round', 'block'];
 const VALID_SHORTFALL     = ['owe_only'];
+const VALID_EARN_BASIS    = ['after_discount', 'before_discount'];
+const MAX_EXCLUDED_COLLECTIONS = 250;
 
 /**
  * Validate and normalise an incoming config change object.
@@ -73,6 +85,11 @@ export function validateConfig(incoming, current = DEFAULT_CONFIG) {
     throw new Error(`[config] pointsPerUnit must be a positive integer (got ${merged.pointsPerUnit})`);
   }
 
+  // spendAmountPaise: positive integer paise
+  if (!Number.isInteger(merged.spendAmountPaise) || merged.spendAmountPaise < 1) {
+    throw new Error(`[config] spendAmountPaise must be a positive integer (paise) (got ${merged.spendAmountPaise})`);
+  }
+
   // taxHandling
   if (!VALID_TAX_HANDLING.includes(merged.taxHandling)) {
     throw new Error(`[config] taxHandling must be one of: ${VALID_TAX_HANDLING.join(', ')} (got "${merged.taxHandling}")`);
@@ -86,6 +103,26 @@ export function validateConfig(incoming, current = DEFAULT_CONFIG) {
   // pointsRounding
   if (!VALID_ROUNDING.includes(merged.pointsRounding)) {
     throw new Error(`[config] pointsRounding must be one of: ${VALID_ROUNDING.join(', ')} (got "${merged.pointsRounding}")`);
+  }
+
+  // earnBasis
+  if (!VALID_EARN_BASIS.includes(merged.earnBasis)) {
+    throw new Error(`[config] earnBasis must be one of: ${VALID_EARN_BASIS.join(', ')} (got "${merged.earnBasis}")`);
+  }
+
+  // excludeGiftCards, restoreRewardOnFullRefund, returnPointsOnCodeExpiry: booleans
+  for (const key of ['excludeGiftCards', 'restoreRewardOnFullRefund', 'returnPointsOnCodeExpiry']) {
+    if (typeof merged[key] !== 'boolean') {
+      throw new Error(`[config] ${key} must be a boolean (got ${typeof merged[key]})`);
+    }
+  }
+
+  // excludedCollectionIds: array of non-empty strings (Shopify ids), no duplicates
+  if (!Array.isArray(merged.excludedCollectionIds)
+      || merged.excludedCollectionIds.length > MAX_EXCLUDED_COLLECTIONS
+      || merged.excludedCollectionIds.some((id) => typeof id !== 'string' || id.trim() === '')
+      || new Set(merged.excludedCollectionIds).size !== merged.excludedCollectionIds.length) {
+    throw new Error(`[config] excludedCollectionIds must be an array of at most ${MAX_EXCLUDED_COLLECTIONS} unique non-empty strings`);
   }
 
   // pointsPerReward: positive integer
@@ -156,8 +193,9 @@ export function diffConfig(oldConfig, newConfig) {
     const newVal = newConfig[key];
 
     // Compare by value (handle Date objects and primitives)
-    const oldStr = oldVal instanceof Date ? oldVal.toISOString() : String(oldVal);
-    const newStr = newVal instanceof Date ? newVal.toISOString() : String(newVal);
+    const str = (v) => (v instanceof Date ? v.toISOString() : Array.isArray(v) ? JSON.stringify(v) : String(v));
+    const oldStr = str(oldVal);
+    const newStr = str(newVal);
 
     if (oldStr !== newStr) {
       changes.push({ key, oldValue: oldVal, newValue: newVal });

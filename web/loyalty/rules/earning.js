@@ -11,14 +11,17 @@
 //   • All amounts are integer paise (100 paise = ₹1).
 //   • Tax handling: if taxHandling='inclusive', subtract tax from the line
 //     price before computing points.  If 'exclusive', use the raw price.
-//   • Per-line discount: use the explicit discount_allocations amount when
-//     available.  Fall back to the engine's proportional share only when no
-//     allocations are given (for the gift-card-with-discount proportional
-//     fallback test).
-//   • Gift-card lines: the real fixture proves that discount_allocations is
-//     empty for gift-card lines even with target_selection:'all'.  So the
-//     gift-card line earns on its full price — the discount only touches
-//     non-gift-card lines.
+//   • Per-line discount: with earnBasis='after_discount' (default) subtract the
+//     explicit discount_allocations amounts for the line; with 'before_discount'
+//     ignore them. A line with no allocations earns on its full price. (No
+//     proportional redistribution of order-level discounts is implemented: it
+//     is never needed, because Shopify's allocations are always explicit.)
+//   • Gift-card lines: excluded by default (excludeGiftCards=true), so a gift
+//     card purchase earns nothing. Shopify never allocates a discount to a
+//     gift-card line (see the gift-card fixture), so with excludeGiftCards=false
+//     the line earns on its full price while the discount reduces only the
+//     other lines. The flag is what separates the 449-point and 559-point
+//     results for that fixture.
 //   • Rounding is applied once on the total eligible order value, not per line.
 //   • Shipping: included only if config.shippingEarning is true.
 //
@@ -45,6 +48,10 @@ import { parsePaise, multiplyPoints } from './money.js';
  * @property {boolean}       shippingEarning   - config.shippingEarning
  * @property {number}        pointsPerUnit     - config.pointsPerUnit (points per 100 paise)
  * @property {string}        pointsRounding    - config.pointsRounding
+ * @property {number}        [spendAmountPaise] - config.spendAmountPaise: pointsPerUnit points are earned per this
+ *                                                much spend (default 100 paise = ₹1)
+ * @property {string}        [earnBasis]       - 'after_discount' (default) | 'before_discount'
+ * @property {boolean}       [excludeGiftCards] - default true
  */
 
 /**
@@ -64,6 +71,9 @@ export function computeEarning(input) {
     shippingEarning,
     pointsPerUnit,
     pointsRounding,
+    spendAmountPaise = 100,
+    earnBasis = 'after_discount',
+    excludeGiftCards = true,
   } = input;
 
   // Determine whether to strip tax from line prices.
@@ -74,8 +84,8 @@ export function computeEarning(input) {
   let eligiblePaise = 0;
 
   for (const line of lineItems) {
-    if (line.is_gift_card) continue;
-    
+    if (excludeGiftCards && line.is_gift_card) continue;
+
     const unitPricePaise = parsePaise(line.price);
     const qty = line.quantity || 1;
     let linePaise = unitPricePaise * qty;
@@ -91,7 +101,7 @@ export function computeEarning(input) {
     }
 
     // Subtract per-line discount.
-    if (line.discount_allocations && line.discount_allocations.length > 0) {
+    if (earnBasis === 'after_discount' && line.discount_allocations && line.discount_allocations.length > 0) {
       // Explicit allocations — use them directly.
       const discountPaise = line.discount_allocations.reduce(
         (sum, d) => sum + parsePaise(d.amount),
@@ -99,8 +109,7 @@ export function computeEarning(input) {
       );
       linePaise = Math.max(0, linePaise - discountPaise);
     }
-    // If no explicit allocations: use the full line price (gift-card lines
-    // with no allocations earn on their full price, as the real fixture shows).
+    // No allocations (or earnBasis='before_discount'): the line earns on its full price.
 
     eligiblePaise += linePaise;
   }
@@ -110,12 +119,12 @@ export function computeEarning(input) {
     eligiblePaise += parsePaise(shippingTotal);
   }
 
-  // Compute points: pointsPerUnit points per 100 paise (₹1).
+  // Compute points: pointsPerUnit points per spendAmountPaise of eligible value.
   // multiplyPoints handles all three rounding modes with integer arithmetic.
   const points = multiplyPoints(
     eligiblePaise,
     pointsPerUnit,
-    100, // denominator: 100 paise = 1 currency unit
+    spendAmountPaise,
     pointsRounding
   );
 
@@ -152,5 +161,8 @@ export function computeEarningFromOrder(shopifyOrder, config) {
     shippingEarning: config.shippingEarning,
     pointsPerUnit: config.pointsPerUnit,
     pointsRounding: config.pointsRounding,
+    spendAmountPaise: config.spendAmountPaise ?? 100,
+    earnBasis: config.earnBasis ?? 'after_discount',
+    excludeGiftCards: config.excludeGiftCards ?? true,
   });
 }

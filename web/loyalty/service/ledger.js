@@ -68,12 +68,17 @@ export async function writeEarning(event, config) {
     return markSkipped(event.id, 'Order predates ledgerStartAt');
   }
 
-  try {
-    const gw = gatewayFactory(event.shop);
-    const productIds = (order.line_items || []).map(li => li.product_id).filter(Boolean);
-    await gw.getProductCollections(productIds);
-  } catch (err) {
-    throw new Error('Collection lookup failed: ' + err.message);
+  // T2.2: only ask Shopify about collections when some collection is excluded.
+  // With an empty list there is nothing to compare against, so no extra call
+  // per order. (The lookup result is not yet applied to the earning input.)
+  if ((config.excludedCollectionIds || []).length > 0) {
+    try {
+      const gw = gatewayFactory(event.shop);
+      const productIds = (order.line_items || []).map(li => li.product_id).filter(Boolean);
+      await gw.getProductCollections(productIds);
+    } catch (err) {
+      throw new Error('Collection lookup failed: ' + err.message);
+    }
   }
 
   const { points, eligibleAmountPaise } = computeEarningFromOrder(order, config);

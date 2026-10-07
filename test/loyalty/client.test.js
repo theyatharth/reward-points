@@ -401,7 +401,23 @@ describe('Ported M2 client tests', () => {
     assert.strictEqual(b.pending, 659, 'Only one order processed');
   });
 
+  test('[T2.7] Collection lookup is NOT made while no collection is excluded (T2.2)', async () => {
+    // Default config: excludedCollectionIds is empty, so there is nothing to compare against.
+    await checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    assert.strictEqual(currentGateway.collectionLookupCount, 0, 'no collection lookup for an order when the exclusion list is empty');
+    assert.strictEqual((await balances('u1')).pending, 659, 'points are still earned');
+  });
+
+  test('[T2.7] Collection lookup IS made once per order when a collection is excluded', async () => {
+    await prisma.loyaltyConfig.update({ where: { shop: currentShop }, data: { excludedCollectionIds: ['900001'] } });
+    await checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    assert.strictEqual(currentGateway.collectionLookupCount, 1);
+    assert.strictEqual((await balances('u1')).pending, 659);
+  });
+
   test('[T2.7] Collection Lookup Failure: retries and does not write points', async () => {
+    // The lookup only happens when a collection is excluded, so configure one.
+    await prisma.loyaltyConfig.update({ where: { shop: currentShop }, data: { excludedCollectionIds: ['900001'] } });
     currentGateway.injectFailure(new Error('Simulated network failure'));
   
     const payload = createOrderPayload({ customerId: 'u1', lines: L(['gt029', 1]) }); // 659 points

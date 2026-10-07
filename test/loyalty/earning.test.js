@@ -1,7 +1,9 @@
 // test/loyalty/earning.test.js
 // Unit tests for web/loyalty/rules/earning.js
-// Tests the client's earning suite + GST test (₹419 earns 399) +
-// real fixture: gift-card-with-discount earns 559 (not 619).
+// Tests the client's earning suite + GST test (₹419 earns 399) + the
+// gift-card-with-discount fixture figures: 449 with excludeGiftCards on (the
+// default) and 559 with it off. test/loyalty/gift-card-fixture.test.js runs the
+// same fixture through the webhook pipeline.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,6 +20,9 @@ function makeInput(lineItems, overrides = {}) {
     shippingEarning: DEFAULT_CONFIG.shippingEarning,
     pointsPerUnit: DEFAULT_CONFIG.pointsPerUnit,
     pointsRounding: DEFAULT_CONFIG.pointsRounding,
+    spendAmountPaise: DEFAULT_CONFIG.spendAmountPaise,
+    earnBasis: DEFAULT_CONFIG.earnBasis,
+    excludeGiftCards: DEFAULT_CONFIG.excludeGiftCards,
     ...overrides,
   };
 }
@@ -125,48 +130,71 @@ test('10% discount applied via discount_allocations', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Gift card with discount: real fixture asserts 559 pts (NOT 619)
-// The client's prototype test (619) was for the proportional fallback.
-// The real Shopify fixture shows discount_allocations is EMPTY on the
-// gift-card line even with target_selection:'all', so the gift-card line
-// earns its full price and only the product line gets the discount.
+// Gift card with discount (figures from orders-paid-gift-card-with-discount.json)
+//   product line   ₹499.00, discount allocation ₹50.00  -> 44,900 paise
+//   gift-card line ₹110.00, NO discount allocation       -> 11,000 paise
+// Shopify never allocates a discount to a gift-card line, so the discount only
+// reduces the product line. Whether the gift-card line earns at all is the
+// excludeGiftCards flag: on (default) -> 449 points, off -> 559 points.
 // ---------------------------------------------------------------------------
-test('gift card + discount: gift-card line has no discount_allocations → earns 559 pts', () => {
-  // Product line: ₹500 - ₹50 discount allocation = ₹450
-  // Gift card line: ₹110, no discount_allocations → ₹110
-  // Total: ₹450 + ₹110 = ₹560 → 560 pts? Nope — use real fixture values:
-  // Product: ₹499.00 - ₹50.00 discount = ₹449.00 (44900 paise)
-  // Gift card: ₹110.00, no allocation (11000 paise)
-  // Total eligible: 55900 → 559 pts
-  const input = makeInput([
-    {
-      price: '499.00',
-      quantity: 1,
-      discount_allocations: [{ amount: '50.00' }], // discount only on product
-    },
-    {
-      price: '110.00',
-      quantity: 1,
-      is_gift_card: true,
-      discount_allocations: [], // gift card line: no allocation
-    },
-  ]);
-  assert.strictEqual(computeEarning(input).points, 559);
+const GIFT_CARD_ORDER_LINES = [
+  { price: '499.00', quantity: 1, discount_allocations: [{ amount: '50.00' }] },
+  { price: '110.00', quantity: 1, is_gift_card: true, discount_allocations: [] },
+];
+
+test('gift card + discount, excludeGiftCards ON (default): gift-card line earns nothing → 449 pts', () => {
+  const { points, eligibleAmountPaise } = computeEarning(makeInput(GIFT_CARD_ORDER_LINES));
+  assert.strictEqual(eligibleAmountPaise, 44900);
+  assert.strictEqual(points, 449);
 });
 
-// Proportional fallback (no discount_allocations given at all):
-// client's engine test: 619 pts.  We keep this for the fallback path test.
-test('gift card + discount: proportional fallback earns 619 pts (no explicit allocations)', () => {
-  // Both lines: no discount_allocations provided → each earns full price
-  // Product: ₹499 → 499 pts; Gift card: ₹110 → 110 pts → total 609?
-  // Actually the client's test uses different line values — this tests the
-  // fallback: when no allocations given, use the full line price.
-  // Using: product ₹509 + gift card ₹110 = ₹619 → 619 pts
-  const input = makeInput([
-    { price: '509.00', quantity: 1 },  // no discount_allocations
-    { price: '110.00', quantity: 1, is_gift_card: true },  // no allocations
+test('gift card + discount, excludeGiftCards OFF: gift-card line earns its full price, untouched by the discount → 559 pts', () => {
+  const { points, eligibleAmountPaise } = computeEarning(
+    makeInput(GIFT_CARD_ORDER_LINES, { excludeGiftCards: false })
+  );
+  assert.strictEqual(eligibleAmountPaise, 55900); // 44,900 product + 11,000 gift card
+  assert.strictEqual(points, 559);
+});
+
+// No discount_allocations on any line (e.g. an order with no discount): every
+// line that is eligible earns on its full price. This is plain arithmetic of
+// the fallback path (509 + 110 = 619); it says nothing about the client's
+// prototype numbers.
+test('no discount_allocations: each eligible line earns on its full price (flag off: 509 + 110 = 619 pts)', () => {
+  const lines = [
+    { price: '509.00', quantity: 1 },
+    { price: '110.00', quantity: 1, is_gift_card: true },
+  ];
+  assert.strictEqual(computeEarning(makeInput(lines, { excludeGiftCards: false })).points, 619);
+  assert.strictEqual(computeEarning(makeInput(lines)).points, 509, 'flag on: the gift-card line is dropped');
+});
+
+// ---------------------------------------------------------------------------
+// earnBasis and the spend ratio
+// ---------------------------------------------------------------------------
+test('earnBasis before_discount ignores discount allocations', () => {
+  const lines = [{ price: '100.00', quantity: 1, discount_allocations: [{ amount: '10.00' }] }];
+  assert.strictEqual(computeEarning(makeInput(lines, { earnBasis: 'after_discount' })).points, 90);
+  assert.strictEqual(computeEarning(makeInput(lines, { earnBasis: 'before_discount' })).points, 100);
+});
+
+test('spend ratio: spend ₹100 earn 100 points (spendAmountPaise 10000, pointsPerUnit 100): ₹149 earns 149', () => {
+  const input = makeInput([{ price: '149.00', quantity: 1 }], { spendAmountPaise: 10000, pointsPerUnit: 100 });
+  assert.strictEqual(computeEarning(input).points, 149);
+});
+
+test('spend ratio: spend ₹100 earn 1 point: ₹149 earns 1, ₹250 earns 2', () => {
+  const at = (price) => computeEarning(makeInput([{ price, quantity: 1 }], { spendAmountPaise: 10000, pointsPerUnit: 1 })).points;
+  assert.strictEqual(at('149.00'), 1);
+  assert.strictEqual(at('250.00'), 2);
+});
+
+test('inputs without the new fields behave as before (defaults: ₹1 spend, after discount, gift cards excluded)', () => {
+  const { spendAmountPaise, earnBasis, excludeGiftCards, ...legacy } = makeInput([
+    { price: '100.00', quantity: 1, discount_allocations: [{ amount: '10.00' }] },
+    { price: '50.00', quantity: 1, is_gift_card: true },
   ]);
-  assert.strictEqual(computeEarning(input).points, 619);
+  assert.strictEqual(computeEarning(legacy).points, 90);
 });
 
 // ---------------------------------------------------------------------------

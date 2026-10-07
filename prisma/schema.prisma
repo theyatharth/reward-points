@@ -158,12 +158,19 @@ model LoyaltyConfig {
   id     String @id @default(uuid())
   shop   String @unique
 
-  // Earning rule
+  // Earning rule: spend spendAmountPaise, earn pointsPerUnit points.
+  // Live setting "spend ₹100, earn 100 points" = spendAmountPaise 10000, pointsPerUnit 100.
   earnMode          String  @default("per_currency_unit") // "per_currency_unit" | "fixed_per_order"
-  pointsPerUnit     Int     @default(1)   // points earned per 1 unit of currency (paise)
+  spendAmountPaise  Int     @default(100)   // spend this much (paise) ...
+  pointsPerUnit     Int     @default(1)     // ... to earn this many points
+  // "inclusive" = the order's prices include tax, so STRIP the included tax before
+  // earning (₹419 with 5% GST included earns 399). "exclusive" = use the raw price.
   taxHandling       String  @default("exclusive") // "inclusive" | "exclusive"
   shippingEarning   Boolean @default(false)
   pointsRounding    String  @default("floor") // "floor" | "round" | "block"
+  earnBasis         String  @default("after_discount") // "after_discount" | "before_discount"
+  excludeGiftCards  Boolean @default(true)   // gift-card lines earn nothing
+  excludedCollectionIds String[] @default([]) // Shopify collection ids whose products earn nothing
 
   // Redemption rule
   pointsPerReward   Int     @default(100)  // points needed to earn one reward
@@ -172,6 +179,11 @@ model LoyaltyConfig {
 
   // Holding period before earned points become spendable (anti-fraud)
   holdPeriodDays    Int     @default(30)
+
+  // J2: give a reward's points back when its order is cancelled or fully refunded,
+  // and (off by default) when an unused reward code expires.
+  restoreRewardOnFullRefund Boolean @default(true)
+  returnPointsOnCodeExpiry  Boolean @default(false)
 
   // Shortfall policy: what to do when the customer owes points
   // Phase 1: "owe_only" — no write-off, owed balance stays until paid off
