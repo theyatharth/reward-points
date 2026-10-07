@@ -45,7 +45,7 @@ if (host === "localhost") {
 }
 
 export default defineConfig({
-  base: "/reward-points/", // <--- ADD THIS EXACT LINE
+  base: (process.env.APP_BASE_PATH || "/reward-points").replace(/\/$/, "") + "/",
   root: dirname(fileURLToPath(import.meta.url)),
   plugins: [react()],
   resolve: {

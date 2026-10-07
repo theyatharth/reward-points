@@ -47,16 +47,14 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Install web dependencies
-        run: npm ci --ignore-scripts
-        working-directory: web
-
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: |
+          ./node_modules/.bin/prisma -v | grep -E '^prisma +: 6\.'
+          ./node_modules/.bin/prisma generate
         working-directory: .
 
       - name: Run migrations on CI test database
-        run: npx prisma migrate deploy
+        run: ./node_modules/.bin/prisma migrate deploy
         working-directory: .
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reward_points_ci_test?schema=public

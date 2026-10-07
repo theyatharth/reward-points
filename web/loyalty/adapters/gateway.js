@@ -4,8 +4,6 @@
 // Wraps calls to Shopify APIs (like creating discount codes) so they can be
 // mocked or fake-implemented during testing without making real network calls.
 
-import shopify from '../../shopify.js';
-
 export class ShopifyGateway {
   constructor(shop) {
     this.shop = shop;
@@ -15,6 +13,9 @@ export class ShopifyGateway {
    * Helper to get an authenticated offline REST client for the shop.
    */
   async getRestClient() {
+    // Imported lazily: shopify.js throws at import without SHOPIFY_API_KEY/SECRET/HOST,
+    // and tests that only use the fake gateway must not need them.
+    const { default: shopify } = await import('../../shopify.js');
     const sessionId = shopify.api.session.getOfflineId(this.shop);
     const session = await shopify.config.sessionStorage.loadSession(sessionId);
     if (!session) {
@@ -60,6 +61,7 @@ export class ShopifyGateway {
    * Helper to get an authenticated offline GraphQL client for the shop.
    */
   async getGraphqlClient() {
+    const { default: shopify } = await import('../../shopify.js');
     const sessionId = shopify.api.session.getOfflineId(this.shop);
     const session = await shopify.config.sessionStorage.loadSession(sessionId);
     if (!session) {
