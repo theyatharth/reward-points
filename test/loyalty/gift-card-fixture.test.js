@@ -1,6 +1,6 @@
 // test/loyalty/gift-card-fixture.test.js
 //
-// The gift-card-with-discount fixture, unmodified, through the real pipeline:
+// The gift-card-with-discount fixture (only its order id is made unique per run) through the real pipeline:
 //   storeWebhook -> processPendingWebhooks -> writeEarning -> LoyaltyOrder / LoyaltyAccount
 //
 //   product line   ₹499.00 with a ₹50.00 discount allocation -> 44,900 paise
@@ -45,7 +45,13 @@ describe('Gift-card fixture through the webhook pipeline', () => {
     await prisma.loyaltyConfig.create({
       data: { shop, pointsPerUnit: 1, excludeGiftCards, ledgerStartAt: new Date('2026-01-01T00:00:00Z') },
     });
-    const payload = JSON.parse(readFileSync(FIXTURE, 'utf8')); // the real fixture, untouched
+    // The real fixture. Only the order id is replaced: earn dedupe keys
+    // ("earn:<orderId>") are unique across ALL shops and ledger rows can never
+    // be deleted, so a fixed id would collide between the two flag cases and
+    // with earlier runs on a persistent test database. Lines, prices, discount
+    // allocations and the gift-card marker are exactly as captured.
+    const payload = JSON.parse(readFileSync(FIXTURE, 'utf8'));
+    payload.id = Number(`${Date.now()}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`);
     const event = await storeWebhook({ shop, topic: 'orders/paid', payload, shopifyWebhookId: crypto.randomUUID() });
     await processPendingWebhooks({ shop });
 
