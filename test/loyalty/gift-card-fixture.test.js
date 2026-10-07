@@ -20,6 +20,7 @@ import { storeWebhook, processPendingWebhooks } from '../../web/loyalty/service/
 import * as ledgerService from '../../web/loyalty/service/ledger.js';
 import { FakeShopifyGateway } from '../../web/loyalty/adapters/fake-gateway.js';
 import { setFixedTime, restoreClock } from '../../web/loyalty/adapters/clock.js';
+import { uniqueId } from '../helpers/ids.js';
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'shopify', 'orders-paid-gift-card-with-discount.json');
 
@@ -51,7 +52,7 @@ describe('Gift-card fixture through the webhook pipeline', () => {
     // with earlier runs on a persistent test database. Lines, prices, discount
     // allocations and the gift-card marker are exactly as captured.
     const payload = JSON.parse(readFileSync(FIXTURE, 'utf8'));
-    payload.id = Number(`${Date.now()}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`);
+    payload.id = uniqueId();
     const event = await storeWebhook({ shop, topic: 'orders/paid', payload, shopifyWebhookId: crypto.randomUUID() });
     await processPendingWebhooks({ shop });
 

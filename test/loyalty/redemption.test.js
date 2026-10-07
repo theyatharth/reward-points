@@ -15,6 +15,7 @@ import { redeem, resolveRedemption } from '../../web/loyalty/service/redemption.
 import * as ledgerService from '../../web/loyalty/service/ledger.js';
 import { setFixedTime, restoreClock, now } from '../../web/loyalty/adapters/clock.js';
 import { FakeShopifyGateway } from '../../web/loyalty/adapters/fake-gateway.js';
+import { uniqueId } from '../helpers/ids.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -98,7 +99,7 @@ async function refundAmount(orderId, amount) {
     shop,
     topic: 'refunds/create',
     payload: {
-      id: Math.floor(Math.random() * 1e9),
+      id: uniqueId(),
       order_id: orderId,
       refund_line_items: [{ subtotalSet: { shopMoney: { amount: `${amount}.00` } } }],
     },
@@ -307,11 +308,12 @@ describe('Redemption service', () => {
   // ---- Activation first, J3 ----
 
   test('[Redeem] due pending points are activated first, then redeemed', async () => {
-    await orderEarning('c1', 7001, 500);
+    const orderId = uniqueId();
+    await orderEarning('c1', orderId, 500);
     assert.strictEqual((await acct('c1')).pending, 500);
 
     advance(31);
-    gw.addOrder({ id: 7001, processed_at: '2026-09-01T10:00:00Z', refunds: [] });
+    gw.addOrder({ id: orderId, processed_at: '2026-09-01T10:00:00Z', refunds: [] });
 
     const r = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(r.ok, true);
@@ -323,9 +325,10 @@ describe('Redemption service', () => {
   });
 
   test('[Redeem] points still inside the holding period are not spendable', async () => {
-    await orderEarning('c1', 7002, 500);
+    const orderId = uniqueId();
+    await orderEarning('c1', orderId, 500);
     advance(10);
-    gw.addOrder({ id: 7002, processed_at: '2026-09-01T10:00:00Z', refunds: [] });
+    gw.addOrder({ id: orderId, processed_at: '2026-09-01T10:00:00Z', refunds: [] });
 
     const r = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(r.ok, false);
@@ -334,9 +337,10 @@ describe('Redemption service', () => {
   });
 
   test('[Redeem] J3: an unapplied Shopify refund blocks activation and the redeem is paused', async () => {
-    await orderEarning('c1', 7003, 500);
+    const orderId = uniqueId();
+    await orderEarning('c1', orderId, 500);
     advance(31);
-    gw.addOrder({ id: 7003, processed_at: '2026-09-01T10:00:00Z', refunds: [{ id: 555 }] });
+    gw.addOrder({ id: orderId, processed_at: '2026-09-01T10:00:00Z', refunds: [{ id: 555 }] });
 
     const r = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(r.ok, false);
@@ -349,7 +353,8 @@ describe('Redemption service', () => {
   });
 
   test('[Redeem] J3: a failed Shopify order lookup also pauses the redeem instead of guessing', async () => {
-    await orderEarning('c1', 7004, 500);
+    const orderId = uniqueId();
+    await orderEarning('c1', orderId, 500);
     advance(31);
     // No order registered in the fake: getOrder answers 404.
 
@@ -360,11 +365,12 @@ describe('Redemption service', () => {
   });
 
   test('[Redeem] a refund already applied in the ledger does not trip J3', async () => {
-    await orderEarning('c1', 7005, 1000);
-    await refundAmount(7005, 500); // refunds half: 500 points reversed from the pending lot
-    const refund = await prisma.loyaltyRefund.findFirst({ where: { shopifyOrderId: '7005' } });
+    const orderId = uniqueId();
+    await orderEarning('c1', orderId, 1000);
+    await refundAmount(orderId, 500); // refunds half: 500 points reversed from the pending lot
+    const refund = await prisma.loyaltyRefund.findFirst({ where: { shopifyOrderId: String(orderId) } });
     advance(31);
-    gw.addOrder({ id: 7005, processed_at: '2026-09-01T10:00:00Z', refunds: [{ id: Number(refund.shopifyRefundId) }] });
+    gw.addOrder({ id: orderId, processed_at: '2026-09-01T10:00:00Z', refunds: [{ id: Number(refund.shopifyRefundId) }] });
 
     const r = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(r.ok, true);
@@ -375,15 +381,16 @@ describe('Redemption service', () => {
 
   test('[Redeem] owed balance after a used reward: refused, then cleared by new points', async () => {
     // Earn 500, activate and redeem it all for ₹50...
-    await orderEarning('c1', 7010, 500);
+    const firstOrderId = uniqueId();
+    await orderEarning('c1', firstOrderId, 500);
     advance(31);
-    gw.addOrder({ id: 7010, processed_at: '2026-09-01T10:00:00Z', refunds: [] });
+    gw.addOrder({ id: firstOrderId, processed_at: '2026-09-01T10:00:00Z', refunds: [] });
     const first = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(first.ok, true);
     assert.strictEqual((await acct('c1')).available, 0);
 
     // ...then the order is refunded: the points are already spent, so they are owed.
-    await refundAmount(7010, 500);
+    await refundAmount(firstOrderId, 500);
     assert.strictEqual((await acct('c1')).available, -500);
 
     const refused = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
@@ -393,9 +400,10 @@ describe('Redemption service', () => {
     assert.strictEqual(gw.discounts.size, 1, 'no second code was created');
 
     // New points repay the debt first (activation happens even though the redeem is refused).
-    await orderEarning('c1', 7011, 700);
+    const secondOrderId = uniqueId();
+    await orderEarning('c1', secondOrderId, 700);
     advance(31);
-    gw.addOrder({ id: 7011, processed_at: '2026-10-02T10:00:00Z', refunds: [] });
+    gw.addOrder({ id: secondOrderId, processed_at: '2026-10-02T10:00:00Z', refunds: [] });
     const short = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(short.ok, false);
     assert.strictEqual(short.reason, 'SHORT');

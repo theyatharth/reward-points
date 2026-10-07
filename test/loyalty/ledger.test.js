@@ -7,6 +7,7 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../../web/lib/prisma.js';
 import { storeWebhook, processPendingWebhooks } from '../../web/loyalty/service/webhook.js';
+import { uniqueId } from '../helpers/ids.js';
 
 const TEST_SHOP = `test-ledger-${Date.now()}.myshopify.com`;
 
@@ -172,7 +173,7 @@ describe('Ledger Service & Webhooks', () => {
 
   test('4. Pre-ledger ignore', async () => {
     const payload = {
-      id: '5678901234999',
+      id: String(uniqueId()),
       processed_at: '2025-01-01T10:00:00Z', // Before ledgerStartAt (2026-01-01)
       subtotal_price: '100.00',
       taxes_included: false,
