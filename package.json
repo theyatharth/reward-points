@@ -11,7 +11,7 @@
     "info": "shopify app info",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
-    "test": "node --test --experimental-test-isolation=none test/runner.js test/**/*.test.js"
+    "test": "node --import ./test/runner.js --test --experimental-test-isolation=none test/db-guard.test.js test/loyalty/*.test.js"
   },
   "author": "kritinjoshi",
   "private": true,

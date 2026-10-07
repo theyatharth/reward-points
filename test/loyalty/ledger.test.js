@@ -59,7 +59,7 @@ describe('Ledger Service & Webhooks', () => {
 
     assert.equal(webhook.status, 'pending');
 
-    const processed = await processPendingWebhooks();
+    const processed = await processPendingWebhooks({ shop: TEST_SHOP });
     assert.equal(processed, 1);
 
     const updatedWebhook = await prisma.webhookEvent.findUnique({ where: { id: webhook.id } });
@@ -106,7 +106,7 @@ describe('Ledger Service & Webhooks', () => {
       shopifyWebhookId: `wh_refund_${Date.now()}`,
     });
 
-    await processPendingWebhooks();
+    await processPendingWebhooks({ shop: TEST_SHOP });
 
     const updatedWebhook = await prisma.webhookEvent.findUnique({ where: { id: webhook.id } });
     assert.equal(updatedWebhook.status, 'processed');
@@ -145,7 +145,7 @@ describe('Ledger Service & Webhooks', () => {
       shopifyWebhookId: `wh_cancel_${Date.now()}`,
     });
 
-    await processPendingWebhooks();
+    await processPendingWebhooks({ shop: TEST_SHOP });
 
     const updatedWebhook = await prisma.webhookEvent.findUnique({ where: { id: webhook.id } });
     assert.equal(updatedWebhook.status, 'processed');
@@ -190,7 +190,7 @@ describe('Ledger Service & Webhooks', () => {
       shopifyWebhookId: `wh_pre_ledger_${Date.now()}`,
     });
 
-    await processPendingWebhooks();
+    await processPendingWebhooks({ shop: TEST_SHOP });
 
     const updatedWebhook = await prisma.webhookEvent.findUnique({ where: { id: webhook.id } });
     // Should be skipped due to date

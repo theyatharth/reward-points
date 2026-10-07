@@ -43,6 +43,16 @@ export function computeReversal({
   alreadyReversed,
   isFinalRefund = false,
 }) {
+  // Fail loudly: this parameter was once named refundAmountPaise (per-refund,
+  // not cumulative). A caller still passing the old name would otherwise get
+  // NaN arithmetic and a silent 0.
+  if (!Number.isInteger(totalRefundedPaise)) {
+    throw new TypeError(
+      `[reversal] totalRefundedPaise must be an integer number of paise (got ${totalRefundedPaise === null ? 'null' : typeof totalRefundedPaise === 'number' ? totalRefundedPaise : typeof totalRefundedPaise}). ` +
+        'It is the cumulative total refunded including this refund; the old name refundAmountPaise is no longer accepted.'
+    );
+  }
+
   if (pointsEarned <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };
   if (eligibleAmountPaise <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };
   if (totalRefundedPaise <= 0) return { pointsToReverse: 0, cumulativeTarget: alreadyReversed };

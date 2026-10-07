@@ -7,12 +7,14 @@
 //   2. The database name must end in _test.
 //   3. The database must not be on the PROTECTED_DATABASES list.
 //
-// Then runs all test files matched by the glob passed on the command line,
-// or defaults to test/**/*.test.js.
+// It is loaded with `node --import ./test/runner.js --test ...` (see the "test"
+// script in package.json), NOT as a test file: a throw during --import ends the
+// process before any test file is imported, whereas a runner.js passed as a test
+// file only fails itself while the other files keep loading and running.
 //
 // Usage:
-//   node --test test/runner.js
-//   node --test test/runner.js test/loyalty/**/*.test.js
+//   npm test
+//   node --import ./test/runner.js --test --experimental-test-isolation=none test/db-guard.test.js test/loyalty/*.test.js
 
 import { assertDbAllowed, assertNotProtected } from '../web/lib/db-guard.js';
 

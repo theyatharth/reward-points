@@ -12,7 +12,7 @@ test('full refund: reverses all points', () => {
   const { pointsToReverse, cumulativeTarget } = computeReversal({
     pointsEarned: 629,
     eligibleAmountPaise: 62995,
-    refundAmountPaise: 62995,
+    totalRefundedPaise: 62995,
     alreadyReversed: 0,
     isFinalRefund: true,
   });
@@ -29,7 +29,7 @@ test('50% refund: reverses ~half the points (round)', () => {
   const { pointsToReverse } = computeReversal({
     pointsEarned: 629,
     eligibleAmountPaise: 63000,
-    refundAmountPaise: 31500,
+    totalRefundedPaise: 31500,
     alreadyReversed: 0,
   });
   assert.ok(pointsToReverse > 0);
@@ -44,15 +44,16 @@ test('two partial refunds sum to total', () => {
   const first = computeReversal({
     pointsEarned: 100,
     eligibleAmountPaise: 10000,
-    refundAmountPaise: 3000,
+    totalRefundedPaise: 3000,
     alreadyReversed: 0,
   });
 
-  // Second refund: remaining 70% = ₹7000 (final)
+  // Second refund: remaining 70% = ₹7000 (final). The parameter is the CUMULATIVE
+  // total refunded so far (3000 + 7000), not this refund's own amount.
   const second = computeReversal({
     pointsEarned: 100,
     eligibleAmountPaise: 10000,
-    refundAmountPaise: 7000,
+    totalRefundedPaise: 10000,
     alreadyReversed: first.pointsToReverse,
     isFinalRefund: true,
   });
@@ -65,9 +66,10 @@ test('three partial refunds: total equals pointsEarned exactly', () => {
   const total = 9700;
   const chunk = Math.floor(total / 3); // 3233 each, 1 leftover
 
-  const r1 = computeReversal({ pointsEarned: earned, eligibleAmountPaise: total, refundAmountPaise: chunk, alreadyReversed: 0 });
-  const r2 = computeReversal({ pointsEarned: earned, eligibleAmountPaise: total, refundAmountPaise: chunk, alreadyReversed: r1.cumulativeTarget });
-  const r3 = computeReversal({ pointsEarned: earned, eligibleAmountPaise: total, refundAmountPaise: total - chunk * 2, alreadyReversed: r2.cumulativeTarget, isFinalRefund: true });
+  // Running cumulative totals: chunk, 2 × chunk, then everything.
+  const r1 = computeReversal({ pointsEarned: earned, eligibleAmountPaise: total, totalRefundedPaise: chunk, alreadyReversed: 0 });
+  const r2 = computeReversal({ pointsEarned: earned, eligibleAmountPaise: total, totalRefundedPaise: chunk * 2, alreadyReversed: r1.cumulativeTarget });
+  const r3 = computeReversal({ pointsEarned: earned, eligibleAmountPaise: total, totalRefundedPaise: total, alreadyReversed: r2.cumulativeTarget, isFinalRefund: true });
 
   assert.strictEqual(r1.pointsToReverse + r2.pointsToReverse + r3.pointsToReverse, earned);
 });
@@ -79,7 +81,7 @@ test('zero points earned → 0 reversed', () => {
   const { pointsToReverse } = computeReversal({
     pointsEarned: 0,
     eligibleAmountPaise: 10000,
-    refundAmountPaise: 5000,
+    totalRefundedPaise: 5000,
     alreadyReversed: 0,
   });
   assert.strictEqual(pointsToReverse, 0);
@@ -89,7 +91,7 @@ test('zero refund amount → 0 reversed', () => {
   const { pointsToReverse } = computeReversal({
     pointsEarned: 100,
     eligibleAmountPaise: 10000,
-    refundAmountPaise: 0,
+    totalRefundedPaise: 0,
     alreadyReversed: 0,
   });
   assert.strictEqual(pointsToReverse, 0);
@@ -99,10 +101,41 @@ test('already fully reversed → 0 more reversed', () => {
   const { pointsToReverse } = computeReversal({
     pointsEarned: 100,
     eligibleAmountPaise: 10000,
-    refundAmountPaise: 3000,
+    totalRefundedPaise: 3000,
     alreadyReversed: 100,
   });
   assert.strictEqual(pointsToReverse, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Parameter validation: a rename must never again fail silently
+// ---------------------------------------------------------------------------
+const VALID = { pointsEarned: 100, eligibleAmountPaise: 10000, alreadyReversed: 0 };
+
+test('missing totalRefundedPaise throws (e.g. caller still uses the old refundAmountPaise name)', () => {
+  assert.throws(
+    () => computeReversal({ ...VALID, refundAmountPaise: 5000 }),
+    (err) => err instanceof TypeError && /totalRefundedPaise/.test(err.message) && /refundAmountPaise/.test(err.message)
+  );
+});
+
+test('non-integer totalRefundedPaise throws (undefined, null, NaN, float, string)', () => {
+  for (const bad of [undefined, null, NaN, 3000.5, '3000', Infinity]) {
+    assert.throws(
+      () => computeReversal({ ...VALID, totalRefundedPaise: bad }),
+      TypeError,
+      `expected a TypeError for ${String(bad)}`
+    );
+  }
+});
+
+test('validation runs even when the early-return cases would apply (zero points earned)', () => {
+  assert.throws(() => computeReversal({ ...VALID, pointsEarned: 0 }), TypeError);
+});
+
+test('a zero or negative integer totalRefundedPaise is valid and reverses nothing', () => {
+  assert.strictEqual(computeReversal({ ...VALID, totalRefundedPaise: 0 }).pointsToReverse, 0);
+  assert.strictEqual(computeReversal({ ...VALID, totalRefundedPaise: -100 }).pointsToReverse, 0);
 });
 
 // ---------------------------------------------------------------------------

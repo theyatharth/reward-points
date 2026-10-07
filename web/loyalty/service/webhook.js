@@ -119,12 +119,18 @@ export async function markWebhookSkipped(eventId, reason) {
  * In a real production system with high throughput, this would be a
  * concurrent worker pool or triggered by SQS/EventBridge, but a simple
  * polling loop is sufficient for Phase 1 MVP.
+ *
+ * @param {Object} [options]
+ * @param {string} [options.shop] - only process this shop's events. Omit for the
+ *   worker, which processes every shop. Tests pass their own shop so events left
+ *   behind by other tests are never picked up.
  */
-export async function processPendingWebhooks() {
+export async function processPendingWebhooks({ shop } = {}) {
   const batchSize = 50;
   
   const events = await prisma.webhookEvent.findMany({
     where: {
+      ...(shop ? { shop } : {}),
       OR: [
         { status: 'pending' },
         {

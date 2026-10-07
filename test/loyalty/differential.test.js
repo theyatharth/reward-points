@@ -9,7 +9,8 @@
 // Refund: INTENDED DIFFERENCE documented:
 //   Client engine computes each refund independently as
 //     round(pointsEarned × refundAmount / subtotal)
-//   Our engine uses a cumulative-target approach, which prevents double-counting
+//   Our engine takes the running cumulative total refunded (totalRefundedPaise)
+//   and uses a cumulative-target approach, which prevents double-counting
 //   and gives the exact total on the final refund. The two approaches can differ
 //   by at most N points (1 per refund) — this is intentional.
 //   The test fails only if diff > N (unexplained).
@@ -101,7 +102,7 @@ test('differential earning: zero unexplained mismatches across 10,000 inputs', (
 // Refund differential
 // ---------------------------------------------------------------------------
 test('differential refund: zero unexplained mismatches across 10,000 sequences', () => {
-  let unexplained = 0, matched = 0;
+  let unexplained = 0, matched = 0, overReversed = 0, finalNotExact = 0;
 
   for (let i = 0; i < SEED_COUNT; i++) {
     const subtotal = randDecimal(100, 5000, 2);
@@ -122,18 +123,26 @@ test('differential refund: zero unexplained mismatches across 10,000 sequences',
     }
     if (refundAmounts.length === 0) continue;
 
-    // Our engine (cumulative target)
+    // Our engine (cumulative target). The client's amounts are PER refund; ours
+    // takes the running CUMULATIVE total refunded (including this refund), in paise.
     let ourReversed = 0;
+    let cumulativePaise = 0;
     const eligiblePaise = parsePaise(subtotal.toFixed(2));
     for (let r = 0; r < refundAmounts.length; r++) {
+      cumulativePaise += parsePaise(refundAmounts[r].toFixed(2));
+      const isLast = r === refundAmounts.length - 1;
       const { pointsToReverse } = computeReversal({
         pointsEarned, eligibleAmountPaise: eligiblePaise,
-        refundAmountPaise: parsePaise(refundAmounts[r].toFixed(2)),
+        totalRefundedPaise: cumulativePaise,
         alreadyReversed: ourReversed,
-        isFinalRefund: r === refundAmounts.length - 1,
+        isFinalRefund: isLast,
       });
       ourReversed += pointsToReverse;
+      // Never reverse more than was earned, at any step.
+      if (ourReversed > pointsEarned) overReversed++;
     }
+    // The final refund must give the exact total: everything earned, no drift.
+    if (ourReversed !== pointsEarned) finalNotExact++;
 
     // Client engine (independent per-refund — intended different model)
     const clientTotal = Math.min(
@@ -147,6 +156,8 @@ test('differential refund: zero unexplained mismatches across 10,000 sequences',
   }
 
   console.log(`[differential-refund] ${matched} within tolerance, ${unexplained} unexplained`);
+  assert.strictEqual(overReversed, 0, `${overReversed} sequences reversed more points than were earned`);
+  assert.strictEqual(finalNotExact, 0, `${finalNotExact} sequences did not reverse exactly pointsEarned on the final refund`);
   assert.strictEqual(unexplained, 0,
     `${unexplained} unexplained refund mismatches (diff > number of partial refunds)`);
 });
