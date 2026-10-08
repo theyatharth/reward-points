@@ -20,8 +20,11 @@ api_version = "2026-10"
 
   [[webhooks.subscriptions]]
   uri = "/api/webhooks"
-  topics = [ "app/uninstalled", "orders/paid", "refunds/create", "orders/cancelled",
-             "customers/redact", "shop/redact", "customers/data_request" ]
+  topics = [ "app/uninstalled", "orders/paid", "refunds/create", "orders/cancelled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
 [access_scopes]
 scopes = "write_customers, read_customers, write_products, read_discounts, write_discounts, read_orders"
@@ -34,5 +37,5 @@ redirect_urls = [
 
 [app_proxy]
 url = "https://integrations.platinuminfo.tech/reward-points-dev/api/proxy"
-subpath = "rewards"
+subpath = "rewards-dev"
 prefix = "apps"
