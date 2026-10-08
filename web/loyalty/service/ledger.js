@@ -10,6 +10,7 @@ import { computeReversal, computeCancellation } from '../rules/reversal.js';
 import { parsePaise } from '../rules/money.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { now } from '../adapters/clock.js';
+import { normalizeTopic } from './topics.js';
 import { ShopifyGateway } from '../adapters/gateway.js';
 import { FakeShopifyGateway } from '../adapters/fake-gateway.js';
 
@@ -30,11 +31,15 @@ export async function processEvent(event) {
   const configRow = await prisma.loyaltyConfig.findUnique({ where: { shop: event.shop } });
   const config = configRow || DEFAULT_CONFIG;
 
-  if (event.topic === 'ORDERS_PAID' || event.topic === 'orders/paid') {
+  // Accept both forms: new events are stored in the slash form, but rows stored
+  // before the intake map existed hold the library's enum form ("ORDERS_PAID").
+  const topic = normalizeTopic(event.topic);
+
+  if (topic === 'orders/paid') {
     return writeEarning(event, config);
-  } else if (event.topic === 'REFUNDS_CREATE' || event.topic === 'refunds/create') {
+  } else if (topic === 'refunds/create') {
     return writeRefund(event, config);
-  } else if (event.topic === 'ORDERS_CANCELLED' || event.topic === 'orders/cancelled') {
+  } else if (topic === 'orders/cancelled') {
     return writeCancel(event, config);
   } else {
     return markSkipped(event.id, `Unhandled topic: ${event.topic}`);

@@ -10,6 +10,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { processEvent } from './ledger.js';
 import { now } from '../adapters/clock.js';
+import { normalizeTopic, isKnownTopic } from './topics.js';
 
 /**
  * Stores an incoming webhook in the database.
@@ -24,6 +25,13 @@ import { now } from '../adapters/clock.js';
  * @returns {Promise<import('@prisma/client').WebhookEvent>}
  */
 export async function storeWebhook({ shop, topic, payload, shopifyWebhookId }) {
+  // Normalise once, at intake: events are stored in the slash form ("orders/paid").
+  // An unrecognised topic is stored exactly as given and logged.
+  if (!isKnownTopic(topic)) {
+    console.warn(`[webhook] unmapped topic stored as given: ${JSON.stringify(topic)}`);
+  }
+  topic = normalizeTopic(topic);
+
   if (shopifyWebhookId) {
     const existing = await prisma.webhookEvent.findFirst({
       where: { shopifyWebhookId },
