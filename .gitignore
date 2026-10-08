@@ -52,3 +52,6 @@ prisma/generated/
 # actually matched it.
 /generated/
 scripts/reconciliation-report-*.json
+
+# Redacted webhook exports (scripts/export-webhook-payloads.mjs): review before use, never commit
+captures/
