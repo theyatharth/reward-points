@@ -83,7 +83,10 @@ describe('Included-tax stripping through the webhook pipeline', () => {
     const ev = await run(taxedOrder([{ title: 'GST', rate: 0.05 }]));
     assert.strictEqual(ev.status, 'failed');
     assert.match(ev.lastError, /neither a parsable "price" nor "amount"/);
-    assert.match(ev.lastError, /keys found: title, rate/);
+    // The payload went through Postgres JSONB, which reorders keys (shorter names first),
+    // so assert the key names without depending on their order.
+    const found = ev.lastError.match(/keys found: (.*)\)$/)[1].split(', ').sort();
+    assert.deepStrictEqual(found, ['rate', 'title']);
     assert.ok(!ev.lastError.includes('GST'), 'the error lists key names, not values');
     assert.strictEqual(await account(), null, 'no account and no points: nothing was earned on the gross price');
     assert.strictEqual(await prisma.ledgerEntry.count({ where: { dedupeKey: { startsWith: 'earn:' }, account: { shop } } }), 0);
