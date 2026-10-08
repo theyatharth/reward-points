@@ -62,6 +62,41 @@ import { parsePaise, multiplyPoints } from './money.js';
  *   points              — integer points earned
  *   eligibleAmountPaise — total eligible order value in paise (for the ledger)
  */
+// ---------------------------------------------------------------------------
+// Tax-line amount.
+//
+// !! UNVERIFIED SHAPE !!  No real taxed order has been captured yet. The one real
+// orders/paid body captured so far (test order #1015) has `taxes_included: true`
+// but `tax_lines: []` on the order and on the line, so it says nothing about what
+// a tax-line ENTRY looks like. Shopify's library types leave the fields as unknown.
+// We read the amount from `price` (the field we believe Shopify uses:
+// { title, price, rate, price_set, ... }) and fall back to `amount` (the field the
+// hand-made fixtures used). Replace this note once a real taxed order is captured.
+//
+// The amount is the tax for the WHOLE line (all quantity), like the line total it
+// is subtracted from. Only used when tax stripping is on. An entry with neither a
+// parsable `price` nor `amount` THROWS, listing the key names found (never values),
+// so the event fails visibly: parsePaise(undefined) is 0, which would otherwise
+// silently earn points on the gross price including tax.
+// ---------------------------------------------------------------------------
+function taxLineAmountPaise(taxLine) {
+  if (taxLine === null || typeof taxLine !== 'object' || Array.isArray(taxLine)) {
+    throw new Error(`[earning] tax line is not an object (found: ${taxLine === null ? 'null' : Array.isArray(taxLine) ? 'array' : typeof taxLine})`);
+  }
+  for (const field of ['price', 'amount']) {
+    const raw = taxLine[field];
+    if (raw === undefined || raw === null || raw === '') continue;
+    try {
+      return parsePaise(raw);
+    } catch {
+      // not parsable: try the next field
+    }
+  }
+  throw new Error(
+    `[earning] tax line has neither a parsable "price" nor "amount" (keys found: ${Object.keys(taxLine).join(', ') || 'none'})`
+  );
+}
+
 export function computeEarning(input) {
   const {
     lineItems = [],
@@ -92,9 +127,9 @@ export function computeEarning(input) {
 
     // Strip included tax from the line price (proportional per line).
     if (stripTax && line.tax_lines && line.tax_lines.length > 0) {
-      // Sum the tax amounts for this line.
+      // Sum the tax amounts for this line (price, falling back to amount; see taxLineAmountPaise).
       const taxPaise = line.tax_lines.reduce(
-        (sum, t) => sum + parsePaise(t.amount),
+        (sum, t) => sum + taxLineAmountPaise(t),
         0
       );
       linePaise = Math.max(0, linePaise - taxPaise);

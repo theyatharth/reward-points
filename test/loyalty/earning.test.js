@@ -198,6 +198,85 @@ test('inputs without the new fields behave as before (defaults: ₹1 spend, afte
 });
 
 // ---------------------------------------------------------------------------
+// Tax lines when included tax is stripped (taxHandling "inclusive" + taxes_included)
+//
+// !! UNVERIFIED SHAPE !! The tax-line entries below use the shape we BELIEVE
+// Shopify sends ({ title, price, rate }), plus the shape the hand-made fixtures
+// used ({ amount }). The one real captured order (#1015) had tax_lines: [], so no
+// real entry has been seen. These are not derived from a real taxed capture.
+// ---------------------------------------------------------------------------
+const STRIP = { taxesIncluded: true, taxHandling: 'inclusive' };
+const strip = (lines, extra = {}) => computeEarning(makeInput(lines, { ...STRIP, ...extra }));
+
+test('tax line, "price" shape: ₹21.00 incl. ₹1.00 GST earns 20 pts on ₹20.00', () => {
+  const r = strip([{ price: '21.00', quantity: 1, tax_lines: [{ title: 'GST', price: '1.00', rate: 0.05 }] }]);
+  assert.strictEqual(r.eligibleAmountPaise, 2000);
+  assert.strictEqual(r.points, 20);
+});
+
+test('tax line, "amount" shape (what the hand-made fixtures used) still works', () => {
+  const r = strip([{ price: '21.00', quantity: 1, tax_lines: [{ title: 'GST', amount: '1.00', rate: 0.05 }] }]);
+  assert.strictEqual(r.eligibleAmountPaise, 2000);
+  assert.strictEqual(r.points, 20);
+});
+
+test('"price" wins over "amount" when both are present', () => {
+  const r = strip([{ price: '21.00', quantity: 1, tax_lines: [{ price: '1.00', amount: '9.00' }] }]);
+  assert.strictEqual(r.eligibleAmountPaise, 2000);
+});
+
+test('an unparsable "price" falls back to "amount"', () => {
+  const r = strip([{ price: '21.00', quantity: 1, tax_lines: [{ price: 'abc', amount: '1.00' }] }]);
+  assert.strictEqual(r.eligibleAmountPaise, 2000);
+});
+
+test('two tax lines on one line are summed (price and amount shapes may be mixed)', () => {
+  const lines = [{ price: '21.50', quantity: 1, tax_lines: [{ title: 'CGST', price: '1.00' }, { title: 'SGST', amount: '0.50' }] }];
+  const r = strip(lines);
+  assert.strictEqual(r.eligibleAmountPaise, 2000);
+  assert.strictEqual(r.points, 20);
+});
+
+test('quantity > 1: the tax line is the tax for the whole line, subtracted from unit price × quantity', () => {
+  const r = strip([{ price: '21.00', quantity: 2, tax_lines: [{ title: 'GST', price: '2.00', rate: 0.05 }] }]);
+  assert.strictEqual(r.eligibleAmountPaise, 4000); // 4200 - 200
+  assert.strictEqual(r.points, 40);
+});
+
+test('a tax line with NEITHER "price" nor "amount" throws, listing key names and no values', () => {
+  const lines = [{ price: '21.00', quantity: 1, tax_lines: [{ title: 'SecretTitleValue', rate: 0.05 }] }];
+  assert.throws(
+    () => strip(lines),
+    (err) => {
+      assert.match(err.message, /neither a parsable "price" nor "amount"/);
+      assert.match(err.message, /keys found: title, rate/);
+      assert.ok(!err.message.includes('SecretTitleValue') && !err.message.includes('0.05'), 'no values in the message');
+      return true;
+    }
+  );
+});
+
+test('unparsable price AND amount also throws (never silently earns on the gross price)', () => {
+  const lines = [{ price: '21.00', quantity: 1, tax_lines: [{ price: 'abc', amount: null, title: 'GST' }] }];
+  assert.throws(() => strip(lines), (err) => /neither a parsable/.test(err.message) && !err.message.includes('abc'));
+});
+
+test('a tax line that is not an object throws, naming only its type', () => {
+  assert.throws(() => strip([{ price: '21.00', quantity: 1, tax_lines: ['1.00'] }]), /tax line is not an object \(found: string\)/);
+  assert.throws(() => strip([{ price: '21.00', quantity: 1, tax_lines: [null] }]), /found: null/);
+});
+
+test('the throw happens only when stripping applies', () => {
+  const bad = [{ price: '21.00', quantity: 1, tax_lines: [{ title: 'GST', rate: 0.05 }] }];
+  // exclusive: tax lines are not used at all
+  assert.strictEqual(computeEarning(makeInput(bad, { taxesIncluded: true, taxHandling: 'exclusive' })).points, 21);
+  // prices do not include tax: nothing to strip
+  assert.strictEqual(computeEarning(makeInput(bad, { taxesIncluded: false, taxHandling: 'inclusive' })).points, 21);
+  // inclusive and taxes included, but the line has no tax lines (the real captured order #1015): nothing to strip, no error
+  assert.strictEqual(strip([{ price: '21.00', quantity: 1, tax_lines: [] }]).points, 21);
+});
+
+// ---------------------------------------------------------------------------
 // Shipping
 // ---------------------------------------------------------------------------
 test('shipping excluded by default', () => {

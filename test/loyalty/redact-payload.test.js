@@ -148,3 +148,13 @@ test('findLeftovers is quiet on a fully redacted sample', () => {
   const hits = findLeftovers(redactPayload(sample()));
   assert.deepStrictEqual(hits, [], JSON.stringify(hits));
 });
+
+test('confirmation_number (a customer-facing order reference) is redacted; nothing around it changes', () => {
+  const out = redactPayload({ id: 7211153948869, name: '#1015', confirmation_number: '9FMV7PP8Y', order_number: 1015 });
+  assert.match(out.confirmation_number, /^\[redacted/);
+  assert.ok(!json(out).includes('9FMV7PP8Y'));
+  assert.strictEqual(out.id, 7211153948869);
+  assert.strictEqual(out.name, '#1015');
+  assert.strictEqual(out.order_number, 1015);
+  assert.deepStrictEqual(Object.keys(out), ['id', 'name', 'confirmation_number', 'order_number'], 'key kept, order unchanged');
+});

@@ -26,6 +26,7 @@ const REDACT_KEYS = new Set([
   'latitude', 'longitude', 'browser_ip', 'user_agent', 'accept_language',
   'note', 'token', 'cart_token', 'checkout_token', 'landing_site', 'referring_site',
   'order_status_url', 'source_url',
+  'confirmation_number', // customer-facing order reference
 ]);
 
 // "name" is personal inside these objects, but "#1001" at order level (and a
