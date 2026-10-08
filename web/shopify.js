@@ -37,6 +37,11 @@ const sessionStorage = new PrismaSessionStorage(prisma);
 
 const shopify = shopifyApp({
   api: {
+    // API versions are deliberately not aligned yet:
+    //   - the webhook PAYLOAD shape follows shopify.app.toml [webhooks] api_version (2026-10);
+    //   - this Admin API client uses 2026-07 (ApiVersion.July26);
+    //   - the REST getOrder call in web/loyalty/adapters/gateway.js has NOT been verified
+    //     against 2026-10.
     apiVersion: ApiVersion.July26,
     restResources,
     future: {
@@ -59,11 +64,10 @@ const shopify = shopifyApp({
   future: {
     tokenExchange: true,
   },
-  hooks: {
-    afterAuth: async ({ session }) => {
-      await shopify.registerWebhooks({ session });
-    },
-  },
+  // No afterAuth registerWebhooks(): webhook subscriptions are declared in
+  // shopify.app.toml (app-specific). Registering the same topics through the API
+  // as well creates a second, shop-specific subscription to the same URL and every
+  // event arrives twice (T2.5).
   sessionStorage,
 });
 
