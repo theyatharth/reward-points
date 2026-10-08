@@ -133,9 +133,24 @@ export async function markWebhookSkipped(eventId, reason) {
  *   worker, which processes every shop. Tests pass their own shop so events left
  *   behind by other tests are never picked up.
  */
-export async function processPendingWebhooks({ shop } = {}) {
+export async function processPendingWebhooks(options = {}) {
+  return (await processPendingWebhooksWithStats(options)).processed;
+}
+
+/**
+ * Same as processPendingWebhooks, but reports what happened:
+ *   picked    - events fetched this batch
+ *   processed - events that ran without throwing
+ *   failed    - events that threw (recorded as failed/dead on the event row)
+ * The worker uses it so a tick with only failures is still visible.
+ *
+ * @param {Object} [options]
+ * @param {string} [options.shop]
+ * @returns {Promise<{ picked: number, processed: number, failed: number }>}
+ */
+export async function processPendingWebhooksWithStats({ shop } = {}) {
   const batchSize = 50;
-  
+
   const events = await prisma.webhookEvent.findMany({
     where: {
       ...(shop ? { shop } : {}),
@@ -151,9 +166,10 @@ export async function processPendingWebhooks({ shop } = {}) {
     take: batchSize,
   });
 
-  if (events.length === 0) return 0;
+  if (events.length === 0) return { picked: 0, processed: 0, failed: 0 };
 
   let processedCount = 0;
+  let failedCount = 0;
   for (const event of events) {
     try {
       // Mark as processing to prevent concurrent pickup (if multiple workers run)
@@ -166,9 +182,10 @@ export async function processPendingWebhooks({ shop } = {}) {
       processedCount++;
     } catch (error) {
       console.error(`Error processing webhook event ${event.id}:`, error);
+      failedCount++;
       await markWebhookFailed(event.id, error);
     }
   }
 
-  return processedCount;
+  return { picked: events.length, processed: processedCount, failed: failedCount };
 }
