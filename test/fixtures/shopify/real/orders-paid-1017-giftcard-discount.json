@@ -1,0 +1,439 @@
+{
+  "_provenance": {
+    "note": "REAL delivery of an orders/paid webhook to the dev app (reward-points-dev) for a TEST order on platinum-ecofynd-test-store; USD. Redacted by scripts/export-webhook-payloads.mjs on 2026-10-08: every key kept, personal and secret values replaced. Only the order id and customer.id are ever overridden by tests.",
+    "order": "#1017",
+    "what": "two lines (one gift card), 10% discount code that touches only the non-gift-card line",
+    "currency": "USD",
+    "topic": "orders/paid",
+    "receivedAt": "2026-10-08T10:44:46.214Z",
+    "redactedOn": "2026-10-08"
+  },
+  "id": 7211284988101,
+  "name": "#1017",
+  "note": null,
+  "tags": "",
+  "test": true,
+  "token": "[redacted] string",
+  "app_id": 580111,
+  "number": 17,
+  "company": null,
+  "refunds": [],
+  "returns": [],
+  "user_id": null,
+  "currency": "USD",
+  "customer": {
+    "id": 10156980011205,
+    "note": null,
+    "state": "disabled",
+    "currency": "USD",
+    "created_at": "2026-09-28T09:26:17-04:00",
+    "tax_exempt": false,
+    "updated_at": "2026-10-08T06:44:43-04:00",
+    "tax_exemptions": [],
+    "verified_email": true,
+    "default_address": {
+      "id": 10778549485765,
+      "company": null,
+      "country": "[redacted] string",
+      "default": true,
+      "province": "[redacted] string",
+      "customer_id": 10156980011205,
+      "country_code": "US",
+      "country_name": "[redacted] string",
+      "province_code": "AL"
+    },
+    "admin_graphql_api_id": "gid://shopify/Customer/10156980011205",
+    "multipass_identifier": null
+  },
+  "closed_at": null,
+  "confirmed": true,
+  "device_id": null,
+  "po_number": null,
+  "reference": null,
+  "tax_lines": [],
+  "total_tax": "0.00",
+  "browser_ip": "[redacted] string",
+  "cart_token": "[redacted] string",
+  "created_at": "2026-10-08T06:44:43-04:00",
+  "line_items": [
+    {
+      "id": 17009403920581,
+      "sku": null,
+      "name": "The Collection Snowboard: Liquid",
+      "grams": 0,
+      "price": "749.95",
+      "title": "The Collection Snowboard: Liquid",
+      "duties": [],
+      "vendor": "Hydrogen Vendor",
+      "taxable": true,
+      "quantity": 1,
+      "gift_card": false,
+      "price_set": {
+        "shop_money": {
+          "amount": "749.95",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "749.95",
+          "currency_code": "USD"
+        }
+      },
+      "tax_lines": [],
+      "product_id": 9027685187781,
+      "properties": [],
+      "variant_id": 46915896934597,
+      "variant_title": null,
+      "product_exists": true,
+      "total_discount": "0.00",
+      "selling_plan_id": null,
+      "current_quantity": 1,
+      "attributed_staffs": [],
+      "requires_shipping": true,
+      "fulfillment_status": null,
+      "total_discount_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      },
+      "fulfillment_service": "manual",
+      "admin_graphql_api_id": "gid://shopify/LineItem/17009403920581",
+      "discount_allocations": [
+        {
+          "amount": "74.99",
+          "amount_set": {
+            "shop_money": {
+              "amount": "74.99",
+              "currency_code": "USD"
+            },
+            "presentment_money": {
+              "amount": "74.99",
+              "currency_code": "USD"
+            }
+          },
+          "discount_application_index": 0
+        }
+      ],
+      "fulfillable_quantity": 1,
+      "sales_line_item_group_id": null,
+      "variant_inventory_management": "shopify"
+    },
+    {
+      "id": 17009403953349,
+      "sku": null,
+      "name": "Test Gift Card - $10.00",
+      "grams": 0,
+      "price": "10.00",
+      "title": "Test Gift Card",
+      "duties": [],
+      "vendor": "Platinum-Ecofynd test store",
+      "taxable": false,
+      "quantity": 1,
+      "gift_card": true,
+      "price_set": {
+        "shop_money": {
+          "amount": "10.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "10.00",
+          "currency_code": "USD"
+        }
+      },
+      "tax_lines": [],
+      "product_id": 10345202286789,
+      "properties": [],
+      "variant_id": 50645196046533,
+      "variant_title": "$10.00",
+      "product_exists": true,
+      "total_discount": "0.00",
+      "selling_plan_id": null,
+      "current_quantity": 1,
+      "attributed_staffs": [],
+      "requires_shipping": false,
+      "fulfillment_status": null,
+      "total_discount_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      },
+      "fulfillment_service": "gift_card",
+      "admin_graphql_api_id": "gid://shopify/LineItem/17009403953349",
+      "discount_allocations": [],
+      "fulfillable_quantity": 1,
+      "sales_line_item_group_id": null,
+      "variant_inventory_management": null
+    }
+  ],
+  "source_url": null,
+  "tax_exempt": false,
+  "updated_at": "2026-10-08T06:44:44-04:00",
+  "location_id": null,
+  "source_name": "web",
+  "total_price": "684.96",
+  "cancelled_at": null,
+  "fulfillments": [],
+  "landing_site": "[redacted] string",
+  "order_number": 1017,
+  "processed_at": "2026-10-08T06:44:41-04:00",
+  "total_weight": 0,
+  "cancel_reason": null,
+  "payment_terms": null,
+  "total_tax_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "checkout_token": "[redacted] string",
+  "client_details": {
+    "browser_ip": "[redacted] string",
+    "user_agent": "[redacted] string",
+    "session_hash": null,
+    "browser_width": null,
+    "browser_height": null,
+    "accept_language": "[redacted] string"
+  },
+  "discount_codes": [
+    {
+      "code": "TESTGST10",
+      "type": "percentage",
+      "amount": "74.99"
+    }
+  ],
+  "referring_site": "[redacted] string",
+  "shipping_lines": [
+    {
+      "id": 5768442642629,
+      "code": "Standard",
+      "phone": null,
+      "price": "0.00",
+      "title": "Standard",
+      "source": "shopify",
+      "price_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      },
+      "tax_lines": [],
+      "is_removed": false,
+      "discounted_price": "0.00",
+      "carrier_identifier": null,
+      "discount_allocations": [],
+      "discounted_price_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      },
+      "current_discounted_price_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      },
+      "requested_fulfillment_service_id": null
+    }
+  ],
+  "subtotal_price": "684.96",
+  "taxes_included": true,
+  "billing_address": {
+    "country": "[redacted] string",
+    "province": "[redacted] string",
+    "country_code": "US",
+    "province_code": "AL"
+  },
+  "customer_locale": "en-US",
+  "duties_included": false,
+  "estimated_taxes": false,
+  "note_attributes": [],
+  "total_discounts": "74.99",
+  "total_price_set": {
+    "shop_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    }
+  },
+  "financial_status": "paid",
+  "landing_site_ref": null,
+  "line_item_groups": [],
+  "shipping_address": {
+    "country": "[redacted] string",
+    "province": "[redacted] string",
+    "country_code": "US",
+    "province_code": "AL"
+  },
+  "current_total_tax": "0.00",
+  "source_identifier": null,
+  "total_outstanding": "0.00",
+  "fulfillment_status": null,
+  "subtotal_price_set": {
+    "shop_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    }
+  },
+  "total_tip_received": "0.00",
+  "confirmation_number": "[redacted] string",
+  "current_total_price": "684.96",
+  "total_discounts_set": {
+    "shop_money": {
+      "amount": "74.99",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "74.99",
+      "currency_code": "USD"
+    }
+  },
+  "admin_graphql_api_id": "gid://shopify/Order/7211284988101",
+  "presentment_currency": "USD",
+  "current_total_tax_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "discount_applications": [
+    {
+      "code": "TESTGST10",
+      "type": "discount_code",
+      "value": "10.0",
+      "value_type": "percentage",
+      "target_type": "line_item",
+      "target_selection": "all",
+      "allocation_method": "across"
+    }
+  ],
+  "payment_gateway_names": [
+    "bogus"
+  ],
+  "current_subtotal_price": "684.96",
+  "total_line_items_price": "759.95",
+  "buyer_accepts_marketing": true,
+  "current_total_discounts": "74.99",
+  "current_total_price_set": {
+    "shop_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    }
+  },
+  "current_total_duties_set": null,
+  "total_shipping_price_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "merchant_of_record_app_id": null,
+  "original_total_duties_set": null,
+  "current_shipping_price_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "current_subtotal_price_set": {
+    "shop_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "684.96",
+      "currency_code": "USD"
+    }
+  },
+  "total_line_items_price_set": {
+    "shop_money": {
+      "amount": "759.95",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "759.95",
+      "currency_code": "USD"
+    }
+  },
+  "current_total_discounts_set": {
+    "shop_money": {
+      "amount": "74.99",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "74.99",
+      "currency_code": "USD"
+    }
+  },
+  "merchant_business_entity_id": "31296848069",
+  "current_total_additional_fees_set": null,
+  "original_total_additional_fees_set": null,
+  "total_cash_rounding_refund_adjustment_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "total_cash_rounding_payment_adjustment_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  }
+}

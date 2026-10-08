@@ -200,10 +200,12 @@ test('inputs without the new fields behave as before (defaults: ₹1 spend, afte
 // ---------------------------------------------------------------------------
 // Tax lines when included tax is stripped (taxHandling "inclusive" + taxes_included)
 //
-// !! UNVERIFIED SHAPE !! The tax-line entries below use the shape we BELIEVE
-// Shopify sends ({ title, price, rate }), plus the shape the hand-made fixtures
-// used ({ amount }). The one real captured order (#1015) had tax_lines: [], so no
-// real entry has been seen. These are not derived from a real taxed capture.
+// The single-tax-line shape ({ title, price, rate, ... }, amount under `price`) is
+// VERIFIED by real capture #1018 and runs end to end in real-fixtures.test.js.
+// The entries below are SYNTHETIC unit-test inputs. Two things are still
+// UNVERIFIED against Shopify: several tax lines on one line item (CGST + SGST,
+// tested here with made-up entries) and any non-USD taxed order. The { amount }
+// shape is the old hand-made fixtures' and is kept only as the fallback.
 // ---------------------------------------------------------------------------
 const STRIP = { taxesIncluded: true, taxHandling: 'inclusive' };
 const strip = (lines, extra = {}) => computeEarning(makeInput(lines, { ...STRIP, ...extra }));

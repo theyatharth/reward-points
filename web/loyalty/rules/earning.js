@@ -65,13 +65,13 @@ import { parsePaise, multiplyPoints } from './money.js';
 // ---------------------------------------------------------------------------
 // Tax-line amount.
 //
-// !! UNVERIFIED SHAPE !!  No real taxed order has been captured yet. The one real
-// orders/paid body captured so far (test order #1015) has `taxes_included: true`
-// but `tax_lines: []` on the order and on the line, so it says nothing about what
-// a tax-line ENTRY looks like. Shopify's library types leave the fields as unknown.
-// We read the amount from `price` (the field we believe Shopify uses:
-// { title, price, rate, price_set, ... }) and fall back to `amount` (the field the
-// hand-made fixtures used). Replace this note once a real taxed order is captured.
+// VERIFIED by a real capture (test order #1018, test/fixtures/shopify/real/): a tax
+// line is { rate, price, title, price_set, channel_liable }. The amount is under
+// `price` (a decimal string); there is no `amount` key. We read `price` and keep
+// `amount` as a fallback only because the old hand-made fixtures used it.
+//
+// STILL UNVERIFIED: several tax lines on ONE line item (CGST + SGST: we sum them,
+// but Shopify has not been seen sending that) and any non-USD taxed order.
 //
 // The amount is the tax for the WHOLE line (all quantity), like the line total it
 // is subtracted from. Only used when tax stripping is on. An entry with neither a

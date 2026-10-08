@@ -6,11 +6,12 @@
 //
 // PAYLOAD PROVENANCE: derived from the real captured orders/paid body (test order
 // #1015: one line, USD, taxes_included true, tax_lines []), keeping only the fields
-// the adapter reads (id, name, order_number, processed_at, taxes_included,
-// customer.id, shipping_lines, and per line: id, product_id, price, quantity,
-// gift_card, discount_allocations). The line's `tax_lines` and the price are EDITED
-// BY HAND. The tax-line entry shape ({ title, price, rate }) is UNVERIFIED: the real
-// capture had no tax lines. Replace this with a real taxed capture when one exists.
+// the adapter reads. The line's `tax_lines` and the price are EDITED BY HAND, so this
+// is NOT a real taxed payload. The single-tax-line shape it uses ({ title, price,
+// rate }) is now VERIFIED by the real taxed capture #1018, which
+// real-fixtures.test.js feeds through the same pipeline. What this file adds is the
+// failure case: a tax line with neither price nor amount (hand-made) must fail the
+// event visibly. Multiple tax lines on one line item remain UNVERIFIED.
 
 import { test, describe, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert';
@@ -57,7 +58,7 @@ describe('Included-tax stripping through the webhook pipeline', () => {
     line_items: [{
       id: 17009161568453, product_id: 9027684925637, quantity: 1, gift_card: false,
       price: '21.00',            // EDITED BY HAND (the capture had 600.00 and no tax)
-      tax_lines: taxLines,       // EDITED BY HAND, shape UNVERIFIED
+      tax_lines: taxLines,       // EDITED BY HAND (the single-entry shape is verified by capture #1018)
       discount_allocations: [],
     }],
   });
