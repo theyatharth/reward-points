@@ -9,6 +9,8 @@
 //                       through the gateway; new points repay the owed balance first)
 //   expireUnusedCodes   reward codes past their expiry that were never used become 'expired';
 //                       their points come back only if the shop's returnPointsOnCodeExpiry is on
+//   syncStorefront      dirty accounts' metafields and the redeem-rule metafield are pushed to Shopify
+//                       (metafield-sync.js)
 //   deleteVoidedCodes   codes voided to cover a return (D4) are deleted in Shopify
 //   purgeOldPayloads    processed events older than 90 days lose their payload, nothing else
 //
@@ -22,6 +24,7 @@ import { activatePendingLot, lockAccount, returnPoints, gatewayFactory } from '.
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { recordJob, ranWithin } from './jobrun.js';
 import { runNightlyReconciliation } from './reconcile.js';
+import { syncDirtyAccounts, syncRuleMetafields } from './metafield-sync.js';
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -269,6 +272,30 @@ async function runJob(jobType, fn, { didSomething, always = false, shop } = {}) 
 }
 
 /**
+ * Pushes dirty accounts and a changed rule to the storefront. A run that synced something is recorded;
+ * a run that only FAILED is recorded at most once every 10 minutes (a broken Shopify session must not
+ * write a JobRun every 30 seconds).
+ */
+async function runStorefrontSync({ shop } = {}) {
+  const startedAt = now();
+  try {
+    const accounts = await syncDirtyAccounts({ shop });
+    const rule = await syncRuleMetafields({ shop });
+    const synced = accounts.synced + accounts.gone + rule.synced;
+    const failed = accounts.failed.length + rule.failed.length;
+    if (synced > 0) {
+      await recordJob({ jobType: 'sync_metafields', startedAt, status: 'completed', result: { accounts: { ...accounts, failed: accounts.failed.slice(0, 20) }, rule }, shop });
+    } else if (failed > 0 && !(await ranWithin('sync_metafields', 10 * MINUTE_MS, shop ?? null, 'failed'))) {
+      await recordJob({ jobType: 'sync_metafields', startedAt, status: 'failed', error: `${failed} sync failure(s)`, result: { accounts: { ...accounts, failed: accounts.failed.slice(0, 20) }, rule }, shop });
+    }
+    return { accounts, rule };
+  } catch (err) {
+    console.error('[jobs] sync_metafields failed:', err.message);
+    return null;
+  }
+}
+
+/**
  * The work of one worker tick, after the events themselves have been drained:
  * stuck-event recovery every tick, lot activation every 5 minutes, the purge once a day,
  * the nightly reconciliation. One failing job does not stop the others.
@@ -295,6 +322,8 @@ export function createJobsWork({ shop, activationEveryMs = ACTIVATION_EVERY_MS }
     summary.codes = await runJob('expire_codes', () => expireUnusedCodes({ shop }), { didSomething: (r) => r.expired > 0, shop });
 
     summary.voided = await runJob('delete_voided_codes', () => deleteVoidedCodes({ shop }), { didSomething: (r) => r.due > 0, shop });
+
+    summary.sync = await runStorefrontSync({ shop });
 
     if (!(await ranWithin('purge_payloads', 23 * HOUR_MS, shop ?? null))) {
       summary.purge = await runJob('purge_payloads', () => purgeOldPayloads({ shop }), { always: true, shop });

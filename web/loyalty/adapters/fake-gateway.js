@@ -52,6 +52,29 @@ export class FakeShopifyGateway {
     return { id: discount.id };
   }
 
+  /**
+   * Records the metafields a customer would have. `onSetCustomerMetafields(items)` (a test hook) runs
+   * first and may throw, or change the database to simulate a write landing during the sync.
+   */
+  async setCustomerMetafields(items) {
+    this._checkFailure();
+    this.metafieldCalls = [...(this.metafieldCalls || []), items.map((i) => i.customerId)];
+    if (this.onSetCustomerMetafields) await this.onSetCustomerMetafields(items);
+    this.customerMetafields = this.customerMetafields || new Map();
+    for (const i of items) {
+      this.customerMetafields.set(String(i.customerId), {
+        reward_points: i.available, pending_points: i.pending,
+        pending_points_available_at: i.pendingAvailableAt ? i.pendingAvailableAt.toISOString() : 'NONE',
+        earned_discount_code: i.activeCode || 'NONE',
+      });
+    }
+  }
+
+  async setRuleMetafield(rule) {
+    this._checkFailure();
+    this.ruleMetafields = [...(this.ruleMetafields || []), rule];
+  }
+
   /** Deletes a discount by its node id. Returns true even if it was already gone. */
   async deleteRewardDiscount(discountId) {
     this._checkFailure();

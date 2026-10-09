@@ -125,8 +125,30 @@ the Reward is created: mark Reward 'returned' and Redemption 'voided', `returnPo
 set `needsShopifyDelete`. The customer then sees "this reward could not be issued because an order was just returned"
 and the code never works. The cost is a code that appears and is withdrawn seconds later, in a rare race.
 
+- TASK 7 DONE (migration 8: dirty counters + three triggers).
+  * Metafield sync (`loyalty/service/metafield-sync.js`, worker job `sync_metafields`): triggers bump
+    `LoyaltyAccount.metafieldSeq` when balances change or one of the account's rewards is created / changes status,
+    expiry or code, and `LoyaltyConfig.ruleSeq` when pointsPerReward, rewardValue, holdPeriodDays or currency change.
+    The sync reads the seq FIRST, writes `custom.reward_points`, `pending_points`, `pending_points_available_at`,
+    `earned_discount_code` (newest live code or "NONE") six customers per call, then stamps `metafieldSyncedSeq` with
+    the value it read, so a change during a sync stays dirty. Failed batch -> one by one; a customer Shopify says no
+    longer exists is marked synced; anything else stays dirty. The rule goes to the app metafield
+    `rewards.redeem_rule` (JSON). Failure-only runs are recorded at most once per 10 minutes.
+    `scripts/resync-metafields.mjs --shop` marks everything dirty (after `reset-metafields.mjs`).
+  * Widget fixes (T3.6): proxy path is a block setting (`proxy_path`, default `/apps/rewards`; set `/apps/rewards-dev`
+    for the dev app) validated by `EcoRewards.safeProxyPath`; the redeem threshold and hold period come from the
+    rule (app metafield for the first paint, `/history` as the truth) - no `= 100`, no "30 days"; innerHTML replaced by
+    createElement/textContent everywhere; `customer.first_name`, codes and dates escaped in Liquid, no inline
+    `onclick` with interpolated codes; no customer id sent from the browser; idempotency key per redeem kept across a
+    network error; the `reward_history` metafield is no longer read (history comes from the ledger); the rewards
+    page's invalid two-object schema fixed. Shared code: `extensions/rewards-widget/assets/rewards-client.js`.
+    Tests: `metafield-sync.test.js` (DB), `widget-client.test.js` (pure: vm sandbox + static checks of the blocks).
+  * UNVERIFIED until the theme runs: that `app.metafields.rewards.redeem_rule` is readable in the blocks (spike T3.0
+    was never run). If it is not, the first paint shows "Checking your rewards..." and the live numbers appear as
+    soon as `/history` answers, so nothing breaks.
+
 ## Next
-- Task 7 (metafield sync and widget fixes), then CHECKPOINT 2.
+- CHECKPOINT 2: CI green, sync + migrations 7 and 8 (dev, test), then the RUN ON MAC and RUN ON SERVER blocks.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is

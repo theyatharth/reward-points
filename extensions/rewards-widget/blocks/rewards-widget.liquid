@@ -1,18 +1,32 @@
-{% comment %} Fetch points and active code securely via Liquid {% endcomment %}
+{% comment %}
+  Floating rewards widget. The first paint comes from the customer metafields the worker keeps in step with
+  the ledger (custom.reward_points, pending_points, pending_points_available_at, earned_discount_code) and
+  from the shop rule metafield (app.metafields.rewards.redeem_rule). As soon as the page loads, the signed
+  App Proxy /history call replaces all of it with the live numbers, so the panel never shows stale data for
+  long and never depends on a hardcoded threshold. The proxy path is a block setting (dev app:
+  /apps/rewards-dev). Everything is built with createElement and textContent.
+{% endcomment %}
+{% assign proxy_path = block.settings.proxy_path | default: '/apps/rewards' %}
+{% assign rule = app.metafields.rewards.redeem_rule.value %}
+{% assign redeem_threshold = rule.pointsPerReward | default: 0 | plus: 0 %}
 {% assign current_points = 0 %}
+{% assign pending_points = 0 %}
+{% assign pending_available_at = blank %}
 {% assign active_code = blank %}
 {% if customer %}
   {% assign current_points = customer.metafields.custom.reward_points.value | default: 0 | plus: 0 %}
+  {% assign pending_points = customer.metafields.custom.pending_points.value | default: 0 | plus: 0 %}
+  {% assign pending_available_at = customer.metafields.custom.pending_points_available_at.value | default: blank %}
   {% assign active_code = customer.metafields.custom.earned_discount_code.value | default: blank %}
 {% endif %}
 
-<div class="rw-widget-container">
+<div class="rw-widget-container" id="rwRoot" data-proxy="{{ proxy_path | escape }}" data-logged-in="{% if customer %}true{% else %}false{% endif %}">
   <!-- Floating Toggle Button -->
-  <button class="rw-toggle-btn" id="rwToggleBtn" onclick="toggleRwPanel()" aria-label="Open Rewards">
+  <button class="rw-toggle-btn" id="rwToggleBtn" type="button" aria-label="Open Rewards">
     <span class="rw-icon">🎁</span>
     <span>Rewards</span>
-    {% if customer and current_points > 0 %}
-      <span class="rw-badge">{{ current_points }}</span>
+    {% if customer %}
+      <span class="rw-badge" id="rwBadge" {% unless current_points > 0 %}hidden{% endunless %}>{{ current_points }}</span>
     {% endif %}
   </button>
 
@@ -23,95 +37,74 @@
         <span class="rw-header-icon">🎁</span>
         <h3>My Rewards</h3>
       </div>
-      <button class="rw-close-btn" onclick="toggleRwPanel()" aria-label="Close rewards panel">✕</button>
+      <button class="rw-close-btn" id="rwCloseBtn" type="button" aria-label="Close rewards panel">✕</button>
     </div>
 
     <div class="rw-body">
       {% if customer %}
-        <!-- ALWAYS show points balance -->
         <div class="rw-points-display">
-          <span class="rw-points-value">{{ current_points }}</span>
+          <span class="rw-points-value" id="rwPoints">{{ current_points }}</span>
           <span class="rw-points-label">Points Balance</span>
         </div>
-{% assign pending_points = customer.metafields.custom.pending_points.value | default: 0 | plus: 0 %}
-{% assign pending_available_at = customer.metafields.custom.pending_points_available_at.value | default: blank %}
 
-{% if pending_points > 0 %}
-  <div class="rw-pending-notice">
-    <span class="rw-pending-icon">⏳</span>
-    <span>
-      <strong>{{ pending_points }} points pending</strong>
-      {% if pending_available_at != blank %}
-        — available {{ pending_available_at | date: "%b %d, %Y" }}
-      {% endif %}
-    </span>
-  </div>
-{% endif %}
-        {% assign redeem_threshold = 100 %}
+        <div class="rw-pending-notice" id="rwPending" {% unless pending_points > 0 %}hidden{% endunless %}>
+          <span class="rw-pending-icon">⏳</span>
+          <span>
+            <strong id="rwPendingText">{{ pending_points }} points pending</strong>
+            <span id="rwPendingDate">{% if pending_available_at != blank and pending_available_at != 'NONE' %} — available {{ pending_available_at | date: "%b %d, %Y" }}{% endif %}</span>
+          </span>
+        </div>
 
-        {% if active_code != blank and active_code != "NONE" %}
-          <!-- STATE 1: Active discount code -->
-          <div class="rw-active-code-box">
-            <span class="rw-active-code-label">🎉 Active Reward!</span>
-            <span class="rw-active-code-value">{{ active_code }}</span>
-            <button
-              class="rw-copy-btn"
-              id="rwCopyBtn"
-              onclick="copyRewardCode('{{ active_code }}')"
-            >
-              Copy Code
-            </button>
-          </div>
+        <div class="rw-owed-notice" id="rwOwed" hidden></div>
 
-          <div class="rw-actions">
-            <button class="rw-btn rw-btn-secondary" onclick="window.location.href='/pages/rewards'">View Dashboard</button>
-          </div>
+        <!-- Live reward codes (filled by the script; the first paint shows the synced code, if any) -->
+        <div class="rw-code-list" id="rwCodes">
+          {% if active_code != blank and active_code != 'NONE' %}
+            <div class="rw-active-code-box">
+              <span class="rw-active-code-label">🎉 Active Reward!</span>
+              <span class="rw-active-code-value">{{ active_code | escape }}</span>
+              <button class="rw-copy-btn" type="button" data-copy="{{ active_code | escape }}">Copy Code</button>
+            </div>
+          {% endif %}
+        </div>
 
-        {% else %}
-          <!-- STATE 2: Progress bar + Redeem button -->
-          <div class="rw-progress-section">
-            {% if current_points >= redeem_threshold %}
-              <p class="rw-progress-label rw-progress-ready">🎉 You're ready to redeem!</p>
+        <div class="rw-progress-section" id="rwProgressSection">
+          <p class="rw-progress-label" id="rwProgressLabel">
+            {% if redeem_threshold > 0 %}
+              {% if current_points >= redeem_threshold %}🎉 You're ready to redeem!{% else %}{{ redeem_threshold | minus: current_points }} more points to unlock your reward{% endif %}
             {% else %}
-              {% assign points_needed = redeem_threshold | minus: current_points %}
-              <p class="rw-progress-label">{{ points_needed }} more points to unlock your reward</p>
+              Checking your rewards…
             {% endif %}
-            <div class="rw-progress-bar-track">
+          </p>
+          <div class="rw-progress-bar-track">
+            {% if redeem_threshold > 0 %}
               {% assign pct = current_points | times: 100 | divided_by: redeem_threshold %}
               {% if pct > 100 %}{% assign pct = 100 %}{% endif %}
-              <div class="rw-progress-bar-fill" style="width: {{ pct }}%;"></div>
-            </div>
-            <div class="rw-progress-meta">
-              <span>0</span>
-              <span>{{ redeem_threshold }} pts</span>
-            </div>
-          </div>
-
-          <div class="rw-actions">
-            {% if current_points >= redeem_threshold %}
-              <button class="rw-btn rw-btn-primary" id="rwRedeemBtn" onclick="redeemInstantly(event)">
-                Redeem Now
-              </button>
             {% else %}
-              <button class="rw-btn rw-btn-primary" style="opacity: 0.5; cursor: not-allowed;" disabled>
-                Need {{ redeem_threshold }} Points to Redeem
-              </button>
+              {% assign pct = 0 %}
             {% endif %}
-            <button class="rw-btn rw-btn-secondary" onclick="window.location.href='/pages/rewards'">View Dashboard</button>
+            <div class="rw-progress-bar-fill" id="rwProgressFill" style="width: {{ pct }}%;"></div>
           </div>
-        {% endif %}
+          <div class="rw-progress-meta">
+            <span>0</span>
+            <span id="rwThresholdText">{% if redeem_threshold > 0 %}{{ redeem_threshold }} pts{% endif %}</span>
+          </div>
+        </div>
 
-        <!-- Inline notification (replaces alert()) -->
+        <div class="rw-actions">
+          <button class="rw-btn rw-btn-primary" id="rwRedeemBtn" type="button" {% unless redeem_threshold > 0 and current_points >= redeem_threshold %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endunless %}>
+            {% if redeem_threshold > 0 and current_points >= redeem_threshold %}Redeem Now{% else %}Redeem{% endif %}
+          </button>
+          <a class="rw-btn rw-btn-secondary" href="/pages/rewards" style="text-align:center; text-decoration:none; box-sizing:border-box;">View Dashboard</a>
+        </div>
+
         <div class="rw-notification" id="rwNotification" aria-live="polite"></div>
 
       {% else %}
-        <!-- STATE 3: Logged out -->
         <div class="rw-logged-out">
           <span class="rw-logged-out-icon">🎁</span>
           <p>Join our rewards program and earn points with every purchase!</p>
-          <button class="rw-btn rw-btn-primary" onclick="window.location.href='{{ routes.account_login_url }}'">
-            Log In / Sign Up
-          </button>
+          <a class="rw-btn rw-btn-primary" href="{{ routes.account_login_url }}" style="display:block; text-align:center; text-decoration:none; box-sizing:border-box;">Log In / Sign Up</a>
         </div>
       {% endif %}
     </div>
@@ -351,94 +344,152 @@
   .rw-logged-out { text-align: center; padding: 10px 0; }
   .rw-logged-out-icon { font-size: 36px; display: block; margin-bottom: 12px; }
   .rw-logged-out p { font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 16px 0; }
+  [hidden] { display: none !important; }
+  .rw-code-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .rw-owed-notice { background: #fdecea; border: 1px solid #f5c6c2; border-radius: 12px; padding: 10px 14px; font-size: 12px; color: #8a1f17; margin-bottom: 14px; }
 </style>
-
+<script src="{{ 'rewards-client.js' | asset_url }}" defer></script>
 <script>
-  function toggleRwPanel() {
+  document.addEventListener('DOMContentLoaded', function () {
+    var E = window.EcoRewards;
+    var root = document.getElementById('rwRoot');
+    if (!E || !root) return;
+
+    var proxyPath = E.safeProxyPath(root.getAttribute('data-proxy'));
+    var loggedIn = root.getAttribute('data-logged-in') === 'true';
     var panel = document.getElementById('rwPanel');
-    var isOpen = panel.classList.toggle('rw-active');
-    panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
-  }
+    var latest = null;
 
-  // Close panel when clicking outside
-  document.addEventListener('click', function(e) {
-    var container = document.querySelector('.rw-widget-container');
-    if (container && !container.contains(e.target)) {
-      var panel = document.getElementById('rwPanel');
-      if (panel) {
-        panel.classList.remove('rw-active');
-        panel.setAttribute('aria-hidden', 'true');
-      }
+    function toggle(open) {
+      var isOpen = typeof open === 'boolean' ? open : !panel.classList.contains('rw-active');
+      panel.classList.toggle('rw-active', isOpen);
+      panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+      if (isOpen && loggedIn) refresh();
     }
-  });
-
-  function showNotification(message, type) {
-    var el = document.getElementById('rwNotification');
-    if (!el) return;
-    el.textContent = message;
-    el.className = 'rw-notification rw-notify-' + type;
-    setTimeout(function() {
-      el.className = 'rw-notification';
-      el.textContent = '';
-    }, 4000);
-  }
-
-  function copyRewardCode(code) {
-    navigator.clipboard.writeText(code).then(function() {
-      var btn = document.getElementById('rwCopyBtn');
-      if (btn) {
-        btn.textContent = '✓ Copied!';
-        btn.classList.add('rw-copied');
-        setTimeout(function() {
-          btn.textContent = 'Copy Code';
-          btn.classList.remove('rw-copied');
-        }, 2500);
-      }
-    }).catch(function() {
-      showNotification('Could not copy automatically. Code: ' + code, 'error');
+    document.getElementById('rwToggleBtn').addEventListener('click', function () { toggle(); });
+    var closeBtn = document.getElementById('rwCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', function () { toggle(false); });
+    document.addEventListener('click', function (e) {
+      if (!root.contains(e.target)) toggle(false);
     });
-  }
 
-  async function redeemInstantly(e) {
-    e.preventDefault();
-    var btn = document.getElementById('rwRedeemBtn');
-    if (!btn) return;
-    var originalText = btn.innerText;
+    if (!loggedIn) return;
 
-    btn.innerText = 'Generating Code…';
-    btn.disabled = true;
-
-    try {
-      // No customerId is sent here — the backend derives the caller's identity
-      // from Shopify's own signed App Proxy query params (logged_in_customer_id),
-      // never from anything the browser supplies. A body value would be spoofable.
-      var response = await fetch('/apps/rewards/redeem', { method: 'POST' });
-
-      var data = await response.json();
-
-      if (data.success) {
-        showNotification('🎉 Code ready: ' + data.discountCode, 'success');
-        btn.innerText = '✓ Code Generated!';
-        btn.style.background = '#2e7d32';
-        // Reload after 2.5s to refresh UI with the new active code
-        setTimeout(function() { window.location.reload(); }, 2500);
-      } else {
-        showNotification(data.error || 'Failed to redeem points.', 'error');
-        btn.innerText = originalText;
-        btn.disabled = false;
-      }
-    } catch (err) {
-      showNotification('Network error. Please try again.', 'error');
-      btn.innerText = originalText;
-      btn.disabled = false;
+    var notice = document.getElementById('rwNotification');
+    var noticeTimer = null;
+    function notify(message, type) {
+      notice.textContent = message;
+      notice.className = 'rw-notification rw-notify-' + type;
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(function () { notice.className = 'rw-notification'; notice.textContent = ''; }, 5000);
     }
-  }
+
+    function codeBox(code, expiresAt) {
+      var box = E.h('div', 'rw-active-code-box');
+      box.appendChild(E.h('span', 'rw-active-code-label', '🎉 Active Reward!'));
+      box.appendChild(E.h('span', 'rw-active-code-value', code));
+      var btn = E.h('button', 'rw-copy-btn', 'Copy Code');
+      btn.type = 'button';
+      btn.addEventListener('click', function () {
+        E.copyText(code, function () {
+          btn.textContent = '✓ Copied!'; btn.classList.add('rw-copied');
+          setTimeout(function () { btn.textContent = 'Copy Code'; btn.classList.remove('rw-copied'); }, 2500);
+        }, function () { notify('Could not copy automatically. Code: ' + code, 'error'); });
+      });
+      box.appendChild(btn);
+      return box;
+    }
+    var codeList = document.getElementById('rwCodes');
+    // The server-rendered first paint has a copy button too: wire it up.
+    Array.prototype.forEach.call(codeList.querySelectorAll('[data-copy]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var code = btn.getAttribute('data-copy');
+        E.copyText(code, function () { btn.textContent = '✓ Copied!'; setTimeout(function () { btn.textContent = 'Copy Code'; }, 2500); },
+          function () { notify('Could not copy automatically. Code: ' + code, 'error'); });
+      });
+    });
+
+    function apply(view) {
+      latest = view;
+      var b = view.balance;
+      document.getElementById('rwPoints').textContent = String(b.available);
+      var badge = document.getElementById('rwBadge');
+      if (badge) { badge.textContent = String(b.available); badge.hidden = !(b.available > 0); }
+
+      var pendingBox = document.getElementById('rwPending');
+      pendingBox.hidden = !(b.pending > 0);
+      document.getElementById('rwPendingText').textContent = b.pending + ' points pending';
+      var first = view.pending && view.pending[0];
+      document.getElementById('rwPendingDate').textContent = first ? ' — available ' + E.formatDate(first.availableOn) : '';
+
+      var owed = document.getElementById('rwOwed');
+      owed.hidden = !(b.owed > 0);
+      owed.textContent = b.owed > 0 ? b.owed + ' points from a returned order are being recovered. New points will clear this first; rewards are paused until then.' : '';
+
+      E.clear(codeList);
+      (view.rewards || []).forEach(function (r) { codeList.appendChild(codeBox(r.code, r.expiresAt)); });
+
+      var p = E.progress(view);
+      var label = document.getElementById('rwProgressLabel');
+      label.textContent = !p.known ? 'Checking your rewards…' : p.ready ? '🎉 You\'re ready to redeem!' : p.needed + ' more points to unlock your reward';
+      label.className = 'rw-progress-label' + (p.ready ? ' rw-progress-ready' : '');
+      document.getElementById('rwProgressFill').style.width = p.pct + '%';
+      document.getElementById('rwThresholdText').textContent = p.known ? view.rule.pointsPerReward + ' pts' : '';
+
+      var btn = document.getElementById('rwRedeemBtn');
+      var canRedeem = p.known && p.ready && !(b.owed > 0);
+      btn.disabled = !canRedeem;
+      btn.style.opacity = canRedeem ? '' : '0.5';
+      btn.style.cursor = canRedeem ? '' : 'not-allowed';
+      btn.textContent = canRedeem ? 'Redeem Now' : (b.owed > 0 ? 'Rewards paused' : p.known ? 'Need ' + view.rule.pointsPerReward + ' Points to Redeem' : 'Redeem');
+    }
+
+    function refresh() {
+      return E.loadView(proxyPath).then(function (res) { if (res.ok && res.body && res.body.success) apply(res.body); },
+        function () { /* offline: keep what the page rendered */ });
+    }
+
+    var redeemer = E.createRedeemer({ proxyPath: proxyPath });
+    var busy = false;
+    document.getElementById('rwRedeemBtn').addEventListener('click', function (e) {
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      var btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = 'Generating Code…';
+      redeemer.run().then(function (r) {
+        busy = false;
+        if (r.kind === 'success') {
+          notify('🎉 Your reward code is ready: ' + r.body.code, 'success');
+          return refresh();
+        }
+        if (r.kind === 'creating') {
+          notify('Your reward is being prepared. It will appear here in a moment.', 'success');
+          setTimeout(refresh, 3000); setTimeout(refresh, 9000);
+          return refresh();
+        }
+        notify(r.kind === 'network' ? 'Network error. Please try again.' : (r.body.message || 'Could not redeem right now.'), 'error');
+        return latest ? apply(latest) : refresh();
+      });
+    });
+
+    refresh();
+  });
 </script>
 
 {% schema %}
 {
   "name": "Floating Rewards Widget",
   "target": "body",
-  "settings": []
+  "settings": [
+    {
+      "type": "text",
+      "id": "proxy_path",
+      "label": "App proxy path",
+      "default": "/apps/rewards",
+      "info": "Where this app answers on the storefront: /apps/rewards for the live app, /apps/rewards-dev for the development app."
+    }
+  ]
 }
 {% endschema %}

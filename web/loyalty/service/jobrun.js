@@ -28,10 +28,10 @@ export async function recordJob({ jobType, startedAt, status, result, error, sho
 
 /**
  * True when a JobRun of this type (and of this shop; null = the global run of the real
- * worker) started within the last `withinMs`, by the job clock.
+ * worker) started within the last `withinMs`, by the job clock. `status` narrows it to completed or failed runs.
  */
-export async function ranWithin(jobType, withinMs, shop = null) {
+export async function ranWithin(jobType, withinMs, shop = null, status = undefined) {
   const since = new Date(now().getTime() - withinMs);
-  const last = await prisma.jobRun.findFirst({ where: { jobType, shop, startedAt: { gte: since } }, select: { id: true } });
+  const last = await prisma.jobRun.findFirst({ where: { jobType, shop, startedAt: { gte: since }, ...(status ? { status } : {}) }, select: { id: true } });
   return last !== null;
 }

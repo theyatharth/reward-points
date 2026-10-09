@@ -199,6 +199,12 @@ model LoyaltyConfig {
   // timestamp are ignored ("predates the ledger"). Set at M5 cutover.
   ledgerStartAt     DateTime?
 
+  // Shop-level rule metafield sync (migration 8): a trigger bumps ruleSeq when pointsPerReward,
+  // rewardValue, holdPeriodDays or currency change; the worker writes the app metafield
+  // rewards.redeem_rule and then sets ruleSyncedSeq.
+  ruleSeq       Int @default(1)
+  ruleSyncedSeq Int @default(0)
+
   // Which currency the store uses (e.g. "INR"). Stored for display; all
   // arithmetic uses integer paise regardless of currency.
   currency          String  @default("INR")
@@ -220,6 +226,14 @@ model LoyaltyAccount {
   available Int @default(0) // spendable points; never below 0 (D4): what is owed is in debt
   pending   Int @default(0) // earned but not yet spendable
   debt      Int @default(0) // points owed from overspend; always >= 0
+
+  // Storefront metafield sync (migration 8). A database trigger bumps metafieldSeq whenever the
+  // balances change or one of the account's rewards is created or changes status; the worker syncs
+  // accounts with metafieldSeq > metafieldSyncedSeq and then sets metafieldSyncedSeq to the value it
+  // READ BEFORE syncing, so a change made during the sync stays dirty.
+  metafieldSeq       Int       @default(0)
+  metafieldSyncedSeq Int       @default(0)
+  metafieldSyncedAt  DateTime?
 
   config   LoyaltyConfig @relation(fields: [shop], references: [shop])
   entries  LedgerEntry[]

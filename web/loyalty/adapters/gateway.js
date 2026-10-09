@@ -177,6 +177,65 @@ export class ShopifyGateway {
   }
 
   /**
+   * Writes the four storefront metafields the theme blocks read, for several customers in one call
+   * (metafieldsSet takes at most 25 inputs: 6 customers x 4). Throws on a network error or any
+   * userError; the error carries `userErrors` (field, message, code) so the caller can tell a customer
+   * that no longer exists from a transient failure.
+   *
+   * @param {Array<{ customerId: string, available: number, pending: number, pendingAvailableAt: Date|null, activeCode: string|null }>} items
+   */
+  async setCustomerMetafields(items) {
+    const client = await this.getGraphqlClient();
+    const metafields = items.flatMap((i) => {
+      const ownerId = `gid://shopify/Customer/${i.customerId}`;
+      return [
+        { ownerId, namespace: 'custom', key: 'reward_points', type: 'number_integer', value: String(i.available) },
+        { ownerId, namespace: 'custom', key: 'pending_points', type: 'number_integer', value: String(i.pending) },
+        { ownerId, namespace: 'custom', key: 'pending_points_available_at', type: 'single_line_text_field', value: i.pendingAvailableAt ? i.pendingAvailableAt.toISOString() : 'NONE' },
+        { ownerId, namespace: 'custom', key: 'earned_discount_code', type: 'single_line_text_field', value: i.activeCode || 'NONE' },
+      ];
+    });
+    const response = await client.request(
+      `mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields { key }
+          userErrors { field message code }
+        }
+      }`,
+      { variables: { metafields }, retries: 2 }
+    );
+    const errors = response.data?.metafieldsSet?.userErrors || [];
+    if (errors.length > 0) {
+      const err = new Error('Shopify refused the metafields: ' + errors.map((e) => e.message).join('; '));
+      err.userErrors = errors;
+      throw err;
+    }
+  }
+
+  /**
+   * Writes the shop-level redeem rule as a JSON metafield on the app installation
+   * (read in the theme blocks as app.metafields.rewards.redeem_rule).
+   * @param {Object} rule
+   */
+  async setRuleMetafield(rule) {
+    const client = await this.getGraphqlClient();
+    const installation = await client.request(`query { currentAppInstallation { id } }`, { retries: 2 });
+    const ownerId = installation.data?.currentAppInstallation?.id;
+    if (!ownerId) throw new Error('Could not find the app installation id');
+    const response = await client.request(
+      `mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields { key }
+          userErrors { field message code }
+        }
+      }`,
+      { variables: { metafields: [{ ownerId, namespace: 'rewards', key: 'redeem_rule', type: 'json', value: JSON.stringify(rule) }] }, retries: 2 }
+    );
+    const errors = response.data?.metafieldsSet?.userErrors || [];
+    if (errors.length > 0) throw new Error('Shopify refused the rule metafield: ' + errors.map((e) => e.message).join('; '));
+  }
+
+  /**
    * Fetches collections for a list of products.
    * Placeholder for Phase 3.
    */
