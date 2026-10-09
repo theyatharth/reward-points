@@ -68,12 +68,13 @@ Reference logic: test/vendor/engine.js (client's, unmodified).
   * Tests: `jobs.test.js` (all on the fake clock).
 
 ## Next
-- CHECKPOINT 1: CI green, sync changed files to DEV_DIR, migrations 4 to 6 applied test then dev (needs the
-  wrapper, see below), then the RUN ON SERVER block. Expected once the worker has processed the 9 stored events
-  (3 orders/paid, 5 refunds, 1 cancel): pending across the test shop's accounts 3225 = 2551 (#1015 to #1018 earlier:
-  600 + 674 + 674 + 603) + 0 (#1019: 1349 earned, 675 + 674 reversed) + 674 (#1020: R3 and R4 reverse 0) + 0 (#1021:
-  749 earned, 749 reversed by R5, cancel 0 more); available 0, debt 0; reversal entries exactly 675 and 674 (#1019)
-  and 749 (#1021), none for R3 and R4.
+- CHECKPOINT 1 is WAITING FOR THE USER ("continue"): the RUN ON SERVER block (sync, `prisma generate`, migrations 4 to 6
+  test then dev, restart reward-points-dev and reward-points-dev-worker, read the worker log, pgAdmin SQL) was handed over.
+  Expected once the worker has processed the 9 stored events (3 orders/paid, 5 refunds, 1 cancel): pending across the
+  test shop's accounts 3225 = 2551 (#1015 to #1018 earlier: 600 + 674 + 674 + 603) + 0 (#1019: 1349 earned, 675 + 674
+  reversed) + 674 (#1020: R3 and R4 reverse 0) + 0 (#1021: 749 earned, 749 reversed by R5, cancel 0 more); available 0,
+  debt 0; reversal entries exactly 675 and 674 (#1019) and 749 (#1021), none for R3 and R4.
+- Then TASK 5 (adjustment service), TASK 6 (redemption wiring), TASK 7 (metafield sync and widget), CHECKPOINT 2.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is
