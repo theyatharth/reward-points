@@ -21,7 +21,7 @@ import { prisma } from '../../lib/prisma.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { formatPaise } from '../rules/money.js';
 import { now } from '../adapters/clock.js';
-import { gatewayFactory, lockAccount, checkLotJ3, activateLotInTx } from './ledger.js';
+import { gatewayFactory, lockAccount, checkLotJ3, activateLotInTx, returnPoints } from './ledger.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TX_OPTIONS = { maxWait: 10000, timeout: 20000 };
@@ -64,7 +64,7 @@ function refusal(reason, message, extra = {}) {
  * @returns {Promise<
  *   { ok: true, status: 'active'|'creating', replayed: boolean, redemptionId: string,
  *     code: string|null, pointsUsed: number, valuePaise: number, expiresAt: Date|null, available: number }
- *   | { ok: false, reason: 'INVALID_KEY'|'OWED'|'SHORT'|'RECOVERING'|'DISCOUNT_FAILED'|'REWARD_VOIDED', message: string }
+ *   | { ok: false, reason: 'INVALID_KEY'|'OWED'|'SHORT'|'RECOVERING'|'DISCOUNT_FAILED'|'REWARD_VOIDED'|'REWARD_EXPIRED', message: string }
  * >}
  */
 export async function redeem({ shop, shopifyCustomerId, idempotencyKey }) {
@@ -319,38 +319,13 @@ async function compensateRedemption(redemptionId) {
 
     // D4: returned points repay any owed balance first (a refund can have landed while this
     // redemption was still 'creating', when its points counted as spent).
-    const account = await tx.loyaltyAccount.findUnique({ where: { id: redemption.accountId }, select: { debt: true } });
-    const repaid = Math.min(account.debt, redemption.pointsUsed);
-    const usable = redemption.pointsUsed - repaid;
-
-    const lot = await tx.pointLot.create({
-      data: {
-        accountId: redemption.accountId,
-        originalPoints: redemption.pointsUsed,
-        remaining: usable,
-        status: usable > 0 ? 'active' : 'exhausted',
-        shopifyOrderId: `reward:${redemptionId}`,
-        activatesAt: now(),
-      },
-    });
-    await tx.ledgerEntry.create({
-      data: {
-        accountId: redemption.accountId,
-        type: 'reward_return',
-        points: redemption.pointsUsed,
-        status: 'active',
-        dedupeKey: `reward_return:${redemptionId}`,
-        note: 'Reward code could not be created — points returned' + (repaid > 0 ? ` (${repaid} used to repay the owed balance)` : ''),
-        lotId: lot.id,
-        redemptionId,
-      },
-    });
-    await tx.loyaltyAccount.update({
-      where: { id: redemption.accountId },
-      data: {
-        ...(usable > 0 ? { available: { increment: usable } } : {}),
-        ...(repaid > 0 ? { debt: { decrement: repaid } } : {}),
-      },
+    await returnPoints(tx, {
+      accountId: redemption.accountId,
+      points: redemption.pointsUsed,
+      lotTag: `reward:${redemptionId}`,
+      dedupeKey: `reward_return:${redemptionId}`,
+      note: 'Reward code could not be created — points returned',
+      redemptionId,
     });
   }, TX_OPTIONS);
   return replayResult(await prisma.redemption.findUnique({ where: { id: redemptionId } }));
@@ -365,6 +340,9 @@ function findRedemption(accountId, idempotencyKey) {
 async function replayResult(redemption, replayed = true) {
   if (redemption.status === 'failed') {
     return refusal('DISCOUNT_FAILED', 'We could not create your reward code. No points were used.');
+  }
+  if (redemption.status === 'expired') {
+    return refusal('REWARD_EXPIRED', 'This reward code has expired.');
   }
   if (redemption.status === 'voided') {
     return refusal('REWARD_VOIDED', 'This reward was cancelled because the order it was earned on was returned or cancelled. Its points were taken back.');

@@ -74,9 +74,17 @@ Reference logic: test/vendor/engine.js (client's, unmodified).
   3225, available 0, debt 0; refunds -675 and -674 (#1019), -749 (#1021), none for #1020; invariants match; JobRun shows
   process_events and purge_payloads.
 
+- A DONE: client files copied unchanged to docs/reference/; `docs/reference/COMPARISON.md` lists the differences between
+  Task 4 and the real processDue / reconcile / rebuildCache / voidUnusedRewards / reverseForOrder. Not changed because of
+  it (reported first): retry policy (engine: 5th failure is final), `block` rounding (engine: full blocks; ours: exact
+  only), the missing "incorrect reversal" reconcile check, the reward catalogue, collection exclusion at earn.
+- TASK 4b DONE: `expireUnusedCodes` (jobs.js): an ACTIVE Reward past `expiresAt` -> Reward and Redemption 'expired';
+  points back (reward_return entry + fresh active lot, debt repaid first) only if `returnPointsOnCodeExpiry`.
+  Shared helper `returnPoints` in ledger.js (also used by the failed-redemption compensation). Replaying an expired
+  redemption answers REWARD_EXPIRED. Lot expiry stays off. Tests: `code-expiry.test.js` (fake clock).
+
 ## Next
-- A: compare Task 4 with the client's real engine (docs/reference/). B: Task 4b code expiry. C/Task 5: adjust().
-  Then Tasks 6 and 7 to CHECKPOINT 2.
+- Task 5 (adjust(), point C), Task 6, Task 7, CHECKPOINT 2.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is

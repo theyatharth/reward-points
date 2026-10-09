@@ -622,6 +622,63 @@ export async function checkLotJ3(lot, loyaltyOrderId, shop) {
 }
 
 /**
+ * Gives points back to an account as a FRESH active lot, inside the caller's transaction
+ * (the account must already be locked). New points repay the owed balance first (D4): the
+ * repaid part is consumed from the lot, the rest becomes available. Writes the 'reward_return'
+ * ledger entry for the whole amount. Used when a redemption could not create its code, when an
+ * unused code expires, and when a reward is restored after a cancelled or fully refunded order.
+ *
+ * @param {Object} p
+ * @param {string} p.accountId
+ * @param {number} p.points
+ * @param {string} p.lotTag       PointLot.shopifyOrderId of the new lot, e.g. "reward:<redemptionId>"
+ * @param {string} p.dedupeKey    ledger dedupe key, e.g. "reward_return:<redemptionId>" (one return per reward, ever)
+ * @param {string} p.note
+ * @param {string} [p.redemptionId]
+ * @param {string} [p.rewardId]
+ * @param {string} [p.orderId]    LoyaltyOrder.id the return belongs to, if any
+ * @returns {Promise<{ repaid: number, usable: number, lotId: string }>}
+ */
+export async function returnPoints(tx, { accountId, points, lotTag, dedupeKey, note, redemptionId, rewardId, orderId }) {
+  const account = await tx.loyaltyAccount.findUnique({ where: { id: accountId }, select: { debt: true } });
+  const repaid = Math.min(account.debt, points);
+  const usable = points - repaid;
+
+  const lot = await tx.pointLot.create({
+    data: {
+      accountId,
+      originalPoints: points,
+      remaining: usable,
+      status: usable > 0 ? 'active' : 'exhausted',
+      shopifyOrderId: lotTag,
+      activatesAt: now(),
+    },
+  });
+  await tx.ledgerEntry.create({
+    data: {
+      accountId,
+      type: 'reward_return',
+      points,
+      status: 'active',
+      dedupeKey,
+      note: note + (repaid > 0 ? ` (${repaid} used to repay the owed balance)` : ''),
+      lotId: lot.id,
+      redemptionId,
+      rewardId,
+      orderId,
+    },
+  });
+  await tx.loyaltyAccount.update({
+    where: { id: accountId },
+    data: {
+      ...(usable > 0 ? { available: { increment: usable } } : {}),
+      ...(repaid > 0 ? { debt: { decrement: repaid } } : {}),
+    },
+  });
+  return { repaid, usable, lotId: lot.id };
+}
+
+/**
  * Moves one pending lot to active inside the caller's transaction (the
  * account must already be locked). Re-reads the lot, so a refund that landed
  * after the J3 check is reflected. New points repay any owed balance (debt)

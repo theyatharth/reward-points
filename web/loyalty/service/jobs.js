@@ -7,6 +7,8 @@
 //   recoverStuckEvents  events left in 'processing' for more than 10 minutes are retried
 //   activateDueLots     pending lots whose hold period is over become available (J3 check
 //                       through the gateway; new points repay the owed balance first)
+//   expireUnusedCodes   reward codes past their expiry that were never used become 'expired';
+//                       their points come back only if the shop's returnPointsOnCodeExpiry is on
 //   purgeOldPayloads    processed events older than 90 days lose their payload, nothing else
 //
 // Reconciliation and the cache rebuild are in reconcile.js. createWorkerWork() ties them
@@ -15,7 +17,8 @@
 import { prisma } from '../../lib/prisma.js';
 import { now } from '../adapters/clock.js';
 import { retryPlan } from './webhook.js';
-import { activatePendingLot } from './ledger.js';
+import { activatePendingLot, lockAccount, returnPoints } from './ledger.js';
+import { DEFAULT_CONFIG } from '../rules/config.js';
 import { recordJob, ranWithin } from './jobrun.js';
 import { runNightlyReconciliation } from './reconcile.js';
 
@@ -110,6 +113,74 @@ export async function activateDueLots({ shop } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// (b2) Expiry of unused reward codes (processDue's "expire codes" step)
+// ---------------------------------------------------------------------------
+
+/**
+ * An ACTIVE reward whose expiresAt has passed was never used: the Reward and its Redemption
+ * become 'expired'. The Shopify discount was created with endsAt = expiresAt, so Shopify has
+ * already stopped accepting it and nothing needs to be deleted there.
+ *
+ * Points come back ONLY when the shop's returnPointsOnCodeExpiry is true (off by default): a
+ * 'reward_return' entry and a fresh active lot, repaying any owed balance first. Otherwise the
+ * points stay spent. Lot expiry (points expiring with age) is not part of this and stays off.
+ * Used, returned (voided) and failed rewards are never touched.
+ *
+ * Known edge: an order placed with the code just before it expired, whose orders/paid event has
+ * not been processed yet, is not seen here; Task 6 handles a late "used" signal for an expired code.
+ *
+ * @returns {Promise<{ due: number, expired: number, pointsReturned: number }>}
+ */
+export async function expireUnusedCodes({ shop } = {}) {
+  const due = await prisma.reward.findMany({
+    where: { status: 'active', expiresAt: { lte: now() }, ...(shop ? { shop } : {}) },
+    select: { id: true, shop: true, accountId: true },
+    orderBy: { expiresAt: 'asc' },
+    take: LOT_BATCH,
+  });
+
+  const returnFlag = new Map(); // shop -> returnPointsOnCodeExpiry
+  let expired = 0;
+  let pointsReturned = 0;
+  for (const { id, shop: rewardShop, accountId } of due) {
+    if (!returnFlag.has(rewardShop)) {
+      const config = await prisma.loyaltyConfig.findUnique({ where: { shop: rewardShop } });
+      returnFlag.set(rewardShop, (config || DEFAULT_CONFIG).returnPointsOnCodeExpiry === true);
+    }
+    const give = returnFlag.get(rewardShop);
+
+    const returned = await prisma.$transaction(async (tx) => {
+      await lockAccount(tx, accountId, 'expire');
+      const reward = await tx.reward.findUnique({ where: { id } });
+      if (!reward || reward.status !== 'active') return null; // used, voided or expired since it was selected
+
+      await tx.reward.update({ where: { id }, data: { status: 'expired' } });
+      const redemption = await tx.redemption.findFirst({ where: { accountId, discountCode: reward.discountCode } });
+      if (redemption && redemption.status === 'active') {
+        await tx.redemption.update({ where: { id: redemption.id }, data: { status: 'expired' } });
+      }
+      if (!give) return 0;
+      await returnPoints(tx, {
+        accountId,
+        points: reward.pointsUsed,
+        lotTag: `reward:${redemption?.id ?? reward.id}`,
+        dedupeKey: `reward_return:${redemption?.id ?? reward.id}`,
+        note: 'Reward code expired unused — points returned',
+        redemptionId: redemption?.id,
+        rewardId: reward.id,
+      });
+      return reward.pointsUsed;
+    }, { maxWait: 10000, timeout: 20000 });
+
+    if (returned !== null) {
+      expired++;
+      pointsReturned += returned;
+    }
+  }
+  return { due: due.length, expired, pointsReturned };
+}
+
+// ---------------------------------------------------------------------------
 // (d) 90-day purge of processed event payloads
 // ---------------------------------------------------------------------------
 
@@ -186,6 +257,8 @@ export function createJobsWork({ shop, activationEveryMs = ACTIVATION_EVERY_MS }
         didSomething: (r) => r.activated > 0 || r.blocked.length > 0, shop,
       });
     }
+
+    summary.codes = await runJob('expire_codes', () => expireUnusedCodes({ shop }), { didSomething: (r) => r.expired > 0, shop });
 
     if (!(await ranWithin('purge_payloads', 23 * HOUR_MS, shop ?? null))) {
       summary.purge = await runJob('purge_payloads', () => purgeOldPayloads({ shop }), { always: true, shop });
