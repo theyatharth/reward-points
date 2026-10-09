@@ -148,7 +148,13 @@ and the code never works. The cost is a code that appears and is withdrawn secon
     soon as `/history` answers, so nothing breaks.
 
 ## Next
-- CHECKPOINT 2: CI green, sync + migrations 7 and 8 (dev, test), then the RUN ON MAC and RUN ON SERVER blocks.
+- CHECKPOINT 2 is WAITING FOR THE USER ("continue"). Prepared on the server by me: 29 files synced (sizes verified), prisma generate,
+  migrations 7 and 8 applied test then dev, full suite twice on reward_points_dev_test: 381 / 381 / 0 failures both times.
+  Handed over: RUN ON MAC (git pull, `app info`, `app deploy`, theme editor steps) and RUN ON SERVER (restart the two
+  dev processes, reset-metafields dry run then live, resync-metafields, create the dev admin, ONE live redeem with
+  --grant 100). Dev rule: 100 points = 10.00, hold 30 days, code valid 90 days; test customer 10156980011205 has
+  0 available and 3225 pending (earliest lot activates 2026-11-07).
+- Then Task 8 (minimal admin), Task 9, Checkpoints 3 and 4.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is
