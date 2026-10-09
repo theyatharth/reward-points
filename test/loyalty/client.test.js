@@ -286,7 +286,7 @@ describe('Ported M2 client tests', () => {
     assert.strictEqual(b.pending, 0);
   });
 
-  test('[Returns 6/6] Unused reward is voided before creating an owed balance (skipped for M2, requires redeem)');
+  test('[Returns 6/6] Unused reward is voided before creating an owed balance (implemented in owed-balance.test.js, which has the redeem flow)');
 
   test('[Webhooks 1/4] Duplicate webhook (same event id) awards points once', async () => {
     const wid = uniqueKey('e1');

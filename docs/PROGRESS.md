@@ -28,9 +28,22 @@ Reference logic: test/vendor/engine.js (client's, unmodified).
   * Hand-computed numbers reproduced by the pure tests: R1 = 675, R2 = 674 (1349). The database-backed assertions
     (674 for #1020; 749 for #1021 with the cancel either side) are verified by CI.
 
+- TASK 3 Concurrency, debt, invariants (D4), migration 5 (`CHECK available >= 0`, NOT VALID: enforced on new and
+  updated rows, never scans old ones).
+  * lockAccount is the first statement of every ledger writer (earn, refund, cancel, activate, redeem, compensate;
+    adjust joins in Task 5), lots and rewards are read FOR UPDATE inside the transaction, every balance change is a
+    delta. `setLockHook` is a test seam (accountId, tag) used to force writers to reach the lock together.
+  * `takeBackPoints`: own lot, other active lots (oldest first), then unused reward codes (newest first; a voided
+    code returns its points, any surplus stays as a fresh active lot, Reward -> 'returned', Redemption -> 'voided',
+    `reward_return` ledger entry), then debt. A 'creating' redemption and an expired code are not voidable.
+    Deleting a voided code in Shopify is NOT done yet: Task 6 (needs a column or job to remember it).
+  * Returned points of a failed redemption repay debt first; replaying a voided redemption answers REWARD_VOIDED.
+  * Event claim fixed: a worker that loses the claim no longer marks the event failed (updateMany count 0 -> skip).
+  * Tests: `test/helpers/invariants.js` (assertLedgerInvariants / assertLedgerBalances / assertShopInvariants),
+    `owed-balance.test.js` (voiding, debt, repayment, refusal, CHECK), `ledger-concurrency.test.js` (20 barrier-forced
+    refund-versus-redeem runs, both interleavings asserted; three workers on the same events).
+
 ## Next
-- TASK 3 Concurrency, debt, invariants (D4): `assertLedgerInvariants` helper, barrier-forced refund-versus-redeem race
-  (20 runs), void-unused-reward step, owed-balance tests per the client's tests, CHECK available >= 0 (migration 5).
 - TASK 4 Jobs in the worker, then CHECKPOINT 1.
 
 ## Blockers / notes

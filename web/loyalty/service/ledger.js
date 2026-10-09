@@ -99,7 +99,7 @@ export async function writeEarning(event, config) {
     await prisma.$transaction(async (tx) => {
       // 1. Account
       const account = await ensureAccount(tx, event.shop, order.customer.id);
-      await lockAccount(tx, account.id);
+      await lockAccount(tx, account.id, 'earn');
 
       // 2. PointLot (points are held as pending)
       const activatesAt = new Date(processedAt.getTime() + config.holdPeriodDays * 24 * 60 * 60 * 1000);
@@ -270,13 +270,21 @@ async function snapshotFor(order, config) {
  * must already be locked). Order of preference (D4):
  *   1. the order's own lot (pending or active),
  *   2. the account's other ACTIVE lots, oldest first,
- *   3. whatever is left is owed: it is added to the debt column.
+ *   3. unused reward codes, newest first: voiding a code gives its points back, and
+ *      they cover the reversal (any surplus stays with the customer as a fresh active lot),
+ *   4. whatever is still left is owed: it is added to the debt column.
  * `available` and `pending` therefore never go below 0 and always equal the sum of the
- * active and pending lots' remaining points. Lots are read FOR UPDATE inside the
- * transaction and every balance change is a delta.
+ * active and pending lots' remaining points. Lots and rewards are read FOR UPDATE inside
+ * the transaction and every balance change is a delta.
+ *
+ * A redemption still in 'creating' has no code yet and cannot be voided; its points count
+ * as spent and the shortfall becomes debt.
+ *
+ * Voiding only marks the Reward 'returned' and the Redemption 'voided' here; deleting the
+ * code in Shopify happens after commit (it is a network call).
  *
  * @param {boolean} [emptiesOrder] true for a cancellation: an emptied own lot is marked 'cancelled' rather than 'exhausted'
- * @returns {Promise<{ fromLots: number, toDebt: number }>}
+ * @returns {Promise<{ fromLots: number, fromRewards: number, toDebt: number, voidedRewards: string[] }>}
  */
 export async function takeBackPoints(tx, { accountId, ownLotId, points, emptiesOrder = false }) {
   const lots = await tx.$queryRaw`
@@ -306,19 +314,75 @@ export async function takeBackPoints(tx, { accountId, ownLotId, points, emptiesO
     left -= take;
   }
 
-  await tx.loyaltyAccount.update({
-    where: { id: accountId },
-    data: {
-      ...(fromPending > 0 ? { pending: { decrement: fromPending } } : {}),
-      ...(fromAvailable > 0 ? { available: { decrement: fromAvailable } } : {}),
-      ...(left > 0 ? { debt: { increment: left } } : {}),
-    },
-  });
-  return { fromLots: fromPending + fromAvailable, toDebt: left };
+  let fromRewards = 0;
+  let surplusReturned = 0;
+  const voidedRewards = [];
+  if (left > 0) {
+    const candidates = await tx.$queryRaw`
+      SELECT id, "discountCode", "pointsUsed", "expiresAt" FROM "Reward"
+       WHERE "accountId" = ${accountId} AND status = 'active'
+       ORDER BY "createdAt" DESC, id DESC
+         FOR UPDATE`;
+    const rewards = candidates.filter((r) => !r.expiresAt || r.expiresAt > now()); // an expired code is not "unused": it is simply gone
+    for (const reward of rewards) {
+      if (left === 0) break;
+      const used = Math.min(left, reward.pointsUsed);
+      const surplus = reward.pointsUsed - used;
+      left -= used;
+      fromRewards += used;
+      surplusReturned += surplus;
+      voidedRewards.push(reward.id);
+
+      await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now() } });
+      const redemption = await tx.redemption.findFirst({ where: { accountId, discountCode: reward.discountCode } });
+      if (redemption) await tx.redemption.update({ where: { id: redemption.id }, data: { status: 'voided' } });
+
+      let lotId = null;
+      if (surplus > 0) {
+        const lot = await tx.pointLot.create({
+          data: {
+            accountId,
+            originalPoints: reward.pointsUsed,
+            remaining: surplus,
+            status: 'active',
+            shopifyOrderId: `reward:${redemption?.id ?? reward.id}`,
+            activatesAt: now(),
+          },
+        });
+        lotId = lot.id;
+      }
+      await tx.ledgerEntry.create({
+        data: {
+          accountId,
+          type: 'reward_return',
+          points: reward.pointsUsed,
+          status: 'active',
+          dedupeKey: `reward_return:${redemption?.id ?? reward.id}`,
+          note: 'Unused reward code voided to cover points taken back for a refund or cancellation',
+          lotId,
+          redemptionId: redemption?.id,
+          rewardId: reward.id,
+        },
+      });
+    }
+  }
+
+  const availableDelta = surplusReturned - fromAvailable;
+  const balanceChanges = {
+    ...(fromPending > 0 ? { pending: { decrement: fromPending } } : {}),
+    ...(availableDelta !== 0 ? { available: { increment: availableDelta } } : {}),
+    ...(left > 0 ? { debt: { increment: left } } : {}),
+  };
+  if (Object.keys(balanceChanges).length > 0) {
+    await tx.loyaltyAccount.update({ where: { id: accountId }, data: balanceChanges });
+  }
+  return { fromLots: fromPending + fromAvailable, fromRewards, toDebt: left, voidedRewards };
 }
 
 const sumOf = (rows, key) => rows.reduce((t, r) => t + (r[key] || 0), 0);
-const oweNote = (toDebt) => (toDebt > 0 ? ` (${toDebt} added to the owed balance)` : '');
+const reversalNote = ({ voidedRewards, toDebt }) =>
+  (voidedRewards.length > 0 ? ` (${voidedRewards.length} unused reward code${voidedRewards.length === 1 ? '' : 's'} voided)` : '') +
+  (toDebt > 0 ? ` (${toDebt} added to the owed balance)` : '');
 
 /**
  * Processes a refunds/create webhook event (D1).
@@ -341,7 +405,7 @@ export async function writeRefund(event, config) {
 
   try {
     return await prisma.$transaction(async (tx) => {
-      await lockAccount(tx, found.order.accountId);
+      await lockAccount(tx, found.order.accountId, 'refund');
 
       // Everything below is read under the lock, so a refund that landed a moment ago is seen.
       const already = await tx.loyaltyRefund.findFirst({ where: { shop: event.shop, shopifyRefundId } });
@@ -382,7 +446,7 @@ export async function writeRefund(event, config) {
 
       let ledgerEntryId;
       if (pointsToReverse > 0) {
-        const { toDebt } = await takeBackPoints(tx, { accountId: order.accountId, ownLotId: order.lotId, points: pointsToReverse });
+        const taken = await takeBackPoints(tx, { accountId: order.accountId, ownLotId: order.lotId, points: pointsToReverse });
         const entry = await tx.ledgerEntry.create({
           data: {
             accountId: order.accountId,
@@ -390,7 +454,7 @@ export async function writeRefund(event, config) {
             points: -pointsToReverse,
             status: 'active',
             dedupeKey,
-            note: `Refund on order #${shopifyOrderId}${oweNote(toDebt)}`,
+            note: `Refund on order #${shopifyOrderId}${reversalNote(taken)}`,
             orderId: order.id,
             refundId: refundRecord.id,
             lotId: order.lotId,
@@ -427,7 +491,7 @@ export async function writeCancel(event, config) {
 
   try {
     return await prisma.$transaction(async (tx) => {
-      await lockAccount(tx, found.order.accountId);
+      await lockAccount(tx, found.order.accountId, 'cancel');
 
       const already = await tx.loyaltyRefund.findFirst({ where: { loyaltyOrderId: found.order.id, isFullCancellation: true } });
       if (already) return markSkippedIn(tx, event.id, 'Duplicate: this cancellation was already applied');
@@ -458,7 +522,7 @@ export async function writeCancel(event, config) {
 
       let ledgerEntryId;
       if (pointsToReverse > 0) {
-        const { toDebt } = await takeBackPoints(tx, {
+        const taken = await takeBackPoints(tx, {
           accountId: order.accountId, ownLotId: order.lotId, points: pointsToReverse, emptiesOrder: true,
         });
         const entry = await tx.ledgerEntry.create({
@@ -468,7 +532,7 @@ export async function writeCancel(event, config) {
             points: -pointsToReverse,
             status: 'active',
             dedupeKey,
-            note: `Cancelled order #${shopifyOrderId}${oweNote(toDebt)}`,
+            note: `Cancelled order #${shopifyOrderId}${reversalNote(taken)}`,
             orderId: order.id,
             refundId: refundRecord.id,
             lotId: order.lotId,
@@ -489,12 +553,25 @@ export async function writeCancel(event, config) {
   }
 }
 
+let lockHook = null;
+
+/**
+ * TEST SEAM. Installs a function (accountId, tag) awaited by every lockAccount call just
+ * before it asks the database for the row lock (the transaction is already open). `tag`
+ * names the writer: 'earn' | 'refund' | 'cancel' | 'activate' | 'redeem' | 'compensate' | 'adjust'.
+ * Pass null to remove it. Production code never sets this.
+ */
+export function setLockHook(fn) {
+  lockHook = fn;
+}
+
 /**
  * Takes a row lock on the account for the rest of the transaction.
  * Every operation that reads a balance and then decides something from it
  * (redeem, reward return) must call this first.
  */
-export async function lockAccount(tx, accountId) {
+export async function lockAccount(tx, accountId, tag = 'unspecified') {
+  if (lockHook) await lockHook(accountId, tag); // test seam: lets a test force writers to reach the lock together
   const rows = await tx.$queryRaw`SELECT id FROM "LoyaltyAccount" WHERE id = ${accountId} FOR UPDATE`;
   if (rows.length === 0) throw new Error(`LoyaltyAccount ${accountId} not found`);
 }
@@ -553,7 +630,7 @@ export async function activateLotInTx(tx, lotId, loyaltyOrderId) {
 
   await tx.pointLot.update({
     where: { id: lot.id },
-    data: usable === 0 ? { status: 'exhausted', remaining: 0 } : { status: 'active', remaining: usable },
+    data: { status: usable === 0 ? 'exhausted' : 'active', ...(repaid > 0 ? { remaining: { decrement: repaid } } : {}) },
   });
 
   await tx.ledgerEntry.create({
@@ -601,7 +678,7 @@ export async function activatePendingLot(lotId, shop) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      await lockAccount(tx, lot.accountId);
+      await lockAccount(tx, lot.accountId, 'activate');
       await activateLotInTx(tx, lot.id, loyaltyOrder.id);
     });
     return true;

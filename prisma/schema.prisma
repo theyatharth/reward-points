@@ -217,7 +217,7 @@ model LoyaltyAccount {
   shopifyCustomerId String // Shopify numeric customer ID (string for safety)
 
   // Point balances
-  available Int @default(0) // spendable points (may be negative: owed balance)
+  available Int @default(0) // spendable points; never below 0 (D4): what is owed is in debt
   pending   Int @default(0) // earned but not yet spendable
   debt      Int @default(0) // points owed from overspend; always >= 0
 
@@ -404,7 +404,7 @@ model Redemption {
   pointsUsed     Int      // points deducted
   rewardValuePaise Int    // discount value in paise
 
-  status         String @default("creating") // "creating" | "active" | "failed" | "expired" | "used"
+  status         String @default("creating") // "creating" | "active" | "failed" | "expired" | "used" | "voided"
 
   // Shopify discount code details (set after successful creation)
   discountCode   String?

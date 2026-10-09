@@ -27,6 +27,7 @@ import * as ledgerService from '../../web/loyalty/service/ledger.js';
 import { FakeShopifyGateway } from '../../web/loyalty/adapters/fake-gateway.js';
 import { setFixedTime, restoreClock } from '../../web/loyalty/adapters/clock.js';
 import { uniqueId } from '../helpers/ids.js';
+import { assertShopInvariants } from '../helpers/invariants.js';
 
 const REAL = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'shopify', 'real');
 const MIN = 60 * 1000;
@@ -109,12 +110,14 @@ describe('Real captured refunds and cancellation through the ledger', () => {
     await run();
     assert.strictEqual((await event(ev.id)).status, 'processed');
     assert.strictEqual((await loyaltyOrder(o)).pointsEarned, expectPoints);
+    await assertShopInvariants(prisma, shop);
     return o;
   }
 
   async function deliver(topic, payload) {
     const ev = await send(topic, payload);
     await run();
+    await assertShopInvariants(prisma, shop);
     return event(ev.id);
   }
 

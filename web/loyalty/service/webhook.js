@@ -174,11 +174,13 @@ export async function processPendingWebhooksWithStats({ shop } = {}) {
   let failedCount = 0;
   for (const event of events) {
     try {
-      // Mark as processing to prevent concurrent pickup (if multiple workers run)
-      await prisma.webhookEvent.update({
-        where: { id: event.id, status: event.status }, // Optimistic lock (simple)
+      // Claim the event so two workers never process it together. If another worker got
+      // there first nothing was claimed: leave the event to it (it is not a failure).
+      const claimed = await prisma.webhookEvent.updateMany({
+        where: { id: event.id, status: event.status },
         data: { status: 'processing', updatedAt: now() },
       });
+      if (claimed.count === 0) continue;
 
       await processEvent(event);
       processedCount++;
