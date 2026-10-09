@@ -305,3 +305,21 @@ test('eligibleAmountPaise is returned correctly', () => {
   const { eligibleAmountPaise } = computeEarning(input);
   assert.strictEqual(eligibleAmountPaise, 62995);
 });
+
+// ---- Per-line result (the earn snapshot used by refunds, decision D3) ----
+
+test('computeEarning returns the eligible value per line: whole-line paise, gift card excluded with its reason', () => {
+  const { points, eligibleAmountPaise, lines } = computeEarning(makeInput([
+    { id: 11, price: '50.00', quantity: 2, discount_allocations: [{ amount: '10.00' }] },
+    { id: 12, price: '10.00', quantity: 1, is_gift_card: true },
+    { price: '5.00', quantity: 1 },
+  ], { pointsPerUnit: 1, spendAmountPaise: 100, pointsRounding: 'floor', earnBasis: 'after_discount', excludeGiftCards: true, taxHandling: 'exclusive', shippingEarning: false }));
+  assert.deepStrictEqual(lines, [
+    { shopifyLineItemId: '11', quantity: 2, eligiblePaise: 9000, excluded: false, excludedReason: null },
+    { shopifyLineItemId: '12', quantity: 1, eligiblePaise: 0, excluded: true, excludedReason: 'gift_card' },
+    { shopifyLineItemId: null, quantity: 1, eligiblePaise: 500, excluded: false, excludedReason: null },
+  ]);
+  assert.strictEqual(eligibleAmountPaise, 9500);
+  assert.strictEqual(lines.reduce((t, l) => t + l.eligiblePaise, 0), eligibleAmountPaise, 'the lines add up to the eligible total (no shipping here)');
+  assert.strictEqual(points, 95);
+});

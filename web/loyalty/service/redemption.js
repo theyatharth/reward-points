@@ -125,7 +125,8 @@ export async function redeem({ shop, shopifyCustomerId, idempotencyKey }) {
       const fresh = await tx.loyaltyAccount.findUnique({ where: { id: account.id } });
 
       // Refusals return (not throw), so the activations above still commit.
-      const owed = Math.max(0, -fresh.available) + fresh.debt;
+      // D4: the owed balance is the debt column; available is never below 0.
+      const owed = fresh.debt;
       if (owed > 0) {
         return {
           kind: 'refused',

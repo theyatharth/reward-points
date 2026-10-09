@@ -87,6 +87,12 @@ async function txns(customerId) {
   return prisma.ledgerEntry.findMany({ where: { accountId: { in: (await prisma.loyaltyAccount.findMany({ where: { shop: currentShop } })).map(a => a.id) } }, orderBy: { id: 'asc' } });
 }
 
+// D1: a refund names the order lines (and units) it returns; points come from line identity,
+// not from the money amount. Line ids in createOrderPayload are 1000 + the line's position.
+function refundLines(...pairs) {
+  return pairs.map(([lineIndex, quantity]) => ({ line_item_id: 1000 + lineIndex, quantity }));
+}
+
 function redeem() { throw new Error('redeem not implemented yet in M2'); }
 function adjust() { throw new Error('adjust not implemented yet in M2'); }
 
@@ -227,7 +233,7 @@ describe('Ported M2 client tests', () => {
 
   test('[Returns 1/6] Full return before activation cancels pending points', async () => {
     const o = await checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '659.00' } } }] } });
+    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
   
     const b = await balances('u1');
@@ -237,23 +243,21 @@ describe('Ported M2 client tests', () => {
 
   test('[Returns 2/6] Partial return reverses only the returned share', async () => {
     const o = await checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 2]) }); // 1998
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '500.00' } } }] } });
+    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
   
     const b = await balances('u1');
-    // 500 out of 1998 -> reversed 500 pts.
-    assert.strictEqual(b.pending, 1498);
+    // One of the two units returned -> its share, 999 of 1998, is reversed.
+    assert.strictEqual(b.pending, 999);
   });
 
   test('[Returns 3/6] Multiple refunds reverse exactly the points earned', async () => {
-    const o = await checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 1]) }); // 999
+    const o = await checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 3]) }); // 2997
   
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '333.00' } } }] } });
-    await processPendingWebhooks({ shop: currentShop });
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '333.00' } } }] } });
-    await processPendingWebhooks({ shop: currentShop });
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '333.00' } } }] } });
-    await processPendingWebhooks({ shop: currentShop });
+    for (let i = 0; i < 3; i++) { // three single-unit returns of the same line
+      await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
+      await processPendingWebhooks({ shop: currentShop });
+    }
   
     const b = await balances('u1');
     const ws = await prisma.webhookEvent.findMany({ where: { topic: 'refunds/create' }, orderBy: { createdAt: 'desc' }, take: 3 });
@@ -262,15 +266,15 @@ describe('Ported M2 client tests', () => {
   });
 
   test('[Returns 4/6] Same refund delivered twice is applied once', async () => {
-    const o = await checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); // 659
+    const o = await checkout({ customerId: 'u1', lines: L(['gt029', 2]) }); // 1318
     const refundId = uniqueId();
-    await ingest({ id: uniqueKey('r1'), topic: 'refunds/create', payload: { order_id: o.orderId, id: refundId, refund_line_items: [{ subtotalSet: { shopMoney: { amount: '200.00' } } }] } });
+    await ingest({ id: uniqueKey('r1'), topic: 'refunds/create', payload: { order_id: o.orderId, id: refundId, refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
-    await ingest({ id: uniqueKey('r1'), topic: 'refunds/create', payload: { order_id: o.orderId, id: refundId, refund_line_items: [{ subtotalSet: { shopMoney: { amount: '200.00' } } }] } });
+    await ingest({ id: uniqueKey('r1'), topic: 'refunds/create', payload: { order_id: o.orderId, id: refundId, refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
   
     const b = await balances('u1');
-    assert.strictEqual(b.pending, 459);
+    assert.strictEqual(b.pending, 659);
   });
 
   test('[Returns 5/6] Cancellation cancels pending points', async () => {
@@ -321,7 +325,7 @@ describe('Ported M2 client tests', () => {
     const orderId = uniqueId();
     const wid = uniqueKey('early_refund');
     // Refund arrives first
-    await ingest({ id: wid, topic: 'refunds/create', payload: { order_id: orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '100.00' } } }] } });
+    await ingest({ id: wid, topic: 'refunds/create', payload: { order_id: orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
   
     // We must inject the order into the fake gateway so that T2.8 lookup works!
     // It will see that processed_at is > ledgerStartAt, and throw "Original order not yet in ledger, retry later"
@@ -336,7 +340,7 @@ describe('Ported M2 client tests', () => {
     assert.strictEqual(w.status, 'failed', 'Refund is kept as failed (queued)');
   
     // Now order arrives
-    await checkout({ customerId: 'u1', orderId, lines: L(['gt029', 1]) }); // earns 659
+    await checkout({ customerId: 'u1', orderId, lines: L(['gt029', 2]) }); // earns 1318
   
     // Now simulate time passing and retry refund
     advance(1); // nextRetryAt passed
@@ -346,7 +350,7 @@ describe('Ported M2 client tests', () => {
     assert.strictEqual(w.status, 'processed', 'Refund is now processed');
   
     const b = await balances('u1');
-    assert.strictEqual(b.pending, 559, 'Refund applied successfully'); 
+    assert.strictEqual(b.pending, 659, 'Refund applied successfully'); 
   });
 
 
@@ -361,23 +365,23 @@ describe('Ported M2 client tests', () => {
       id: orderId,
       processed_at: _currentTime.toISOString()
     });
-    await ingest({ id: refundWid, topic: 'refunds/create', payload: { order_id: orderId, id: shopifyRefundId, refund_line_items: [{ subtotalSet: { shopMoney: { amount: '200.00' } } }] } });
+    await ingest({ id: refundWid, topic: 'refunds/create', payload: { order_id: orderId, id: shopifyRefundId, refund_line_items: refundLines([0, 1]) } });
   
     // The order is paid late.
-    await checkout({ customerId: 'u1', orderId, lines: L(['gt029', 1]) }); // 659
+    await checkout({ customerId: 'u1', orderId, lines: L(['gt029', 2]) }); // 1318
   
     // Now refund is retried.
     advance(1);
     await processPendingWebhooks({ shop: currentShop });
   
     const b = await balances('u1');
-    assert.strictEqual(b.pending, 459, 'Refund applied after late order');
+    assert.strictEqual(b.pending, 659, 'Refund applied after late order');
   });
 
   test('[T2.7] Concurrency: Two refunds arriving simultaneously', async () => {
-    const o = await checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 2]) }); // 1998
-    const r1 = ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '500.00' } } }] } });
-    const r2 = ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '500.00' } } }] } });
+    const o = await checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 4]) }); // 3996
+    const r1 = ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
+    const r2 = ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
   
     await Promise.all([r1, r2]);
     await processPendingWebhooks({ shop: currentShop });
@@ -386,7 +390,7 @@ describe('Ported M2 client tests', () => {
     // Wait, if they arrived simultaneously, both are queued, then processPendingWebhooks processes them sequentially.
     // Real concurrency would be calling storeWebhook concurrently.
     // processPendingWebhooks uses a queue anyway.
-    assert.strictEqual(b.pending, 998, 'Both refunds processed correctly');
+    assert.strictEqual(b.pending, 1998, 'Both refunds processed correctly (2 of 4 units)');
   });
 
   test('[T2.7] Concurrency: The exact same order webhook delivered twice at once', async () => {
@@ -458,7 +462,7 @@ describe('Ported M2 client tests', () => {
   
     // Concurrent refund webhook and activation attempt
     const refundWid = uniqueKey('r_concurrent');
-    const refundReq = ingest({ id: refundWid, topic: 'refunds/create', payload: { order_id: o.orderId, id: shopifyRefundId, refund_line_items: [{ subtotalSet: { shopMoney: { amount: '1318.00' } } }] } }).then(() => processPendingWebhooks({ shop: currentShop }));
+    const refundReq = ingest({ id: refundWid, topic: 'refunds/create', payload: { order_id: o.orderId, id: shopifyRefundId, refund_line_items: refundLines([0, 2]) } }).then(() => processPendingWebhooks({ shop: currentShop }));
   
     const activateReq = import('../../web/loyalty/service/ledger.js').then(m => m.activatePendingLot(lot.id, 'platinum-ecofynd-test-store')).catch(e => e);
   
@@ -484,7 +488,7 @@ describe('Ported M2 client tests', () => {
     assert.strictEqual(b.pending, 0, 'Cancelled');
   
     // Refund arrives after cancellation
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '659.00' } } }] } });
+    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
   
     b = await balances('u1');
@@ -495,7 +499,7 @@ describe('Ported M2 client tests', () => {
   test('[T2.7] Regression 2: Partial refund does not discard all pending points at activation', async () => {
     // Activation is M3 worker, but we can verify the ledger entry
     const o = await checkout({ customerId: 'u1', lines: L(['gt029', 2]) }); // 1318
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '659.00' } } }] } });
+    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
   
     const b = await balances('u1');
@@ -521,7 +525,7 @@ describe('Ported M2 client tests', () => {
 
   test('[T2.7] Cancelling a partially refunded order', async () => {
     const o = await checkout({ customerId: 'u1', lines: L(['gt029', 2]) }); // 1318
-    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: [{ subtotalSet: { shopMoney: { amount: '659.00' } } }] } });
+    await ingest({ topic: 'refunds/create', payload: { order_id: o.orderId, id: uniqueId(), refund_line_items: refundLines([0, 1]) } });
     await processPendingWebhooks({ shop: currentShop });
   
     let b = await balances('u1');

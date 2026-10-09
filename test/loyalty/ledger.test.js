@@ -46,7 +46,7 @@ describe('Ledger Service & Webhooks', () => {
       taxes_included: false,
       customer: { id: shopifyCustomerId },
       line_items: [
-        { price: '100.00', quantity: 1, tax_lines: [], discount_allocations: [] }
+        { id: 101, price: '50.00', quantity: 2, tax_lines: [], discount_allocations: [] }
       ],
       shipping_lines: []
     };
@@ -95,7 +95,7 @@ describe('Ledger Service & Webhooks', () => {
       id: `refund_${testRunId}`,
       order_id: orderId,
       refund_line_items: [
-        { subtotalSet: { shopMoney: { amount: '50.00' } } }
+        { line_item_id: 101, quantity: 1 } // one of the two 50.00 units
       ],
       order_adjustments: []
     };
@@ -116,7 +116,7 @@ describe('Ledger Service & Webhooks', () => {
       where: { shop_shopifyOrderId: { shop: TEST_SHOP, shopifyOrderId: orderId } },
       include: { lot: true, refunds: true },
     });
-    // Reversed: round(100 * 50.00 / 100.00) = 50
+    // Reversed: one of two units: round(100 * 5000 / 10000) = 50
     assert.equal(order.lot.remaining, 50);
     assert.equal(order.lot.status, 'pending'); // Still pending
 

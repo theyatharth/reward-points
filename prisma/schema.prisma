@@ -345,6 +345,14 @@ model LoyaltyOrder {
   lotId    String?
   refunds  LoyaltyRefund[]
 
+  // Earn-time snapshot of the order's lines (D3), the source of truth for refund
+  // reversal by LINE IDENTITY. Array of
+  //   { shopifyLineItemId, quantity, eligiblePaise, excluded, excludedReason }
+  // eligiblePaise is the line's whole eligible value (all units, after tax strip and
+  // discount); excluded lines (gift card) carry 0. Null on orders earned before
+  // migration 4: a refund rebuilds it from the stored orders/paid event, or fails.
+  lines    Json?
+
   createdAt DateTime @default(now())
 
   @@unique([shop, shopifyOrderId])
@@ -364,6 +372,12 @@ model LoyaltyRefund {
   pointsReversed   Int      // total points reversed by this refund event
   refundAmountPaise Int     // refund value in paise used for the reversal calc
   isFullCancellation Boolean @default(false)
+
+  // The refunded line quantities this event carried (D3), so that a redelivered
+  // refund adds nothing and cumulative per-line quantities can be summed. Array of
+  //   { shopifyLineItemId, quantity, counted, reason }
+  // counted=false: the line was missing from the earn snapshot or excluded (reverses 0).
+  lines Json?
 
   loyaltyOrder   LoyaltyOrder? @relation(fields: [loyaltyOrderId], references: [id])
   loyaltyOrderId String?

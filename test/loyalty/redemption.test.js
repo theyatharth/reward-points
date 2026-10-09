@@ -79,14 +79,14 @@ async function entries(customerId, type) {
   });
 }
 
-async function orderEarning(customerId, orderId, price) {
+async function orderEarning(customerId, orderId, price, units = 1) {
   const payload = {
     id: orderId,
     customer: { id: customerId },
     processed_at: now().toISOString(),
     total_price: String(price),
     subtotal_price: String(price),
-    line_items: [{ id: 1, product_id: 'p1', quantity: 1, price: String(price), title: 'Item' }],
+    line_items: [{ id: 1, product_id: 'p1', quantity: units, price: String(price / units), title: 'Item' }],
     discount_allocations: [],
     tax_lines: [],
   };
@@ -94,14 +94,15 @@ async function orderEarning(customerId, orderId, price) {
   await processPendingWebhooks({ shop });
 }
 
-async function refundAmount(orderId, amount) {
+// D1: a refund reverses points by LINE IDENTITY (line_item_id and units), not by amount.
+async function refundUnits(orderId, units = 1) {
   await storeWebhook({
     shop,
     topic: 'refunds/create',
     payload: {
       id: uniqueId(),
       order_id: orderId,
-      refund_line_items: [{ subtotalSet: { shopMoney: { amount: `${amount}.00` } } }],
+      refund_line_items: [{ line_item_id: 1, quantity: units }],
     },
     shopifyWebhookId: key(),
   });
@@ -366,8 +367,8 @@ describe('Redemption service', () => {
 
   test('[Redeem] a refund already applied in the ledger does not trip J3', async () => {
     const orderId = uniqueId();
-    await orderEarning('c1', orderId, 1000);
-    await refundAmount(orderId, 500); // refunds half: 500 points reversed from the pending lot
+    await orderEarning('c1', orderId, 1000, 2);
+    await refundUnits(orderId, 1); // refunds one of two units: 500 points reversed from the pending lot
     const refund = await prisma.loyaltyRefund.findFirst({ where: { shopifyOrderId: String(orderId) } });
     advance(31);
     gw.addOrder({ id: orderId, processed_at: '2026-09-01T10:00:00Z', refunds: [{ id: Number(refund.shopifyRefundId) }] });
@@ -390,8 +391,10 @@ describe('Redemption service', () => {
     assert.strictEqual((await acct('c1')).available, 0);
 
     // ...then the order is refunded: the points are already spent, so they are owed.
-    await refundAmount(firstOrderId, 500);
-    assert.strictEqual((await acct('c1')).available, -500);
+    await refundUnits(firstOrderId, 1);
+    // D4: the balance never goes below 0; what cannot be taken back is owed (the debt column).
+    assert.strictEqual((await acct('c1')).available, 0);
+    assert.strictEqual((await acct('c1')).debt, 500);
 
     const refused = await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: key() });
     assert.strictEqual(refused.ok, false);
@@ -411,6 +414,7 @@ describe('Redemption service', () => {
 
     const a = await acct('c1');
     assert.strictEqual(a.available, 200, '700 activated, 500 owed cleared');
+    assert.strictEqual(a.debt, 0, 'the new points repaid the debt first');
     assert.strictEqual(a.pending, 0);
   });
 

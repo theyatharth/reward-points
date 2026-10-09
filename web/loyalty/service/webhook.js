@@ -85,7 +85,9 @@ export async function markWebhookFailed(eventId, error, maxAttempts = 3) {
   if (!event) return;
 
   const newAttempts = event.attempts + 1;
-  const isDead = newAttempts >= maxAttempts;
+  // An error flagged permanent (a malformed or impossible payload) cannot be cured by
+  // retrying: the event goes to 'dead' at once, with the reason in lastError.
+  const isDead = error?.permanent === true || newAttempts >= maxAttempts;
   const status = isDead ? 'dead' : 'failed';
   
   // Exponential backoff: 5m, 25m, 125m, etc.

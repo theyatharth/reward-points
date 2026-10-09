@@ -33,6 +33,7 @@ import { parsePaise, multiplyPoints } from './money.js';
  * @typedef {Object} LineItem
  * @property {string|number} price          - Unit price (decimal string or number)
  * @property {number}        quantity
+ * @property {string|number} [id]          - Shopify line item id (kept in the per-line result)
  * @property {boolean}       [is_gift_card] - true for gift card lines
  * @property {Array<{amount: string|number}>} [tax_lines]
  * @property {Array<{amount: string|number}>} [discount_allocations]
@@ -58,9 +59,12 @@ import { parsePaise, multiplyPoints } from './money.js';
  * Compute how many points are earned for an order.
  *
  * @param {EarningInput} input
- * @returns {{ points: number, eligibleAmountPaise: number }}
+ * @returns {{ points: number, eligibleAmountPaise: number, lines: Array<{ shopifyLineItemId: string|null, quantity: number, eligiblePaise: number, excluded: boolean, excludedReason: string|null }> }}
  *   points              — integer points earned
  *   eligibleAmountPaise — total eligible order value in paise (for the ledger)
+ *   lines               — the same eligible value split per line (the earn snapshot used by refunds):
+ *                         eligiblePaise is the line's WHOLE value (all units); an excluded line is 0.
+ *                         Shipping, when it earns, is in eligibleAmountPaise but in no line.
  */
 // ---------------------------------------------------------------------------
 // Tax-line amount.
@@ -117,12 +121,17 @@ export function computeEarning(input) {
   const stripTax = taxHandling === 'inclusive' && taxesIncluded;
 
   let eligiblePaise = 0;
+  const lines = [];
 
   for (const line of lineItems) {
-    if (excludeGiftCards && line.is_gift_card) continue;
+    const shopifyLineItemId = line.id === undefined || line.id === null ? null : String(line.id);
+    const qty = line.quantity || 1;
+    if (excludeGiftCards && line.is_gift_card) {
+      lines.push({ shopifyLineItemId, quantity: qty, eligiblePaise: 0, excluded: true, excludedReason: 'gift_card' });
+      continue;
+    }
 
     const unitPricePaise = parsePaise(line.price);
-    const qty = line.quantity || 1;
     let linePaise = unitPricePaise * qty;
 
     // Strip included tax from the line price (proportional per line).
@@ -147,6 +156,7 @@ export function computeEarning(input) {
     // No allocations (or earnBasis='before_discount'): the line earns on its full price.
 
     eligiblePaise += linePaise;
+    lines.push({ shopifyLineItemId, quantity: qty, eligiblePaise: linePaise, excluded: false, excludedReason: null });
   }
 
   // Add shipping if the config allows it.
@@ -163,7 +173,7 @@ export function computeEarning(input) {
     pointsRounding
   );
 
-  return { points, eligibleAmountPaise: eligiblePaise };
+  return { points, eligibleAmountPaise: eligiblePaise, lines };
 }
 
 /**
@@ -172,10 +182,11 @@ export function computeEarning(input) {
  *
  * @param {Object} shopifyOrder   - parsed Shopify orders/paid payload
  * @param {Object} config         - LoyaltyConfig row (or DEFAULT_CONFIG)
- * @returns {{ points: number, eligibleAmountPaise: number }}
+ * @returns {{ points: number, eligibleAmountPaise: number, lines: Array }} see computeEarning
  */
 export function computeEarningFromOrder(shopifyOrder, config) {
   const lineItems = (shopifyOrder.line_items || []).map((li) => ({
+    id: li.id,
     price: li.price,
     quantity: li.quantity,
     is_gift_card: li.gift_card || false,

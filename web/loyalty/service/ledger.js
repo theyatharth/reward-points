@@ -6,8 +6,8 @@
 
 import { prisma } from '../../lib/prisma.js';
 import { computeEarningFromOrder } from '../rules/earning.js';
-import { computeReversal, computeCancellation } from '../rules/reversal.js';
-import { parsePaise } from '../rules/money.js';
+import { computeCancellation } from '../rules/reversal.js';
+import { refundEntries, priorQuantities, computeLineReversal, RefundDataError } from '../rules/refund-lines.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { now } from '../adapters/clock.js';
 import { normalizeTopic } from './topics.js';
@@ -86,7 +86,7 @@ export async function writeEarning(event, config) {
     }
   }
 
-  const { points, eligibleAmountPaise } = computeEarningFromOrder(order, config);
+  const { points, eligibleAmountPaise, lines } = computeEarningFromOrder(order, config);
 
   if (points <= 0 && eligibleAmountPaise <= 0) {
     return markSkipped(event.id, 'Order has zero eligible value/points');
@@ -99,6 +99,7 @@ export async function writeEarning(event, config) {
     await prisma.$transaction(async (tx) => {
       // 1. Account
       const account = await ensureAccount(tx, event.shop, order.customer.id);
+      await lockAccount(tx, account.id);
 
       // 2. PointLot (points are held as pending)
       const activatesAt = new Date(processedAt.getTime() + config.holdPeriodDays * 24 * 60 * 60 * 1000);
@@ -124,6 +125,7 @@ export async function writeEarning(event, config) {
           eligibleAmountPaise,
           processedAt,
           lotId: lot.id,
+          lines, // D3: per-line snapshot, the basis for refund reversal
         },
       });
 
@@ -167,6 +169,17 @@ export async function writeEarning(event, config) {
   }
 }
 
+const TX_OPTIONS = { maxWait: 10000, timeout: 20000 };
+
+/** Marks an event skipped inside the caller's transaction. */
+async function markSkippedIn(tx, eventId, reason) {
+  await tx.webhookEvent.update({
+    where: { id: eventId },
+    data: { status: 'skipped', lastError: reason, updatedAt: now() },
+  });
+  return true;
+}
+
 /**
  * Helper to mark skipped
  */
@@ -178,8 +191,137 @@ async function markSkipped(eventId, reason) {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Refunds and cancellations (decisions D1 to D4)
+// ---------------------------------------------------------------------------
+
+const PAID_TOPICS = ['orders/paid', 'ORDERS_PAID'];
+
+/** The newest stored orders/paid event for an order (either topic form; the id may be a number or a string). */
+function findStoredPaidEvent(shop, shopifyOrderId) {
+  const ids = [shopifyOrderId];
+  if (/^\d+$/.test(shopifyOrderId)) ids.push(Number(shopifyOrderId));
+  return prisma.webhookEvent.findFirst({
+    where: { shop, topic: { in: PAID_TOPICS }, OR: ids.map((v) => ({ payload: { path: ['id'], equals: v } })) },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 /**
- * Processes a refunds/create webhook event.
+ * Finds the LoyaltyOrder a refund or cancel refers to, or says why there is none.
+ * An order that has simply not been processed yet THROWS, so the event is retried
+ * (never skipped): a refund can arrive before its order.
+ *
+ * @returns {Promise<{ order: object } | { skip: string }>}
+ */
+async function loadOrderForReversal(event, config, shopifyOrderId) {
+  const order = await prisma.loyaltyOrder.findUnique({
+    where: { shop_shopifyOrderId: { shop: event.shop, shopifyOrderId } },
+  });
+  if (order) return { order };
+
+  // The order's own event may be stored already (queued, failed, or skipped).
+  const paid = await findStoredPaidEvent(event.shop, shopifyOrderId);
+  if (paid) {
+    if (paid.status === 'skipped') return { skip: `Order earned no points (${paid.lastError || 'its orders/paid event was skipped'})` };
+    throw new Error('Original order not yet in ledger, retry later');
+  }
+
+  if (!config.ledgerStartAt) {
+    return { skip: 'Original order not found in ledger (predates ledger or zero value)' };
+  }
+  // T2.8 Shopify lookup
+  try {
+    const shopifyOrder = await gatewayFactory(event.shop).getOrder(shopifyOrderId);
+    if (new Date(shopifyOrder.processed_at) < config.ledgerStartAt) {
+      return { skip: 'Original order not found in ledger (predates ledger)' };
+    }
+  } catch (err) {
+    if (err.response && err.response.code === 404) return { skip: 'Original order not found in Shopify either' };
+    throw err; // retry on network failure
+  }
+  // After ledgerStartAt but not in the ledger yet: wait for it.
+  throw new Error('Original order not yet in ledger, retry later');
+}
+
+/**
+ * The order's earn snapshot (D3). Orders earned before migration 4 have none: it is
+ * rebuilt from the stored orders/paid event, and only if the rebuilt eligible value
+ * and points equal what the ledger recorded. Otherwise the event fails visibly.
+ */
+async function snapshotFor(order, config) {
+  if (Array.isArray(order.lines)) return { lines: order.lines, rebuilt: false };
+  const paid = await findStoredPaidEvent(order.shop, order.shopifyOrderId);
+  if (!paid) {
+    throw new RefundDataError('The order has no earn snapshot and no stored orders/paid event to rebuild it from');
+  }
+  const rebuilt = computeEarningFromOrder(paid.payload, config);
+  if (rebuilt.eligibleAmountPaise !== order.eligibleAmountPaise || rebuilt.points !== order.pointsEarned) {
+    throw new RefundDataError(
+      'The earn snapshot rebuilt from the stored orders/paid event does not match what the ledger recorded ' +
+        `(${rebuilt.points} points / ${rebuilt.eligibleAmountPaise} paise rebuilt, ${order.pointsEarned} / ${order.eligibleAmountPaise} recorded); the earning rules may have changed since`
+    );
+  }
+  return { lines: rebuilt.lines, rebuilt: true };
+}
+
+/**
+ * Takes `points` back from an account, inside the caller's transaction (the account
+ * must already be locked). Order of preference (D4):
+ *   1. the order's own lot (pending or active),
+ *   2. the account's other ACTIVE lots, oldest first,
+ *   3. whatever is left is owed: it is added to the debt column.
+ * `available` and `pending` therefore never go below 0 and always equal the sum of the
+ * active and pending lots' remaining points. Lots are read FOR UPDATE inside the
+ * transaction and every balance change is a delta.
+ *
+ * @param {boolean} [emptiesOrder] true for a cancellation: an emptied own lot is marked 'cancelled' rather than 'exhausted'
+ * @returns {Promise<{ fromLots: number, toDebt: number }>}
+ */
+export async function takeBackPoints(tx, { accountId, ownLotId, points, emptiesOrder = false }) {
+  const lots = await tx.$queryRaw`
+    SELECT id, remaining, status FROM "PointLot"
+     WHERE "accountId" = ${accountId} AND remaining > 0
+       AND (id = ${ownLotId ?? ''} OR status = 'active')
+       AND status IN ('pending', 'active')
+     ORDER BY (id = ${ownLotId ?? ''}) DESC, "activatesAt" ASC, "createdAt" ASC, id ASC
+       FOR UPDATE`;
+
+  let left = points;
+  let fromPending = 0;
+  let fromAvailable = 0;
+  for (const lot of lots) {
+    if (left === 0) break;
+    const take = Math.min(left, lot.remaining);
+    const emptied = take === lot.remaining;
+    await tx.pointLot.update({
+      where: { id: lot.id },
+      data: {
+        remaining: { decrement: take },
+        ...(emptied ? { status: emptiesOrder && lot.id === ownLotId ? 'cancelled' : 'exhausted' } : {}),
+      },
+    });
+    if (lot.status === 'pending') fromPending += take;
+    else fromAvailable += take;
+    left -= take;
+  }
+
+  await tx.loyaltyAccount.update({
+    where: { id: accountId },
+    data: {
+      ...(fromPending > 0 ? { pending: { decrement: fromPending } } : {}),
+      ...(fromAvailable > 0 ? { available: { decrement: fromAvailable } } : {}),
+      ...(left > 0 ? { debt: { increment: left } } : {}),
+    },
+  });
+  return { fromLots: fromPending + fromAvailable, toDebt: left };
+}
+
+const sumOf = (rows, key) => rows.reduce((t, r) => t + (r[key] || 0), 0);
+const oweNote = (toDebt) => (toDebt > 0 ? ` (${toDebt} added to the owed balance)` : '');
+
+/**
+ * Processes a refunds/create webhook event (D1).
  */
 export async function writeRefund(event, config) {
   const payload = event.payload;
@@ -191,278 +333,158 @@ export async function writeRefund(event, config) {
   const shopifyRefundId = String(payload.id);
   const dedupeKey = `refund:${shopifyRefundId}`;
 
-  // Find the original LoyaltyOrder
-  const loyaltyOrder = await prisma.loyaltyOrder.findUnique({
-    where: { shop_shopifyOrderId: { shop: event.shop, shopifyOrderId } },
-    include: { lot: true },
-  });
+  const found = await loadOrderForReversal(event, config, shopifyOrderId);
+  if (found.skip) return markSkipped(event.id, found.skip);
 
-  if (!loyaltyOrder) {
-    if (!config.ledgerStartAt) {
-      return markSkipped(event.id, 'Original order not found in ledger (predates ledger or zero value)');
-    }
-    // T2.8 Shopify lookup
-    try {
-      const gw = gatewayFactory(event.shop);
-      const shopifyOrder = await gw.getOrder(shopifyOrderId);
-      const processedAt = new Date(shopifyOrder.processed_at);
-      if (processedAt < config.ledgerStartAt) {
-        return markSkipped(event.id, 'Original order not found in ledger (predates ledger)');
-      }
-    } catch (err) {
-      if (err.response && err.response.code === 404) {
-        return markSkipped(event.id, 'Original order not found in Shopify either');
-      }
-      throw err; // retry on network failure
-    }
-    // If we reach here, it's after ledgerStartAt but missing. Wait for it!
-    throw new Error('Original order not yet in ledger, retry later');
-  }
-
-  // Calculate refund amount
-  const refunds = payload.refund_line_items || [];
-  let refundAmountPaise = 0;
-  for (const item of refunds) {
-    refundAmountPaise += parsePaise(item.subtotal || item.subtotalSet?.shopMoney?.amount || '0');
-  }
-  // Include order adjustments (shipping refunds)
-  for (const adj of payload.order_adjustments || []) {
-    refundAmountPaise += parsePaise(adj.amount || '0');
-  }
-  // Math.abs because adjustments can be negative in Shopify
-  refundAmountPaise = Math.abs(refundAmountPaise);
-
-  // Get already reversed points
-  const reversedAgg = await prisma.loyaltyRefund.aggregate({
-    where: { loyaltyOrderId: loyaltyOrder.id },
-    _sum: { pointsReversed: true, refundAmountPaise: true },
-  });
-  const alreadyReversed = reversedAgg._sum.pointsReversed || 0;
-  const alreadyRefundedPaise = reversedAgg._sum.refundAmountPaise || 0;
-
-  const isFinalRefund = (alreadyRefundedPaise + refundAmountPaise) >= loyaltyOrder.eligibleAmountPaise;
-
-  const { pointsToReverse } = computeReversal({
-    pointsEarned: loyaltyOrder.pointsEarned,
-    eligibleAmountPaise: loyaltyOrder.eligibleAmountPaise,
-    totalRefundedPaise: alreadyRefundedPaise + refundAmountPaise,
-    alreadyReversed,
-    isFinalRefund,
-  });
-
-  if (pointsToReverse <= 0) {
-    return markSkipped(event.id, 'Refund results in 0 points to reverse');
-  }
+  const entries = refundEntries(payload); // throws RefundDataError on a malformed entry
+  const snapshot = await snapshotFor(found.order, config);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const lot = loyaltyOrder.lot;
-      
-      let deductFromPending = 0;
-      let deductFromAvailable = 0;
+    return await prisma.$transaction(async (tx) => {
+      await lockAccount(tx, found.order.accountId);
 
-      const deductFromLot = Math.min(pointsToReverse, lot.remaining);
-      const leftover = pointsToReverse - deductFromLot;
+      // Everything below is read under the lock, so a refund that landed a moment ago is seen.
+      const already = await tx.loyaltyRefund.findFirst({ where: { shop: event.shop, shopifyRefundId } });
+      if (already) return markSkippedIn(tx, event.id, 'Duplicate: this refund was already applied');
 
-      if (lot.status === 'pending') {
-        deductFromPending = deductFromLot;
-        deductFromAvailable = leftover;
-      } else {
-        // active or exhausted
-        deductFromAvailable = pointsToReverse; 
+      const order = await tx.loyaltyOrder.findUnique({ where: { id: found.order.id } });
+      if (snapshot.rebuilt && order.lines === null) {
+        await tx.loyaltyOrder.update({ where: { id: order.id }, data: { lines: snapshot.lines } });
       }
+      const lines = Array.isArray(order.lines) ? order.lines : snapshot.lines;
 
-      const newLotRemaining = lot.remaining - deductFromLot;
-      const newLotStatus = newLotRemaining === 0 ? 'exhausted' : lot.status;
-
-      // 1. PointLot
-      await tx.pointLot.update({
-        where: { id: lot.id },
-        data: { remaining: newLotRemaining, status: newLotStatus },
+      const earlier = await tx.loyaltyRefund.findMany({
+        where: { loyaltyOrderId: order.id },
+        select: { pointsReversed: true, lines: true },
+      });
+      const { pointsToReverse, deltaRefundedPaise, lineRecords } = computeLineReversal({
+        lines,
+        entries,
+        prior: priorQuantities(earlier.map((r) => r.lines)),
+        pointsEarned: order.pointsEarned,
+        eligibleAmountPaise: order.eligibleAmountPaise,
+        alreadyReversed: sumOf(earlier, 'pointsReversed'),
       });
 
-      // 2. LoyaltyRefund
       const refundRecord = await tx.loyaltyRefund.create({
         data: {
-          accountId: loyaltyOrder.accountId,
+          accountId: order.accountId,
           shopifyRefundId,
           shopifyOrderId,
           shop: event.shop,
           pointsReversed: pointsToReverse,
-          refundAmountPaise,
+          refundAmountPaise: deltaRefundedPaise,
           isFullCancellation: false,
-          loyaltyOrderId: loyaltyOrder.id,
+          lines: lineRecords,
+          loyaltyOrderId: order.id,
         },
       });
 
-      // 3. LedgerEntry
-      const entry = await tx.ledgerEntry.create({
-        data: {
-          accountId: loyaltyOrder.accountId,
-          type: 'refund',
-          points: -pointsToReverse,
-          status: 'active',
-          dedupeKey,
-          note: `Refund on order #${shopifyOrderId}`,
-          orderId: loyaltyOrder.id,
-          refundId: refundRecord.id,
-          lotId: lot.id,
-        },
-      });
+      let ledgerEntryId;
+      if (pointsToReverse > 0) {
+        const { toDebt } = await takeBackPoints(tx, { accountId: order.accountId, ownLotId: order.lotId, points: pointsToReverse });
+        const entry = await tx.ledgerEntry.create({
+          data: {
+            accountId: order.accountId,
+            type: 'refund',
+            points: -pointsToReverse,
+            status: 'active',
+            dedupeKey,
+            note: `Refund on order #${shopifyOrderId}${oweNote(toDebt)}`,
+            orderId: order.id,
+            refundId: refundRecord.id,
+            lotId: order.lotId,
+          },
+        });
+        ledgerEntryId = entry.id;
+      }
 
-      // 4. Update balances
-      await tx.loyaltyAccount.update({
-        where: { id: loyaltyOrder.accountId },
-        data: {
-          pending: { decrement: deductFromPending },
-          available: { decrement: deductFromAvailable },
-        },
-      });
-
-      // 5. Mark webhook processed
       await tx.webhookEvent.update({
         where: { id: event.id },
-        data: {
-          status: 'processed',
-          ledgerEntryId: entry.id,
-          updatedAt: now(),
-        },
+        data: { status: 'processed', ledgerEntryId, updatedAt: now() },
       });
-    });
-    return true;
+      return true;
+    }, TX_OPTIONS);
   } catch (err) {
-    if (err.code === 'P2002') { 
-      return markSkipped(event.id, 'Duplicate: refund entry already exists');
-    }
+    if (err.code === 'P2002') return markSkipped(event.id, 'Duplicate: refund entry already exists');
     throw err;
   }
 }
 
 /**
- * Processes an orders/cancelled webhook event.
+ * Processes an orders/cancelled webhook event (D2): reverses everything still
+ * unreversed. Whether it runs before or after the cancel's own refund, nothing is
+ * counted twice: both work from the points already reversed on the order.
  */
 export async function writeCancel(event, config) {
   const payload = event.payload;
+  if (!payload.id) return markSkipped(event.id, 'Cancel payload missing id');
   const shopifyOrderId = String(payload.id);
   const dedupeKey = `cancel:${shopifyOrderId}`;
 
-  const loyaltyOrder = await prisma.loyaltyOrder.findUnique({
-    where: { shop_shopifyOrderId: { shop: event.shop, shopifyOrderId } },
-    include: { lot: true },
-  });
-
-  if (!loyaltyOrder) {
-    if (!config.ledgerStartAt) {
-      return markSkipped(event.id, 'Original order not found in ledger');
-    }
-    // T2.8 Shopify lookup
-    try {
-      const gw = gatewayFactory(event.shop);
-      const shopifyOrder = await gw.getOrder(shopifyOrderId);
-      const processedAt = new Date(shopifyOrder.processed_at);
-      if (processedAt < config.ledgerStartAt) {
-        return markSkipped(event.id, 'Original order not found in ledger (predates ledger)');
-      }
-    } catch (err) {
-      if (err.response && err.response.code === 404) {
-        return markSkipped(event.id, 'Original order not found in Shopify either');
-      }
-      throw err;
-    }
-    throw new Error('Original order not yet in ledger, retry later');
-  }
-
-  const reversedAgg = await prisma.loyaltyRefund.aggregate({
-    where: { loyaltyOrderId: loyaltyOrder.id },
-    _sum: { pointsReversed: true },
-  });
-  const alreadyReversed = reversedAgg._sum.pointsReversed || 0;
-
-  const { pointsToReverse } = computeCancellation({
-    pointsEarned: loyaltyOrder.pointsEarned,
-    alreadyReversed,
-  });
-
-  if (pointsToReverse <= 0) {
-    return markSkipped(event.id, 'Order cancellation results in 0 points to reverse (already fully refunded/cancelled)');
-  }
+  const found = await loadOrderForReversal(event, config, shopifyOrderId);
+  if (found.skip) return markSkipped(event.id, found.skip);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      const lot = loyaltyOrder.lot;
-      
-      let deductFromPending = 0;
-      let deductFromAvailable = 0;
+    return await prisma.$transaction(async (tx) => {
+      await lockAccount(tx, found.order.accountId);
 
-      const deductFromLot = Math.min(pointsToReverse, lot.remaining);
-      const leftover = pointsToReverse - deductFromLot;
+      const already = await tx.loyaltyRefund.findFirst({ where: { loyaltyOrderId: found.order.id, isFullCancellation: true } });
+      if (already) return markSkippedIn(tx, event.id, 'Duplicate: this cancellation was already applied');
 
-      if (lot.status === 'pending') {
-        deductFromPending = deductFromLot;
-        deductFromAvailable = leftover;
-      } else {
-        deductFromAvailable = pointsToReverse; 
-      }
-
-      // 1. PointLot
-      await tx.pointLot.update({
-        where: { id: lot.id },
-        data: { remaining: 0, status: 'cancelled' },
+      const order = await tx.loyaltyOrder.findUnique({ where: { id: found.order.id } });
+      const earlier = await tx.loyaltyRefund.findMany({
+        where: { loyaltyOrderId: order.id },
+        select: { pointsReversed: true, refundAmountPaise: true },
+      });
+      const { pointsToReverse } = computeCancellation({
+        pointsEarned: order.pointsEarned,
+        alreadyReversed: sumOf(earlier, 'pointsReversed'),
       });
 
-      // 2. LoyaltyRefund (reuse table for cancellations)
       const refundRecord = await tx.loyaltyRefund.create({
         data: {
-          accountId: loyaltyOrder.accountId,
+          accountId: order.accountId,
           shopifyRefundId: null,
           shopifyOrderId,
           shop: event.shop,
           pointsReversed: pointsToReverse,
-          refundAmountPaise: loyaltyOrder.eligibleAmountPaise, // represents full order value
+          refundAmountPaise: Math.max(0, order.eligibleAmountPaise - sumOf(earlier, 'refundAmountPaise')),
           isFullCancellation: true,
-          loyaltyOrderId: loyaltyOrder.id,
+          lines: [],
+          loyaltyOrderId: order.id,
         },
       });
 
-      // 3. LedgerEntry
-      const entry = await tx.ledgerEntry.create({
-        data: {
-          accountId: loyaltyOrder.accountId,
-          type: 'cancel',
-          points: -pointsToReverse,
-          status: 'active',
-          dedupeKey,
-          note: `Cancelled order #${shopifyOrderId}`,
-          orderId: loyaltyOrder.id,
-          refundId: refundRecord.id,
-          lotId: lot.id,
-        },
-      });
+      let ledgerEntryId;
+      if (pointsToReverse > 0) {
+        const { toDebt } = await takeBackPoints(tx, {
+          accountId: order.accountId, ownLotId: order.lotId, points: pointsToReverse, emptiesOrder: true,
+        });
+        const entry = await tx.ledgerEntry.create({
+          data: {
+            accountId: order.accountId,
+            type: 'cancel',
+            points: -pointsToReverse,
+            status: 'active',
+            dedupeKey,
+            note: `Cancelled order #${shopifyOrderId}${oweNote(toDebt)}`,
+            orderId: order.id,
+            refundId: refundRecord.id,
+            lotId: order.lotId,
+          },
+        });
+        ledgerEntryId = entry.id;
+      }
 
-      // 4. Update balances
-      await tx.loyaltyAccount.update({
-        where: { id: loyaltyOrder.accountId },
-        data: {
-          pending: { decrement: deductFromPending },
-          available: { decrement: deductFromAvailable },
-        },
-      });
-
-      // 5. Mark webhook processed
       await tx.webhookEvent.update({
         where: { id: event.id },
-        data: {
-          status: 'processed',
-          ledgerEntryId: entry.id,
-          updatedAt: now(),
-        },
+        data: { status: 'processed', ledgerEntryId, updatedAt: now() },
       });
-    });
-    return true;
+      return true;
+    }, TX_OPTIONS);
   } catch (err) {
-    if (err.code === 'P2002') {
-      return markSkipped(event.id, 'Duplicate: cancel entry already exists');
-    }
+    if (err.code === 'P2002') return markSkipped(event.id, 'Duplicate: cancel entry already exists');
     throw err;
   }
 }
@@ -516,14 +538,23 @@ export async function checkLotJ3(lot, loyaltyOrderId, shop) {
 /**
  * Moves one pending lot to active inside the caller's transaction (the
  * account must already be locked). Re-reads the lot, so a refund that landed
- * after the J3 check is reflected. Returns the points activated, or 0 if the
- * lot is no longer pending.
+ * after the J3 check is reflected. New points repay any owed balance (debt)
+ * first (D4): the repaid part is consumed from the lot, the rest becomes
+ * available. Returns the points that became available, or 0 if the lot is no
+ * longer pending.
  */
 export async function activateLotInTx(tx, lotId, loyaltyOrderId) {
   const lot = await tx.pointLot.findUnique({ where: { id: lotId } });
   if (!lot || lot.status !== 'pending' || lot.remaining <= 0) return 0;
 
-  await tx.pointLot.update({ where: { id: lot.id }, data: { status: 'active' } });
+  const account = await tx.loyaltyAccount.findUnique({ where: { id: lot.accountId }, select: { debt: true } });
+  const repaid = Math.min(account.debt, lot.remaining);
+  const usable = lot.remaining - repaid;
+
+  await tx.pointLot.update({
+    where: { id: lot.id },
+    data: usable === 0 ? { status: 'exhausted', remaining: 0 } : { status: 'active', remaining: usable },
+  });
 
   await tx.ledgerEntry.create({
     data: {
@@ -534,7 +565,7 @@ export async function activateLotInTx(tx, lotId, loyaltyOrderId) {
       dedupeKey: `activate:${lot.shopifyOrderId}`,
       lotId: lot.id,
       orderId: loyaltyOrderId,
-      note: `Activated points for order #${lot.shopifyOrderId}`,
+      note: `Activated points for order #${lot.shopifyOrderId}` + (repaid > 0 ? ` (${repaid} used to repay the owed balance)` : ''),
     },
   });
 
@@ -542,10 +573,11 @@ export async function activateLotInTx(tx, lotId, loyaltyOrderId) {
     where: { id: lot.accountId },
     data: {
       pending: { decrement: lot.remaining },
-      available: { increment: lot.remaining },
+      ...(usable > 0 ? { available: { increment: usable } } : {}),
+      ...(repaid > 0 ? { debt: { decrement: repaid } } : {}),
     },
   });
-  return lot.remaining;
+  return usable;
 }
 
 /**

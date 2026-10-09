@@ -15,8 +15,11 @@ There are two kinds of fixture here. **Know which you are looking at.**
 | `orders-paid-1016-discount.json` | #1016 | one line 749.95, a 10% discount code (allocation 74.99) |
 | `orders-paid-1017-giftcard-discount.json` | #1017 | a 749.95 line plus a 10.00 gift card; the 10% code touched only the first line |
 | `orders-paid-1018-tax-included.json` | #1018 | one line 712.45 with 108.68 tax included (one tax line), shipping 30.00 |
+| `orders-paid-1019-two-units-discount.json` | #1019 | one line, 2 units at 749.95, 149.99 discount allocated: 1349.91 eligible, 1349 points (refunded by R1 and R2) |
+| `orders-paid-1020-giftcard-discount.json` | #1020 | 749.95 line plus a 10.00 gift card, 74.99 discount on the first line only: 674.96 eligible, 674 points (refunded by R3 and R4) |
+| `orders-paid-1021-plain.json` | #1021 | one line 749.95, no discount, no tax: 749 points (refunded by R5 and cancelled) |
 
-`test/loyalty/real-fixtures.test.js` feeds each through `storeWebhook` and `processPendingWebhooks`, overriding only the order id and `customer.id` (earn keys are global and ledger rows are immutable), and asserts 60000/600, 67496/674, 67496/674 and 60377/603.
+`test/loyalty/real-fixtures.test.js` feeds #1015 to #1018 through `storeWebhook` and `processPendingWebhooks`, overriding only the order id and `customer.id` (earn keys are global and ledger rows are immutable), and asserts 60000/600, 67496/674, 67496/674 and 60377/603. `test/loyalty/real-refunds.test.js` feeds #1019 to #1021 and their refunds and cancellation through the ledger (1349 = 675 + 674; 674 with R3 and R4 reversing 0; 749 reversed once, whichever of R5 and the cancel runs first).
 
 ### Real refunds and cancellation (captured 2026-10-09, test orders #1019 to #1021)
 

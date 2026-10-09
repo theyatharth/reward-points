@@ -44,7 +44,7 @@ describe('Topic forms through the webhook pipeline', () => {
     subtotal_price: amount,
     taxes_included: false,
     customer: { id: customerId },
-    line_items: [{ price: amount, quantity: 1, tax_lines: [], discount_allocations: [] }],
+    line_items: [{ id: 501, price: String(Number(amount) / 2), quantity: 2, tax_lines: [], discount_allocations: [] }],
     shipping_lines: [],
   });
   const account = () => prisma.loyaltyAccount.findUnique({
@@ -84,12 +84,12 @@ describe('Topic forms through the webhook pipeline', () => {
     const refund = await prisma.webhookEvent.create({
       data: {
         shop, topic: 'REFUNDS_CREATE', shopifyWebhookId: crypto.randomUUID(), status: 'pending',
-        payload: { id: uniqueId(), order_id: orderId, refund_line_items: [{ subtotalSet: { shopMoney: { amount: '40.00' } } }] },
+        payload: { id: uniqueId(), order_id: orderId, refund_line_items: [{ line_item_id: 501, quantity: 1 }] },
       },
     });
     await processPendingWebhooks({ shop });
     assert.strictEqual((await event(refund.id)).status, 'processed');
-    assert.strictEqual((await account()).pending, 60);
+    assert.strictEqual((await account()).pending, 50, 'one of the two units refunded');
 
     const cancel = await prisma.webhookEvent.create({
       data: { shop, topic: 'ORDERS_CANCELLED', payload: { id: orderId }, shopifyWebhookId: crypto.randomUUID(), status: 'pending' },
