@@ -390,6 +390,9 @@ describe('Redemption service', () => {
     assert.strictEqual(first.ok, true);
     assert.strictEqual((await acct('c1')).available, 0);
 
+    // ...the customer USES the code at checkout (an unused one would be voided first, D4)...
+    await prisma.reward.updateMany({ where: { shop }, data: { status: 'used', usedAt: now() } });
+
     // ...then the order is refunded: the points are already spent, so they are owed.
     await refundUnits(firstOrderId, 1);
     // D4: the balance never goes below 0; what cannot be taken back is owed (the debt column).
