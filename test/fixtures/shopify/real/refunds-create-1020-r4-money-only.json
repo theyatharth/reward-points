@@ -1,0 +1,116 @@
+{
+  "_provenance": {
+    "note": "REAL delivery to the dev app (reward-points-dev) for a TEST order on platinum-ecofynd-test-store; USD. Redacted on 2026-10-09 by web/lib/redact-payload.js (every key kept, personal and secret values replaced; user_id, transactions[].authorization, transactions[].message and the receipt subtree included).",
+    "order": "#1020",
+    "what": "R4: money-only refund of 20.00: refund_line_items is empty and order_adjustments has one entry",
+    "currency": "USD",
+    "topic": "refunds/create",
+    "receivedAt": "2026-10-08T12:55:21.649Z",
+    "redactedOn": "2026-10-09"
+  },
+  "id": 997760270533,
+  "note": "[redacted] string",
+  "duties": [],
+  "return": null,
+  "restock": false,
+  "user_id": "[redacted] number",
+  "order_id": 7211394597061,
+  "created_at": "2026-10-08T08:55:19-04:00",
+  "processed_at": "2026-10-08T08:55:19-04:00",
+  "transactions": [
+    {
+      "id": 8814594719941,
+      "kind": "refund",
+      "test": true,
+      "amount": "20.00",
+      "status": "success",
+      "gateway": "bogus",
+      "message": "[redacted] string",
+      "receipt": {
+        "paid_amount": "[redacted] string"
+      },
+      "user_id": "[redacted] number",
+      "currency": "USD",
+      "order_id": 7211394597061,
+      "device_id": null,
+      "parent_id": 8814548648133,
+      "created_at": "2026-10-08T08:55:18-04:00",
+      "error_code": null,
+      "payment_id": "#1020.2",
+      "location_id": null,
+      "source_name": "1830279",
+      "processed_at": "2026-10-08T08:55:18-04:00",
+      "authorization": null,
+      "amount_rounding": null,
+      "payment_details": {
+        "avs_result_code": null,
+        "credit_card_bin": "[redacted] string",
+        "cvv_result_code": null,
+        "credit_card_name": "[redacted] string",
+        "buyer_action_info": null,
+        "credit_card_number": "[redacted] string",
+        "credit_card_wallet": null,
+        "credit_card_company": "[redacted] string",
+        "payment_method_name": "[redacted] string",
+        "credit_card_expiration_year": "[redacted] number",
+        "credit_card_expiration_month": "[redacted] number"
+      },
+      "total_unsettled_set": {
+        "shop_money": {
+          "amount": "0.0",
+          "currency": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.0",
+          "currency": "USD"
+        }
+      },
+      "admin_graphql_api_id": "gid://shopify/OrderTransaction/8814594719941",
+      "manual_payment_gateway": false
+    }
+  ],
+  "total_duties_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "order_adjustments": [
+    {
+      "id": 404257636549,
+      "kind": "refund_discrepancy",
+      "amount": "-20.00",
+      "reason": "Refund discrepancy",
+      "order_id": 7211394597061,
+      "refund_id": 997760270533,
+      "amount_set": {
+        "shop_money": {
+          "amount": "-20.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "-20.00",
+          "currency_code": "USD"
+        }
+      },
+      "tax_amount": "0.00",
+      "tax_amount_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      }
+    }
+  ],
+  "refund_line_items": [],
+  "admin_graphql_api_id": "gid://shopify/Refund/997760270533",
+  "refund_shipping_lines": []
+}

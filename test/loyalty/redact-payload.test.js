@@ -158,3 +158,60 @@ test('confirmation_number (a customer-facing order reference) is redacted; nothi
   assert.strictEqual(out.order_number, 1015);
   assert.deepStrictEqual(Object.keys(out), ['id', 'name', 'confirmation_number', 'order_number'], 'key kept, order unchanged');
 });
+
+// A refunds/create-shaped transaction: staff id, gateway reference, gateway text, receipt.
+const refundSample = () => ({
+  id: 998159777989,
+  order_id: 7211395645637,
+  user_id: 91234567890,
+  restock: true,
+  note: 'customer asked for it',
+  transactions: [{
+    id: 8816888578245, kind: 'refund', amount: '749.95', status: 'success', gateway: 'bogus', currency: 'USD',
+    user_id: 91234567890,
+    authorization: 'auth-SECRET-REF-1',
+    message: 'Bogus Gateway: Forced success for jane.doe@example.com',
+    receipt: { paid_amount: '749.95', nested: { ref: 'rcpt-SECRET-1', ok: true } },
+  }],
+});
+
+test('user_id, transactions[].authorization and transactions[].message are redacted, keys kept', () => {
+  const before = refundSample();
+  const out = redactPayload(before);
+  assert.match(out.user_id, /^\[redacted/);
+  assert.match(out.transactions[0].user_id, /^\[redacted/);
+  assert.match(out.transactions[0].authorization, /^\[redacted/);
+  assert.match(out.transactions[0].message, /^\[redacted/);
+  for (const secret of ['91234567890', 'auth-SECRET-REF-1', 'Forced success', 'jane.doe@example.com']) {
+    assert.ok(!json(out).includes(secret), `"${secret}" must not survive`);
+  }
+  assert.deepStrictEqual(keyPaths(out).sort(), keyPaths(before).sort(), 'every key kept');
+});
+
+test('receipt is a redacted subtree: keys kept, every value replaced, including nested ones', () => {
+  const out = redactPayload(refundSample()).transactions[0].receipt;
+  assert.deepStrictEqual(Object.keys(out).sort(), ['nested', 'paid_amount']);
+  assert.deepStrictEqual(Object.keys(out.nested).sort(), ['ok', 'ref']);
+  assert.ok(!json(out).includes('749.95') && !json(out).includes('rcpt-SECRET-1'));
+  assert.match(out.paid_amount, /^\[redacted/);
+});
+
+test('null user_id / authorization stay null; money, ids, kind, status and gateway survive', () => {
+  const out = redactPayload({ id: 1, user_id: null, transactions: [{ id: 2, kind: 'refund', amount: '10.00', status: 'success', gateway: 'bogus', authorization: null, message: null, receipt: null }] });
+  assert.strictEqual(out.user_id, null);
+  assert.strictEqual(out.transactions[0].authorization, null);
+  assert.strictEqual(out.transactions[0].message, null);
+  assert.strictEqual(out.transactions[0].receipt, null);
+  const kept = redactPayload(refundSample());
+  assert.strictEqual(kept.id, 998159777989);
+  assert.strictEqual(kept.order_id, 7211395645637);
+  assert.strictEqual(kept.restock, true);
+  assert.strictEqual(kept.transactions[0].amount, '749.95');
+  assert.strictEqual(kept.transactions[0].kind, 'refund');
+  assert.strictEqual(kept.transactions[0].gateway, 'bogus');
+});
+
+test('redacting an already-redacted payload again changes nothing (idempotent)', () => {
+  const once = redactPayload(refundSample());
+  assert.deepStrictEqual(redactPayload(once), once);
+});

@@ -1,0 +1,173 @@
+{
+  "_provenance": {
+    "note": "REAL delivery to the dev app (reward-points-dev) for a TEST order on platinum-ecofynd-test-store; USD. Redacted on 2026-10-09 by web/lib/redact-payload.js (every key kept, personal and secret values replaced; user_id, transactions[].authorization, transactions[].message and the receipt subtree included).",
+    "order": "#1020",
+    "what": "R3: refund of the gift-card line (line_item.gift_card true), 10.00",
+    "currency": "USD",
+    "topic": "refunds/create",
+    "receivedAt": "2026-10-08T12:48:23.676Z",
+    "redactedOn": "2026-10-09"
+  },
+  "id": 997759484101,
+  "note": "",
+  "duties": [],
+  "return": null,
+  "restock": true,
+  "user_id": "[redacted] number",
+  "order_id": 7211394597061,
+  "created_at": "2026-10-08T08:48:20-04:00",
+  "processed_at": "2026-10-08T08:48:20-04:00",
+  "transactions": [
+    {
+      "id": 8814583316677,
+      "kind": "refund",
+      "test": true,
+      "amount": "10.00",
+      "status": "success",
+      "gateway": "bogus",
+      "message": "[redacted] string",
+      "receipt": {
+        "paid_amount": "[redacted] string"
+      },
+      "user_id": "[redacted] number",
+      "currency": "USD",
+      "order_id": 7211394597061,
+      "device_id": null,
+      "parent_id": 8814548648133,
+      "created_at": "2026-10-08T08:48:20-04:00",
+      "error_code": null,
+      "payment_id": "#1020.1",
+      "location_id": null,
+      "source_name": "1830279",
+      "processed_at": "2026-10-08T08:48:20-04:00",
+      "authorization": null,
+      "amount_rounding": null,
+      "payment_details": {
+        "avs_result_code": null,
+        "credit_card_bin": "[redacted] string",
+        "cvv_result_code": null,
+        "credit_card_name": "[redacted] string",
+        "buyer_action_info": null,
+        "credit_card_number": "[redacted] string",
+        "credit_card_wallet": null,
+        "credit_card_company": "[redacted] string",
+        "payment_method_name": "[redacted] string",
+        "credit_card_expiration_year": "[redacted] number",
+        "credit_card_expiration_month": "[redacted] number"
+      },
+      "total_unsettled_set": {
+        "shop_money": {
+          "amount": "0.0",
+          "currency": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.0",
+          "currency": "USD"
+        }
+      },
+      "admin_graphql_api_id": "gid://shopify/OrderTransaction/8814583316677",
+      "manual_payment_gateway": false
+    }
+  ],
+  "total_duties_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "order_adjustments": [],
+  "refund_line_items": [
+    {
+      "id": 580089643205,
+      "quantity": 1,
+      "subtotal": 10,
+      "line_item": {
+        "id": 17009619861701,
+        "sku": null,
+        "name": "Test Gift Card - $10.00",
+        "grams": 0,
+        "price": "10.00",
+        "title": "Test Gift Card",
+        "duties": [],
+        "vendor": "Platinum-Ecofynd test store",
+        "taxable": false,
+        "quantity": 1,
+        "gift_card": true,
+        "price_set": {
+          "shop_money": {
+            "amount": "10.00",
+            "currency_code": "USD"
+          },
+          "presentment_money": {
+            "amount": "10.00",
+            "currency_code": "USD"
+          }
+        },
+        "tax_lines": [],
+        "product_id": 10345202286789,
+        "properties": [],
+        "variant_id": 50645196046533,
+        "variant_title": "$10.00",
+        "product_exists": true,
+        "total_discount": "0.00",
+        "origin_location": {
+          "id": 3877360664773,
+          "zip": "",
+          "city": "",
+          "name": "Shop location",
+          "address1": "",
+          "address2": "",
+          "country_code": "US",
+          "province_code": ""
+        },
+        "requires_shipping": false,
+        "fulfillment_status": null,
+        "total_discount_set": {
+          "shop_money": {
+            "amount": "0.00",
+            "currency_code": "USD"
+          },
+          "presentment_money": {
+            "amount": "0.00",
+            "currency_code": "USD"
+          }
+        },
+        "fulfillment_service": "gift_card",
+        "admin_graphql_api_id": "gid://shopify/LineItem/17009619861701",
+        "discount_allocations": [],
+        "fulfillable_quantity": 0,
+        "variant_inventory_management": null
+      },
+      "total_tax": 0,
+      "location_id": 90721550533,
+      "line_item_id": 17009619861701,
+      "restock_type": "cancel",
+      "subtotal_set": {
+        "shop_money": {
+          "amount": "10.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "10.00",
+          "currency_code": "USD"
+        }
+      },
+      "total_tax_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      }
+    }
+  ],
+  "admin_graphql_api_id": "gid://shopify/Refund/997759484101",
+  "refund_shipping_lines": []
+}

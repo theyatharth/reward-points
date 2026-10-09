@@ -1,0 +1,188 @@
+{
+  "_provenance": {
+    "note": "REAL delivery to the dev app (reward-points-dev) for a TEST order on platinum-ecofynd-test-store; USD. Redacted on 2026-10-09 by web/lib/redact-payload.js (every key kept, personal and secret values replaced; user_id, transactions[].authorization, transactions[].message and the receipt subtree included).",
+    "order": "#1019",
+    "what": "R2: the other unit, NOT restocked (restock_type no_restock), 674.96",
+    "currency": "USD",
+    "topic": "refunds/create",
+    "receivedAt": "2026-10-08T12:45:40.957Z",
+    "redactedOn": "2026-10-09"
+  },
+  "id": 997759221957,
+  "note": "",
+  "duties": [],
+  "return": null,
+  "restock": false,
+  "user_id": "[redacted] number",
+  "order_id": 7211392729285,
+  "created_at": "2026-10-08T08:45:38-04:00",
+  "processed_at": "2026-10-08T08:45:38-04:00",
+  "transactions": [
+    {
+      "id": 8814578630853,
+      "kind": "refund",
+      "test": true,
+      "amount": "674.96",
+      "status": "success",
+      "gateway": "bogus",
+      "message": "[redacted] string",
+      "receipt": {
+        "paid_amount": "[redacted] string"
+      },
+      "user_id": "[redacted] number",
+      "currency": "USD",
+      "order_id": 7211392729285,
+      "device_id": null,
+      "parent_id": 8814545928389,
+      "created_at": "2026-10-08T08:45:37-04:00",
+      "error_code": null,
+      "payment_id": "#1019.3",
+      "location_id": null,
+      "source_name": "1830279",
+      "processed_at": "2026-10-08T08:45:37-04:00",
+      "authorization": null,
+      "amount_rounding": null,
+      "payment_details": {
+        "avs_result_code": null,
+        "credit_card_bin": "[redacted] string",
+        "cvv_result_code": null,
+        "credit_card_name": "[redacted] string",
+        "buyer_action_info": null,
+        "credit_card_number": "[redacted] string",
+        "credit_card_wallet": null,
+        "credit_card_company": "[redacted] string",
+        "payment_method_name": "[redacted] string",
+        "credit_card_expiration_year": "[redacted] number",
+        "credit_card_expiration_month": "[redacted] number"
+      },
+      "total_unsettled_set": {
+        "shop_money": {
+          "amount": "0.0",
+          "currency": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.0",
+          "currency": "USD"
+        }
+      },
+      "admin_graphql_api_id": "gid://shopify/OrderTransaction/8814578630853",
+      "manual_payment_gateway": false
+    }
+  ],
+  "total_duties_set": {
+    "shop_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    },
+    "presentment_money": {
+      "amount": "0.00",
+      "currency_code": "USD"
+    }
+  },
+  "order_adjustments": [],
+  "refund_line_items": [
+    {
+      "id": 580089381061,
+      "quantity": 1,
+      "subtotal": 674.96,
+      "line_item": {
+        "id": 17009615503557,
+        "sku": null,
+        "name": "The Collection Snowboard: Liquid",
+        "grams": 0,
+        "price": "749.95",
+        "title": "The Collection Snowboard: Liquid",
+        "duties": [],
+        "vendor": "Hydrogen Vendor",
+        "taxable": true,
+        "quantity": 2,
+        "gift_card": false,
+        "price_set": {
+          "shop_money": {
+            "amount": "749.95",
+            "currency_code": "USD"
+          },
+          "presentment_money": {
+            "amount": "749.95",
+            "currency_code": "USD"
+          }
+        },
+        "tax_lines": [],
+        "product_id": 9027685187781,
+        "properties": [],
+        "variant_id": 46915896934597,
+        "variant_title": null,
+        "product_exists": true,
+        "total_discount": "0.00",
+        "origin_location": {
+          "id": 3877360664773,
+          "zip": "",
+          "city": "",
+          "name": "Shop location",
+          "address1": "",
+          "address2": "",
+          "country_code": "US",
+          "province_code": ""
+        },
+        "requires_shipping": true,
+        "fulfillment_status": null,
+        "total_discount_set": {
+          "shop_money": {
+            "amount": "0.00",
+            "currency_code": "USD"
+          },
+          "presentment_money": {
+            "amount": "0.00",
+            "currency_code": "USD"
+          }
+        },
+        "fulfillment_service": "manual",
+        "admin_graphql_api_id": "gid://shopify/LineItem/17009615503557",
+        "discount_allocations": [
+          {
+            "amount": "149.99",
+            "amount_set": {
+              "shop_money": {
+                "amount": "149.99",
+                "currency_code": "USD"
+              },
+              "presentment_money": {
+                "amount": "149.99",
+                "currency_code": "USD"
+              }
+            },
+            "discount_application_index": 0
+          }
+        ],
+        "fulfillable_quantity": 0,
+        "variant_inventory_management": "shopify"
+      },
+      "total_tax": 0,
+      "location_id": 90721550533,
+      "line_item_id": 17009615503557,
+      "restock_type": "no_restock",
+      "subtotal_set": {
+        "shop_money": {
+          "amount": "674.96",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "674.96",
+          "currency_code": "USD"
+        }
+      },
+      "total_tax_set": {
+        "shop_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        },
+        "presentment_money": {
+          "amount": "0.00",
+          "currency_code": "USD"
+        }
+      }
+    }
+  ],
+  "admin_graphql_api_id": "gid://shopify/Refund/997759221957",
+  "refund_shipping_lines": []
+}

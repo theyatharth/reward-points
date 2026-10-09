@@ -5,7 +5,7 @@ There are two kinds of fixture here. **Know which you are looking at.**
 | Where | What | Status |
 |---|---|---|
 | `real/` | REAL `orders/paid` deliveries captured from the dev app (test orders #1015 to #1018, USD), redacted by `scripts/export-webhook-payloads.mjs` on 2026-10-08 (every key kept, personal and secret values replaced). Each file's `_provenance` header says so. | **Real.** Use these for anything about the `orders/paid` shape. |
-| top level (`orders-paid-*.json`, `refunds-create-money-only.json`, `orders-cancelled-rest-get.json`) | Hand-built (or stripped and rewritten) payloads. | **The four `orders-paid-*` are SUPERSEDED by `real/`** and kept only for history. The refund and cancelled fixtures are NOT superseded: there is no real capture of either, so they remain the only fixtures of their kind and remain **unverified**. |
+| top level (`orders-paid-*.json`, `refunds-create-money-only.json`, `orders-cancelled-rest-get.json`) | Hand-built (or stripped and rewritten) payloads. | **All six are SUPERSEDED by `real/`** and kept only for history (never edited): the four `orders-paid-*` by the real orders, `refunds-create-money-only.json` by `refunds-create-1020-r4-money-only.json`, and `orders-cancelled-rest-get.json` by `orders-cancelled-1021.json`. Use `real/`. |
 
 ## Real captures (`real/`)
 
@@ -18,7 +18,30 @@ There are two kinds of fixture here. **Know which you are looking at.**
 
 `test/loyalty/real-fixtures.test.js` feeds each through `storeWebhook` and `processPendingWebhooks`, overriding only the order id and `customer.id` (earn keys are global and ledger rows are immutable), and asserts 60000/600, 67496/674, 67496/674 and 60377/603.
 
-### VERIFIED by these real captures
+### Real refunds and cancellation (captured 2026-10-09, test orders #1019 to #1021)
+
+| File | Order | What it exercises |
+|---|---|---|
+| `refunds-create-1019-r1-restock.json` | #1019 (2 units of one line, 1349.91 paid after a 149.99 discount) | R1: one unit, `restock_type: "cancel"`, subtotal 674.95 |
+| `refunds-create-1019-r2-no-restock.json` | #1019 | R2: the other unit, `restock_type: "no_restock"`, subtotal 674.96 |
+| `refunds-create-1020-r3-giftcard.json` | #1020 (749.95 line plus a 10.00 gift card) | R3: refund of the gift-card line (`line_item.gift_card: true`), 10.00 |
+| `refunds-create-1020-r4-money-only.json` | #1020 | R4: money-only 20.00: `refund_line_items: []`, one `order_adjustments` entry |
+| `refunds-create-1021-r5-cancel.json` | #1021 (one line, 749.95) | R5: full refund created by cancelling the order, `restock_type: "cancel"` |
+| `orders-cancelled-1021.json` | #1021 | the `orders/cancelled` delivery for the same cancel |
+
+These six were exported through the wrapper and redacted with `web/lib/redact-payload.js` as of 2026-10-09, which now also masks `user_id`, `transactions[].authorization`, `transactions[].message` and the whole `transactions[].receipt` subtree (keys kept). Each file's `_provenance` header says so. The audit of leftover paths (paths only, never values) listed only `source_name` (a numeric id), product and location names ("The Collection Snowboard: Liquid", "Shop location") and `payment_gateway_names` (`bogus`): none personal.
+
+### VERIFIED by the real refund and cancel captures
+- **`refunds/create` shape:** top-level keys `id`, `note`, `duties`, `restock`, `user_id`, `order_id`, `created_at`, `processed_at`, `transactions`, `total_duties_set`, `order_adjustments`, `refund_line_items`, `admin_graphql_api_id`, `refund_shipping_lines` (plus `return` on the webhook, absent from the copy embedded in `orders/cancelled`).
+- **`refund_line_items[]` entry:** `id`, `quantity`, `line_item_id` (equals `line_item.id`), `location_id`, `restock_type` (`cancel` or `no_restock`), `subtotal` (a JSON **number**, not a string), `subtotal_set`, `total_tax` (number), `total_tax_set`, and `line_item`, a full snapshot of the order line including `gift_card`, `quantity` (the ORIGINAL line quantity), `price`, `discount_allocations`, `tax_lines`.
+- **Partial refunds of a discounted line:** `subtotal` is the discounted amount for the refunded units. Two single-unit refunds of the 2-unit line in #1019 carry 674.95 and 674.96, which add to the 1349.91 paid. Shopify rounds one up and one down; the two are not equal.
+- **Money-only refund:** `refund_line_items` is empty, `transactions[0].amount` is the money, and `order_adjustments[]` has one entry (`kind: "refund_discrepancy"`, negative `amount`, `refund_id`, `reason`, `tax_amount`).
+- **Refund of a gift-card line:** the entry's `line_item.gift_card` is `true`.
+- **Transactions:** `kind: "refund"`, `amount` string, `status`, `gateway: "bogus"` (test gateway), `parent_id`, `currency`, `test: true`.
+- **Cancel:** cancelling #1021 created refund R5 and, 39 ms later (`receivedAt` 04:09:53.885 vs 04:09:53.924), the `orders/cancelled` delivery. The cancelled body is a complete order (`cancelled_at`, `cancel_reason: "other"`, `financial_status: "refunded"`) whose `refunds[]` already contains R5 (same refund id), so the two describe the same refund and may be processed in either order.
+- **A live `orders/cancelled` delivery:** captured, no longer "unverified".
+
+### VERIFIED by these real captures (`orders/paid`)
 - **Tax line (single entry on a line):** keys `rate` (float), `price` (string), `title` (string), `price_set` (object), `channel_liable` (boolean). The amount is under **`price`**; there is **no `amount` key**. The same entry appears at order level in `tax_lines`. (#1018)
 - **`discount_allocations` entry:** `amount` (string), `amount_set` (object), `discount_application_index` (integer). (#1016, #1017)
 - **`discount_applications` and `discount_codes` entries:** `code`, `type`, `value`, `value_type`, `target_type`, `target_selection`, `allocation_method`; and `code`, `type`, `amount`. (#1016, #1017)
@@ -29,9 +52,10 @@ There are two kinds of fixture here. **Know which you are looking at.**
 
 ### STILL UNVERIFIED (no real capture yet)
 - **More than one tax line on a single line item** (for example CGST and SGST). The code sums them (`price`, falling back to `amount`), and unit tests cover it, but Shopify has not been seen sending it.
-- **Refund payloads.** `refunds/create` with line items, partial refunds, and money-only refunds. The only refund fixture is hand-built.
-- **Any non-USD order** (the real stores are INR). All four captures are USD with `currency` equal to `presentment_currency` and `shop_money` equal to `presentment_money`; the shop-money versus presentment-money choice has not been exercised.
-- A live `orders/cancelled` delivery, and guest orders (no customer).
+- **Partial refunds of a taxed line on a tax-inclusive order** (`refund_line_items[].total_tax` non-zero). All captured refunds are on untaxed lines.
+- **Any non-USD order or refund** (the real stores are INR). All captures are USD with `currency` equal to `presentment_currency` and `shop_money` equal to `presentment_money`; the shop-money versus presentment-money choice has not been exercised.
+- **The returns flow** (`returns/*` topics, and a `refunds/create` generated from a return; the `return` key is `null` on every capture).
+- Guest orders (no customer).
 
 ## Evidence that the top-level fixtures are hand-built
 
@@ -58,8 +82,8 @@ Because `subtotal_price`, `total_price` and every `*_set` object are absent, not
 | `orders-paid-gst-taxes-included.json` | _note_: "Shopify orders/paid with 18% GST included (taxes_included:true). USD store, but tax-line mechanism is currency-neutral. Real emails/names removed. Used for T1.5 GST arithmetic test."<br>_captured_: "Phase 1 prep session"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `USD` | **SUPERSEDED by `real/`.** Hand-built. Order #1002, one line "GST Product", `taxes_included: true` with a hand-written tax line. Missing the keys above, including `total_tax`, `currency` and `tax_lines`. It proves the tax-line *arithmetic*; it says nothing about INR (and has no currency field). |
 | `orders-paid-10pct-discount.json` | _note_: "Shopify orders/paid with 10% discount across all lines. discount_allocations shows the allocation per line. Real emails/names removed. Confirms J4: discount allocations touch only non-gift-card lines."<br>_captured_: "Phase 1 prep session"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `USD` | **SUPERSEDED by `real/`.** Hand-built. Order #1003, one line "Discounted Product", one hand-written `discount_allocations` entry on the line. Missing the keys above, including `total_discounts` and any `*_set`. |
 | `orders-paid-gift-card-with-discount.json` | _note_: "Shopify orders/paid with a gift card + discount. KEY FINDING (J4): discount_allocations is EMPTY on the gift-card line even though target_selection:'all'. The client's prototype test (619 pts) is wrong for real orders; real fixture asserts 559 pts. Real emails/names removed."<br>_captured_: "Phase 1 prep session"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `USD` | **SUPERSEDED by `real/`.** Hand-built. Order #1004, lines "Physical Product" (499.00) and "Gift Card" (110.00, `gift_card: true`, no `discount_allocations`). The J4 finding rests on this file, so it needs a real capture before it is relied on. Missing the keys above. |
-| `refunds-create-money-only.json` | _note_: "Shopify refunds/create — money-only refund (no line items). refund_line_items:[] confirms this reverses no points. Captured from platinum-ecofynd-test-store. Real emails/names removed."<br>_captured_: "Earlier session (pre-phase1)"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `(none)` | **NOT superseded (no real capture exists).** Hand-built. Ids 1100000001 / 2001 / 1, `created_at` exactly 10:00:00+05:30, refers to the hand-built order 5678901234567. Has no `processed_at`, and is much thinner than a real `refunds/create` body (which typically also carries fields such as `note`, `user_id`, `restock`, `duties`; verify against a real capture). The "money-only refunds reverse no points" conclusion (J6) was reached from this file. |
-| `orders-cancelled-rest-get.json` | _note_: "Shopify orders/cancelled payload. Source: REST GET /orders/{id}.json — NOT a live webhook delivery (live orders/cancelled webhook pending, to be triggered once the dev app subscribes — T2.2). Real emails/names removed."<br>_captured_: "Phase 1 prep session via REST GET"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `USD` | **NOT superseded (no real capture exists).** Hand-built, and by its own note not a webhook: a REST `GET /orders/{id}` shape, so it cannot prove the `orders/cancelled` webhook payload. Order #1005, one line "Cancelled Product". Missing the same order and line keys. T2.2 requires one live `orders/cancelled` delivery. |
+| `refunds-create-money-only.json` | _note_: "Shopify refunds/create — money-only refund (no line items). refund_line_items:[] confirms this reverses no points. Captured from platinum-ecofynd-test-store. Real emails/names removed."<br>_captured_: "Earlier session (pre-phase1)"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `(none)` | **SUPERSEDED by `real/refunds-create-1020-r4-money-only.json`.** Hand-built. Ids 1100000001 / 2001 / 1, `created_at` exactly 10:00:00+05:30, refers to the hand-built order 5678901234567. Has no `processed_at`, and is much thinner than a real `refunds/create` body (which typically also carries fields such as `note`, `user_id`, `restock`, `duties`; verify against a real capture). The "money-only refunds reverse no points" conclusion (J6) was reached from this file. |
+| `orders-cancelled-rest-get.json` | _note_: "Shopify orders/cancelled payload. Source: REST GET /orders/{id}.json — NOT a live webhook delivery (live orders/cancelled webhook pending, to be triggered once the dev app subscribes — T2.2). Real emails/names removed."<br>_captured_: "Phase 1 prep session via REST GET"<br>_store_: `platinum-ecofynd-test-store.myshopify.com`; _currency_: `USD` | **SUPERSEDED by `real/orders-cancelled-1021.json`.** Hand-built, and by its own note not a webhook: a REST `GET /orders/{id}` shape, so it cannot prove the `orders/cancelled` webhook payload. Order #1005, one line "Cancelled Product". Missing the same order and line keys. T2.2 requires one live `orders/cancelled` delivery. |
 
 ## Tax lines
 
@@ -70,6 +94,5 @@ The single-tax-line shape is **VERIFIED** by real capture #1018 (see above): amo
 
 ## What is left to capture
 
-1. Capture real bodies from the dev app with `scripts/export-webhook-payloads.mjs` (redacted; review the output by eye before committing): an order with two tax lines (CGST and SGST), a non-USD order, `refunds/create` (partial, full, money-only), and a live `orders/cancelled`.
-2. Replace the corresponding hand-built top-level fixtures, update their `_note`, and re-run the adapter and earning tests. Expect some tests to need new expected values; that is the purpose of the exercise.
-3. T2.2 ("adapters built on real fixtures") is **done for `orders/paid`** and **open for refunds and cancellations**.
+1. Capture real bodies from the dev app with `scripts/export-webhook-payloads.mjs` (redacted; review the output by eye before committing): an order with two tax lines (CGST and SGST), a non-USD order, a partial refund of a taxed line on a tax-inclusive order, and a return.
+2. T2.2 ("adapters built on real fixtures") is **done for `orders/paid`, `refunds/create` and `orders/cancelled`**.

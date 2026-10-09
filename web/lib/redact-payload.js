@@ -27,6 +27,9 @@ const REDACT_KEYS = new Set([
   'note', 'token', 'cart_token', 'checkout_token', 'landing_site', 'referring_site',
   'order_status_url', 'source_url',
   'confirmation_number', // customer-facing order reference
+  'user_id',             // the staff member who acted (refunds, transactions)
+  'authorization',       // payment gateway authorization reference (transactions)
+  'message',             // gateway free text (transactions)
 ]);
 
 // "name" is personal inside these objects, but "#1001" at order level (and a
@@ -37,7 +40,7 @@ const NAME_PARENTS = new Set(['billing_address', 'shipping_address', 'default_ad
 const ADDRESS_OBJECTS = new Set(['billing_address', 'shipping_address', 'default_address', 'address']);
 
 // Every value inside is replaced; the keys and array lengths inside are kept.
-const REDACT_SUBTREES = new Set(['client_details', 'note_attributes', 'properties', 'payment_details']);
+const REDACT_SUBTREES = new Set(['client_details', 'note_attributes', 'properties', 'payment_details', 'receipt']);
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const IPV4 = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g;
@@ -51,12 +54,15 @@ function sweepString(s) {
   return s.replace(EMAIL, '[email]').replace(IPV4, '[ip]').replace(SECRET_QUERY, '$1[redacted]');
 }
 
+// A value this module already replaced; left as it is so redacting twice changes nothing.
+const isMarked = (v) => typeof v === 'string' && v.startsWith(MARK);
+
 // Replaces every leaf value under a subtree but keeps all keys and array lengths.
 function redactAllLeaves(value) {
   if (value === null || value === undefined) return value;
   if (Array.isArray(value)) return value.map(redactAllLeaves);
   if (typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redactAllLeaves(v)]));
-  return value === '' ? value : `${MARK} ${typeof value}`;
+  return value === '' || isMarked(value) ? value : `${MARK} ${typeof value}`;
 }
 
 function redactNode(value, key, parent, inAddress) {
@@ -70,7 +76,7 @@ function redactNode(value, key, parent, inAddress) {
   // leaf
   const personalKey = REDACT_KEYS.has(key) || (key === 'name' && NAME_PARENTS.has(parent));
   const addressValue = inAddress && !/_code$/.test(key) && key !== 'id' && typeof value === 'string';
-  if ((personalKey || addressValue) && value !== '') return `${MARK} ${typeof value}`;
+  if ((personalKey || addressValue) && value !== '' && !isMarked(value)) return `${MARK} ${typeof value}`;
   return typeof value === 'string' ? sweepString(value) : value;
 }
 
