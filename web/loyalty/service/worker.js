@@ -13,7 +13,10 @@
 //     event fail, or threw. Quiet ticks write nothing (no row every 30 s).
 
 import { prisma } from '../../lib/prisma.js';
+import { now } from '../adapters/clock.js';
 import { processPendingWebhooksWithStats } from './webhook.js';
+import { recordJob } from './jobrun.js';
+import { createJobsWork } from './jobs.js';
 
 export const WORKER_LOCK_KEY = 7284140001; // arbitrary constant, unique to this job
 export const DEFAULT_INTERVAL_MS = 30_000;
@@ -33,14 +36,20 @@ export async function drainPendingEvents(options = {}) {
   return total;
 }
 
-async function recordJob({ jobType, startedAt, status, result, error }) {
-  try {
-    await prisma.jobRun.create({
-      data: { jobType, status, startedAt, completedAt: new Date(), result: result ?? undefined, error: error ?? null },
-    });
-  } catch (err) {
-    console.error('[worker] could not write JobRun:', err.message);
-  }
+/**
+ * The work of the real worker's tick: drain the pending events first (so refunds are applied
+ * before any J3 check), then the other jobs (jobs.js). Returns the event stats, which is what
+ * a tick reports; every other job writes its own JobRun.
+ * @param {Object} [options]
+ * @param {string} [options.shop] narrow everything to one shop (tests)
+ */
+export function createWorkerWork(options = {}) {
+  const jobs = createJobsWork(options);
+  return async () => {
+    const events = await drainPendingEvents(options.shop ? { shop: options.shop } : {});
+    await jobs();
+    return events;
+  };
 }
 
 /**
@@ -53,7 +62,7 @@ async function recordJob({ jobType, startedAt, status, result, error }) {
  *   ran=false means another worker held the lock and nothing was done.
  */
 export async function runTick({ work = drainPendingEvents, jobType = 'process_events', lockKey = WORKER_LOCK_KEY } = {}) {
-  const startedAt = new Date();
+  const startedAt = now();
   const outcome = { ran: false, picked: 0, processed: 0, failed: 0 };
 
   try {

@@ -470,6 +470,10 @@ model WebhookEvent {
   // The LedgerEntry that was created for this event (for tracing)
   ledgerEntryId String?
 
+  // Set when the 90-day purge replaced `payload` of this processed event ({ "_purged": true });
+  // every other column is kept.
+  payloadPurgedAt DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -1,6 +1,8 @@
 // web/worker.js
 //
-// Background worker entry point. Processes stored webhook events every 30 seconds.
+// Background worker entry point. Every 30 seconds: processes stored webhook events, retries
+// events stuck in processing, activates due pending lots, and (daily) purges old payloads and
+// reconciles the ledger. See loyalty/service/jobs.js and reconcile.js.
 //   node web/worker.js            (PM2: see deploy/ecosystem.config.cjs)
 //
 // Settings come from <repo root>/.env, like the web app. The database guard in
@@ -9,11 +11,13 @@
 
 import './lib/load-env.js'; // MUST stay first: prisma.js reads DATABASE_URL on import
 import { prisma } from './lib/prisma.js';
-import { startWorker, DEFAULT_INTERVAL_MS } from './loyalty/service/worker.js';
+import { startWorker, runTick, createWorkerWork, DEFAULT_INTERVAL_MS } from './loyalty/service/worker.js';
 
 const intervalMs = Number(process.env.WORKER_INTERVAL_MS) || DEFAULT_INTERVAL_MS;
+const work = createWorkerWork();
 const worker = startWorker({
   intervalMs,
+  tick: () => runTick({ work }),
   onTick: (t) => {
     if (t.processed || t.failed || t.error) {
       console.log(`[worker] tick: picked=${t.picked} processed=${t.processed} failed=${t.failed}${t.error ? ' error=' + t.error : ''}`);

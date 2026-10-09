@@ -11,6 +11,7 @@ import { refundEntries, priorQuantities, computeLineReversal, RefundDataError } 
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { now } from '../adapters/clock.js';
 import { normalizeTopic } from './topics.js';
+import { PermanentError } from './errors.js';
 import { ShopifyGateway } from '../adapters/gateway.js';
 import { FakeShopifyGateway } from '../adapters/fake-gateway.js';
 
@@ -34,6 +35,14 @@ export async function processEvent(event) {
   // Accept both forms: new events are stored in the slash form, but rows stored
   // before the intake map existed hold the library's enum form ("ORDERS_PAID").
   const topic = normalizeTopic(event.topic);
+
+  // A payload that is not a JSON object cannot be processed by any handler, however often
+  // it is retried: dead at once, reason in lastError.
+  if (['orders/paid', 'refunds/create', 'orders/cancelled'].includes(topic) &&
+      (event.payload === null || typeof event.payload !== 'object' || Array.isArray(event.payload))) {
+    const found = event.payload === null ? 'null' : Array.isArray(event.payload) ? 'an array' : `a ${typeof event.payload}`;
+    throw new PermanentError(`Unparseable payload: expected a JSON object, found ${found}`);
+  }
 
   if (topic === 'orders/paid') {
     return writeEarning(event, config);

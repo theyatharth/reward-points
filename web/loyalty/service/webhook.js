@@ -73,33 +73,44 @@ export async function markWebhookProcessed(eventId, ledgerEntryId) {
 }
 
 /**
- * Marks a webhook as failed. Schedules a retry if attempts < maxAttempts.
- * Otherwise, marks it as 'dead'.
+ * Retry schedule: the minutes to wait after the 1st, 2nd, ... failure of an event. An
+ * event that fails once more after the last delay (its 6th failed attempt: the original
+ * plus five retries) is 'dead'. An error flagged `permanent` is dead at once.
+ */
+export const RETRY_DELAYS_MINUTES = [1, 5, 30, 120, 360];
+
+/**
+ * What to record when an event has just failed for the `failureNumber`-th time (1-based).
+ * @returns {{ status: 'failed' | 'dead', nextRetryAt: Date | null }}
+ */
+export function retryPlan(failureNumber, error) {
+  const dead = error?.permanent === true || failureNumber > RETRY_DELAYS_MINUTES.length;
+  return {
+    status: dead ? 'dead' : 'failed',
+    nextRetryAt: dead ? null : new Date(now().getTime() + RETRY_DELAYS_MINUTES[failureNumber - 1] * 60 * 1000),
+  };
+}
+
+/**
+ * Marks a webhook as failed and schedules its retry per RETRY_DELAYS_MINUTES, or
+ * marks it 'dead' (see retryPlan). The reason is kept in lastError either way.
  *
  * @param {string} eventId
  * @param {Error} error
- * @param {number} [maxAttempts=3]
  */
-export async function markWebhookFailed(eventId, error, maxAttempts = 3) {
+export async function markWebhookFailed(eventId, error) {
   const event = await prisma.webhookEvent.findUnique({ where: { id: eventId } });
   if (!event) return;
 
-  const newAttempts = event.attempts + 1;
-  // An error flagged permanent (a malformed or impossible payload) cannot be cured by
-  // retrying: the event goes to 'dead' at once, with the reason in lastError.
-  const isDead = error?.permanent === true || newAttempts >= maxAttempts;
-  const status = isDead ? 'dead' : 'failed';
-  
-  // Exponential backoff: 5m, 25m, 125m, etc.
-  const delayMs = Math.pow(5, newAttempts) * 60 * 1000; 
-  const nextRetryAt = isDead ? null : new Date(now().getTime() + delayMs);
+  const attempts = event.attempts + 1;
+  const { status, nextRetryAt } = retryPlan(attempts, error);
 
   return prisma.webhookEvent.update({
     where: { id: eventId },
     data: {
       status,
-      attempts: newAttempts,
-      lastError: error.message || String(error),
+      attempts,
+      lastError: error?.message || String(error),
       nextRetryAt,
       updatedAt: now(),
     },
