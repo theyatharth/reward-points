@@ -60,7 +60,8 @@ describe('Owed balance (D4)', () => {
   const acct = () => prisma.loyaltyAccount.findUnique({ where: { shop_shopifyCustomerId: { shop, shopifyCustomerId: C } } });
   const check = async (label) => assertLedgerBalances(prisma, (await acct()).id, label);
   const entries = async (type) => prisma.ledgerEntry.findMany({ where: { accountId: (await acct()).id, ...(type ? { type } : {}) } });
-  const types = async () => (await entries()).map((e) => `${e.type}:${e.points}`).sort();
+  // Activation entries carry 0 points and only mark the move from pending to available: left out.
+  const types = async () => (await entries()).filter((e) => e.type !== 'activate').map((e) => `${e.type}:${e.points}`).sort();
 
   /** An order of `points` points in `units` units (one line, id 1). Earned and processed. */
   async function earnOrder(points, units = 1) {
