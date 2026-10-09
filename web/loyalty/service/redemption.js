@@ -21,7 +21,7 @@ import { prisma } from '../../lib/prisma.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { formatPaise } from '../rules/money.js';
 import { now } from '../adapters/clock.js';
-import { gatewayFactory, lockAccount, checkLotJ3, activateLotInTx, returnPoints } from './ledger.js';
+import { gatewayFactory, lockAccount, checkLotJ3, activateLotInTx, returnPoints, consumeLots } from './ledger.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TX_OPTIONS = { maxWait: 10000, timeout: 20000 };
@@ -211,29 +211,6 @@ export async function redeem({ shop, shopifyCustomerId, idempotencyKey }) {
   if (outcome.kind === 'replay') return replayResult(outcome.redemption);
 
   return issueDiscount(outcome.redemption, customerId, config);
-}
-
-/**
- * Takes points from the account's active lots, earliest activation first.
- * Points not backed by any lot (none expected in Phase 1) are simply taken
- * from the balance.
- */
-async function consumeLots(tx, accountId, points) {
-  const lots = await tx.$queryRaw`
-    SELECT id, remaining FROM "PointLot"
-     WHERE "accountId" = ${accountId} AND status = 'active' AND remaining > 0
-     ORDER BY "activatesAt" ASC, "createdAt" ASC, id ASC
-       FOR UPDATE`;
-  let left = points;
-  for (const lot of lots) {
-    if (left === 0) break;
-    const take = Math.min(left, lot.remaining);
-    await tx.pointLot.update({
-      where: { id: lot.id },
-      data: { remaining: { decrement: take }, status: take === lot.remaining ? 'exhausted' : undefined },
-    });
-    left -= take;
-  }
 }
 
 async function issueDiscount(redemption, customerId, config) {

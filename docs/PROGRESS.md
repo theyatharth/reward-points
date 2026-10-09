@@ -83,8 +83,16 @@ Reference logic: test/vendor/engine.js (client's, unmodified).
   Shared helper `returnPoints` in ledger.js (also used by the failed-redemption compensation). Replaying an expired
   redemption answers REWARD_EXPIRED. Lot expiry stays off. Tests: `code-expiry.test.js` (fake clock).
 
+- TASK 5 DONE (point C included): `web/loyalty/service/adjustment.js` `adjustPoints`: whole number != 0 (|n| <= 1,000,000),
+  reason required, note >= 5 characters trimmed, admin id of an existing admin of the shop, idempotency key (scoped
+  by account), deduction above AVAILABLE refused (pending is not deductible), reason "Special bonus" -> `bonus` entry
+  (a negative one is a plain adjustment), positive -> ACTIVE lot at once and repays debt first, deduction consumes
+  active lots earliest first, one AuditLog row `points_adjusted` per adjustment with before/after, account locked
+  first (tag 'adjust'). Customer by Shopify id only (D5). `consumeLots` moved to ledger.js; `returnPoints` takes a
+  ledger type. Tests: `adjustment.test.js`.
+
 ## Next
-- Task 5 (adjust(), point C), Task 6, Task 7, CHECKPOINT 2.
+- Task 6 (redemption wiring), Task 7 (metafield sync and widget), CHECKPOINT 2.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is

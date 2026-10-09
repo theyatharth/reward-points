@@ -622,6 +622,29 @@ export async function checkLotJ3(lot, loyaltyOrderId, shop) {
 }
 
 /**
+ * Takes points from the account's active lots, earliest activation first.
+ * Points not backed by any lot (none expected in Phase 1) are simply taken
+ * from the balance.
+ */
+export async function consumeLots(tx, accountId, points) {
+  const lots = await tx.$queryRaw`
+    SELECT id, remaining FROM "PointLot"
+     WHERE "accountId" = ${accountId} AND status = 'active' AND remaining > 0
+     ORDER BY "activatesAt" ASC, "createdAt" ASC, id ASC
+       FOR UPDATE`;
+  let left = points;
+  for (const lot of lots) {
+    if (left === 0) break;
+    const take = Math.min(left, lot.remaining);
+    await tx.pointLot.update({
+      where: { id: lot.id },
+      data: { remaining: { decrement: take }, status: take === lot.remaining ? 'exhausted' : undefined },
+    });
+    left -= take;
+  }
+}
+
+/**
  * Gives points back to an account as a FRESH active lot, inside the caller's transaction
  * (the account must already be locked). New points repay the owed balance first (D4): the
  * repaid part is consumed from the lot, the rest becomes available. Writes the 'reward_return'
@@ -637,9 +660,10 @@ export async function checkLotJ3(lot, loyaltyOrderId, shop) {
  * @param {string} [p.redemptionId]
  * @param {string} [p.rewardId]
  * @param {string} [p.orderId]    LoyaltyOrder.id the return belongs to, if any
- * @returns {Promise<{ repaid: number, usable: number, lotId: string }>}
+ * @param {string} [p.type]       ledger entry type, default 'reward_return' ('bonus' and 'adjustment' for admin credits)
+ * @returns {Promise<{ repaid: number, usable: number, lotId: string, entryId: string }>}
  */
-export async function returnPoints(tx, { accountId, points, lotTag, dedupeKey, note, redemptionId, rewardId, orderId }) {
+export async function returnPoints(tx, { accountId, points, lotTag, dedupeKey, note, redemptionId, rewardId, orderId, type = 'reward_return' }) {
   const account = await tx.loyaltyAccount.findUnique({ where: { id: accountId }, select: { debt: true } });
   const repaid = Math.min(account.debt, points);
   const usable = points - repaid;
@@ -654,10 +678,10 @@ export async function returnPoints(tx, { accountId, points, lotTag, dedupeKey, n
       activatesAt: now(),
     },
   });
-  await tx.ledgerEntry.create({
+  const entry = await tx.ledgerEntry.create({
     data: {
       accountId,
-      type: 'reward_return',
+      type,
       points,
       status: 'active',
       dedupeKey,
@@ -675,7 +699,7 @@ export async function returnPoints(tx, { accountId, points, lotTag, dedupeKey, n
       ...(repaid > 0 ? { debt: { decrement: repaid } } : {}),
     },
   });
-  return { repaid, usable, lotId: lot.id };
+  return { repaid, usable, lotId: lot.id, entryId: entry.id };
 }
 
 /**
