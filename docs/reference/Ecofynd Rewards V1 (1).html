@@ -1,0 +1,1904 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ecofynd Rewards V1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@600;700;800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a working product prototype. Storefront = phone frame + demo controls side by side; Admin = side-nav console; Tests = grouped checklist. */
+:root{
+  --bg:#ffffff; --surface:#fbf7f2; --surface-2:#f3ebe0; --line:#e8ddd0; --line-2:#d9cbb9;
+  --ink:#2a1f17; --ink-2:#6a5848; --ink-3:#8f7c6a;
+  --umber:#7b5339; --umber-strong:#5f3f2a; --on-umber:#ffffff; --umber-soft:#f1e5da;
+  --olive:#345100; --olive-soft:#e8efdc;
+  --gold:#fad025; --gold-soft:#fdf4c9; --gold-ink:#6b5500;
+  --blush:#f6d3d9; --blush-soft:#fbeaed; --blush-ink:#7d3444;
+  --danger:#a3332b; --danger-soft:#f9e3e0;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --shadow:0 1px 2px rgba(70,45,25,.06),0 10px 30px rgba(70,45,25,.08);
+  --f-display:'Fraunces',Georgia,'Times New Roman',serif;
+  --f-head:'Nunito',ui-rounded,system-ui,sans-serif;
+  --f-body:'Nunito Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --r-sm:8px; --r:14px; --r-lg:22px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15110e; --surface:#1e1814; --surface-2:#282019; --line:#352b23; --line-2:#4a3c31;
+  --ink:#f3eae0; --ink-2:#bfae9c; --ink-3:#958471;
+  --umber:#d4a27d; --umber-strong:#e6bb99; --on-umber:#1b120b; --umber-soft:#33261d;
+  --olive:#a9cc6c; --olive-soft:#232d18;
+  --gold:#fad025; --gold-soft:#3a3113; --gold-ink:#f7d95a;
+  --blush:#5b3740; --blush-soft:#35232a; --blush-ink:#f5c3cd;
+  --danger:#f08c80; --danger-soft:#3c211e;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15110e; --surface:#1e1814; --surface-2:#282019; --line:#352b23; --line-2:#4a3c31;
+  --ink:#f3eae0; --ink-2:#bfae9c; --ink-3:#958471;
+  --umber:#d4a27d; --umber-strong:#e6bb99; --on-umber:#1b120b; --umber-soft:#33261d;
+  --olive:#a9cc6c; --olive-soft:#232d18;
+  --gold:#fad025; --gold-soft:#3a3113; --gold-ink:#f7d95a;
+  --blush:#5b3740; --blush-soft:#35232a; --blush-ink:#f5c3cd;
+  --danger:#f08c80; --danger-soft:#3c211e;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono);font-size:.82em}
+.muted{color:var(--ink-2)}
+.faint{color:var(--ink-3)}
+:focus-visible{outline:2px solid var(--umber);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:1320px;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:auto}
+.brand b{font-family:var(--f-display);font-weight:600;font-size:21px;letter-spacing:-.01em;color:var(--umber)}
+.brand span{font-family:var(--f-head);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.seg{display:flex;background:var(--surface-2);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:7px 14px;border-radius:999px;font-family:var(--f-head);font-weight:700;font-size:13.5px;color:var(--ink-2);cursor:pointer;min-height:36px}
+.seg button[aria-pressed="true"]{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.clock{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.clock .date{font-family:var(--f-head);font-weight:700;padding:0 4px}
+.chip-btn{border:1px solid var(--line-2);background:var(--bg);border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:32px}
+.chip-btn:hover{border-color:var(--umber);color:var(--umber)}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:16px;padding-block:20px 60px}
+
+/* ---------- buttons, fields ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;padding:11px 18px;min-height:44px;font-family:var(--f-head);font-weight:800;font-size:14.5px;cursor:pointer;background:var(--umber);color:var(--on-umber);text-decoration:none}
+.btn:hover{background:var(--umber-strong)}
+.btn.ghost{background:transparent;color:var(--umber);box-shadow:inset 0 0 0 1.5px var(--umber)}
+.btn.ghost:hover{background:var(--umber-soft)}
+.btn.soft{background:var(--umber-soft);color:var(--umber-strong)}
+.btn.small{min-height:36px;padding:7px 14px;font-size:13px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;padding:0;color:var(--umber);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+label.f{display:grid;gap:5px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.inp{width:100%;border:1px solid var(--line-2);background:var(--bg);border-radius:10px;padding:9px 11px;min-height:40px;font-weight:500;color:var(--ink)}
+.inp:focus{border-color:var(--umber);outline:none;box-shadow:0 0 0 3px var(--umber-soft)}
+textarea.inp{min-height:70px;resize:vertical}
+.err{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
+.ok{background:var(--olive-soft);color:var(--olive);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
+.warnbox{background:var(--gold-soft);color:var(--gold-ink);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
+
+/* ---------- status pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;letter-spacing:.02em;padding:2px 9px;border-radius:999px;white-space:nowrap;font-family:var(--f-head)}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st-Pending{background:var(--blush-soft);color:var(--blush-ink)}
+.st-Available{background:var(--olive-soft);color:var(--olive)}
+.st-Redeemed{background:var(--umber-soft);color:var(--umber-strong)}
+.st-Reversed,.st-Cancelled{background:var(--danger-soft);color:var(--danger)}
+.st-Expired{background:var(--surface-2);color:var(--ink-2)}
+.st-Adjusted{background:var(--gold-soft);color:var(--gold-ink)}
+.st-unlocked{background:var(--olive-soft);color:var(--olive)}
+.st-used{background:var(--umber-soft);color:var(--umber-strong)}
+.st-expired,.st-returned{background:var(--surface-2);color:var(--ink-2)}
+.st-cancelled{background:var(--danger-soft);color:var(--danger)}
+
+/* ---------- storefront layout ---------- */
+.store{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:900px){.store{grid-template-columns:minmax(0,1fr)}}
+.phone{position:relative;border:1px solid var(--line-2);border-radius:30px;background:var(--bg);box-shadow:var(--shadow);height:min(820px,calc(100dvh - 120px));min-height:600px;display:flex;flex-direction:column;overflow:hidden;max-width:420px;width:100%;margin-inline:auto}
+.ph-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;border-bottom:1px solid var(--line)}
+.logo{font-family:var(--f-display);font-weight:600;font-size:22px;color:var(--umber);letter-spacing:-.02em;background:none;border:0;cursor:pointer;padding:0}
+.ph-head .who{font-size:12.5px;color:var(--ink-2);font-weight:700}
+.screen>*{flex-shrink:0}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px 110px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth}
+.tabbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabbar button{border:0;background:none;padding:9px 0 10px;display:grid;justify-items:center;gap:2px;font-size:11px;font-weight:800;font-family:var(--f-head);color:var(--ink-3);cursor:pointer;min-height:54px;position:relative}
+.tabbar button[aria-current="page"]{color:var(--umber)}
+.tabbar svg{width:22px;height:22px}
+.badge{position:absolute;top:5px;left:calc(50% + 6px);background:var(--umber);color:var(--on-umber);font-size:10px;border-radius:999px;min-width:17px;height:17px;display:grid;place-items:center;padding:0 4px}
+.back{display:inline-flex;gap:6px;align-items:center;background:none;border:0;color:var(--ink-2);font-weight:700;font-size:13px;cursor:pointer;padding:0;min-height:32px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sec-h h3{font-family:var(--f-head);font-weight:800;font-size:16.5px}
+.eyebrow{font-family:var(--f-head);font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+
+/* rewards page */
+.rw-title h1{font-family:var(--f-display);font-weight:600;font-size:28px;letter-spacing:-.02em;line-height:1.1}
+.rw-title p{color:var(--ink-2);margin-top:4px}
+.bal{border-radius:var(--r-lg);background:var(--umber);color:var(--on-umber);padding:20px 20px 18px;position:relative;overflow:hidden}
+.bal::after{content:"";position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,rgba(250,208,37,.35),transparent 65%)}
+.bal .lbl{font-family:var(--f-head);font-weight:800;font-size:12px;letter-spacing:.09em;text-transform:uppercase;opacity:.8}
+.bal .big{font-family:var(--f-display);font-weight:600;font-size:48px;line-height:1.05;letter-spacing:-.02em;margin-top:6px}
+.bal .big small{font-family:var(--f-head);font-size:16px;font-weight:700;letter-spacing:0;margin-left:6px;opacity:.85}
+.bal .val{display:inline-block;margin-top:8px;background:var(--gold);color:#3b2a00;font-family:var(--f-head);font-weight:800;border-radius:999px;padding:4px 12px;font-size:15px}
+.bal .exp{margin-top:12px;font-size:12.5px;opacity:.85}
+.owed{border-radius:var(--r);background:var(--danger-soft);color:var(--danger);padding:14px 16px;font-size:13.5px}
+.owed b{display:block;font-family:var(--f-head);font-size:15px;margin-bottom:2px}
+.pend{border-radius:var(--r);background:var(--blush-soft);padding:14px 16px;display:grid;gap:8px}
+.pend-top{display:flex;gap:12px;align-items:flex-start}
+.pend-top svg{flex:none;width:26px;height:26px;color:var(--blush-ink);margin-top:2px}
+.pend h4{font-family:var(--f-head);font-weight:800;font-size:15.5px;color:var(--blush-ink)}
+.pend p{font-size:13px;color:var(--ink-2)}
+.pend .rows{display:grid;gap:4px;border-top:1px dashed color-mix(in srgb,var(--blush-ink) 30%,transparent);padding-top:8px}
+.pend .row{display:flex;justify-content:space-between;font-size:13px;gap:8px}
+.pend .row b{font-family:var(--f-head)}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;background:var(--bg)}
+.goal{display:grid;gap:10px}
+.goal .gname{font-family:var(--f-display);font-weight:600;font-size:26px;line-height:1}
+.goal .togo{font-family:var(--f-head);font-weight:800;font-size:16px;color:var(--umber)}
+.bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}
+.bar i{display:block;height:100%;background:var(--gold);border-radius:999px;box-shadow:inset 0 0 0 1px rgba(107,85,0,.25)}
+.rlist{display:grid;gap:10px}
+.ritem{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 12px 14px;background:var(--bg)}
+.ritem .rv{font-family:var(--f-display);font-weight:600;font-size:22px;min-width:92px;line-height:1.1}
+.ritem .rm{flex:1;min-width:0;font-size:12.5px;color:var(--ink-2)}
+.ritem .rm b{display:block;color:var(--ink);font-size:14px;font-family:var(--f-head)}
+.ritem.ready{background:var(--olive-soft);border-color:transparent}
+.ritem.ready .rv{color:var(--olive)}
+.choice{border-radius:var(--r);background:var(--gold-soft);padding:14px 16px;display:grid;gap:10px}
+.choice .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice .opt{background:var(--bg);border-radius:12px;padding:10px 12px}
+.choice .opt .eyebrow{color:var(--gold-ink)}
+.choice .opt b{font-family:var(--f-head);font-size:16px;display:block;margin-top:2px}
+.earn{display:grid;gap:8px}
+.earn .e{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);background:var(--surface)}
+.earn .e svg{flex:none;width:24px;height:24px;color:var(--umber)}
+.earn .e b{font-family:var(--f-head);display:block}
+.earn .e p{font-size:13px;color:var(--ink-2)}
+.tl{display:grid;gap:14px}
+.tl-day{display:grid;gap:8px}
+.tl-day>.eyebrow{padding-left:2px}
+.tl-item{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:start}
+.tl-ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);color:var(--umber)}
+.tl-ic svg{width:18px;height:18px}
+.tl-t b{font-family:var(--f-head);font-size:14px;display:block;line-height:1.3}
+.tl-t p{font-size:12.5px;color:var(--ink-2)}
+.tl-p{text-align:right;display:grid;justify-items:end;gap:3px}
+.tl-p b{font-family:var(--f-head);font-size:14.5px}
+.plus{color:var(--olive)} .minus{color:var(--danger)}
+.zero{border-radius:var(--r-lg);background:var(--surface);padding:22px 20px;display:grid;gap:12px}
+.zero h2{font-family:var(--f-display);font-weight:600;font-size:26px;line-height:1.15}
+.ladder{display:grid;gap:6px}
+.ladder div{display:flex;justify-content:space-between;font-size:14px;padding:8px 12px;background:var(--bg);border-radius:10px}
+.ladder b{font-family:var(--f-head)}
+
+/* product & cart */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pcard{border:0;background:none;padding:0;text-align:left;cursor:pointer;display:grid;gap:6px}
+.pcard .art{border-radius:14px;aspect-ratio:1/1;max-width:100%}
+.pcard .t{font-size:13px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .p{font-family:var(--f-head);font-weight:800;font-size:14px}
+.pcard .e{font-size:11.5px;color:var(--olive);font-weight:700}
+.art{background:var(--surface);display:grid;place-items:center;overflow:hidden}
+.art svg{width:74%;height:74%}
+.pdp-art{border-radius:18px;aspect-ratio:1/1;max-width:100%}
+.pdp h2{font-family:var(--f-display);font-weight:600;font-size:23px;line-height:1.2}
+.price{font-family:var(--f-head);font-weight:800;font-size:22px}
+.price small{font-size:12px;font-weight:600;color:var(--ink-3);margin-left:6px}
+.earnline{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--olive-soft);font-size:13.5px}
+.earnline svg{flex:none;width:20px;height:20px;color:var(--olive);margin-top:1px}
+.earnline b{color:var(--olive)}
+.earnline.plain{background:var(--surface);color:var(--ink-2)}
+.earnline.plain svg{color:var(--ink-3)}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line-2);border-radius:999px}
+.qty button{width:40px;height:40px;border:0;background:none;font-size:18px;font-weight:700;cursor:pointer;color:var(--ink)}
+.qty span{min-width:26px;text-align:center;font-weight:800;font-family:var(--f-head)}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.cline{display:grid;grid-template-columns:60px 1fr;gap:12px;align-items:start}
+.cline .art{width:60px;height:60px;border-radius:10px}
+.cline .t{font-size:13.5px;font-weight:700;line-height:1.3}
+.sum{display:grid;gap:6px;font-size:14px}
+.sum div{display:flex;justify-content:space-between}
+.sum .tot{font-family:var(--f-head);font-weight:800;font-size:17px;border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
+.loy{border-radius:var(--r);border:1.5px solid var(--gold);background:var(--gold-soft);padding:13px 14px;display:grid;gap:8px}
+.loy-h{display:flex;gap:10px;align-items:flex-start}
+.loy-h svg{flex:none;width:22px;height:22px;color:var(--gold-ink)}
+.loy-h b{font-family:var(--f-head);font-size:15px;display:block}
+.loy-h p{font-size:13px;color:var(--ink-2)}
+.loy.applied{border-color:var(--olive);background:var(--olive-soft)}
+.loy.applied svg{color:var(--olive)}
+.confirm{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px}
+
+/* widget + sheet */
+.widget{position:absolute;right:14px;bottom:72px;z-index:5}
+.wbtn{display:flex;align-items:center;gap:8px;border:0;background:var(--umber);color:var(--on-umber);border-radius:999px;padding:10px 16px 10px 12px;font-family:var(--f-head);font-weight:800;font-size:14px;box-shadow:0 6px 18px rgba(70,40,20,.28);cursor:pointer;min-height:44px}
+.wbtn svg{width:20px;height:20px;color:var(--gold)}
+.wpanel{position:absolute;right:0;bottom:56px;width:290px;max-width:calc(100vw - 64px);background:var(--bg);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:16px;display:grid;gap:10px}
+.wpanel h4{font-family:var(--f-head);font-weight:800;font-size:15px}
+.wpanel .wbig{font-family:var(--f-display);font-weight:600;font-size:32px;line-height:1}
+.scrim{position:absolute;inset:0;background:rgba(30,18,10,.38);z-index:10;display:flex;align-items:flex-end}
+.sheet{background:var(--bg);width:100%;border-radius:22px 22px 0 0;padding:18px 18px 24px;display:grid;gap:12px;box-shadow:0 -10px 30px rgba(0,0,0,.18)}
+.sheet .grab{width:40px;height:4px;border-radius:4px;background:var(--line-2);margin:0 auto 4px}
+.sheet h3{font-family:var(--f-display);font-weight:600;font-size:30px;line-height:1.1}
+.kv{display:grid;gap:6px;font-size:14px}
+.kv div{display:flex;justify-content:space-between;gap:10px}
+.code{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1.5px dashed var(--olive);border-radius:12px;padding:10px 12px;font-family:var(--f-mono);font-weight:500;font-size:15px;color:var(--olive);background:var(--olive-soft)}
+.check{width:46px;height:46px;border-radius:50%;background:var(--olive);color:var(--bg);display:grid;place-items:center}
+.check svg{width:24px;height:24px}
+
+/* demo side panel */
+.side{display:grid;gap:18px;min-width:0}
+.panel{border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;background:var(--surface);display:grid;gap:12px;min-width:0}
+.panel h3{font-family:var(--f-head);font-weight:800;font-size:15.5px}
+.persona{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.persona button{text-align:left;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;cursor:pointer;display:grid;gap:2px}
+.persona button[aria-pressed="true"]{border-color:var(--umber);box-shadow:0 0 0 3px var(--umber-soft)}
+.persona b{font-family:var(--f-head);font-size:14px}
+.persona span{font-size:12px;color:var(--ink-2);line-height:1.35}
+.try{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.try li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
+.try li::before{content:"";flex:none;width:7px;height:7px;border-radius:2px;background:var(--gold);margin-top:7px;box-shadow:0 0 0 1px var(--gold-ink)}
+.mini{display:grid;gap:0;font-size:12.5px}
+.mini div{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);align-items:center}
+.mini div:last-child{border-bottom:0}
+
+/* ---------- admin ---------- */
+.admin{display:grid;grid-template-columns:210px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:900px){.admin{grid-template-columns:minmax(0,1fr)}}
+.anav{display:grid;gap:2px;position:sticky;top:80px}
+@media (max-width:900px){.anav{position:static;display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}}
+.anav button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:10px;font-family:var(--f-head);font-weight:700;font-size:14px;color:var(--ink-2);cursor:pointer;white-space:nowrap;display:flex;justify-content:space-between;gap:8px;min-height:40px;align-items:center}
+.anav button[aria-current="page"]{background:var(--umber-soft);color:var(--umber-strong)}
+.anav .cnt{background:var(--danger);color:#fff;border-radius:999px;font-size:11px;padding:0 7px}
+.amain{display:grid;gap:22px;min-width:0}
+.amain h2{font-family:var(--f-display);font-weight:600;font-size:28px;letter-spacing:-.01em}
+.amain .lede{color:var(--ink-2);max-width:70ch;margin-top:4px}
+.kgroup{display:grid;gap:10px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:2px;background:var(--bg)}
+.kpi .k{font-size:12px;font-weight:700;color:var(--ink-2)}
+.kpi .v{font-family:var(--f-head);font-weight:800;font-size:22px}
+.kpi .s{font-size:12px;color:var(--ink-3)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-family:var(--f-head);font-weight:800;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--surface);padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.fs{border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:14px;background:var(--bg)}
+.fs h3{font-family:var(--f-head);font-weight:800;font-size:16px}
+.fs .hint{font-size:12.5px;color:var(--ink-3);font-weight:500}
+.checks{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13.5px;font-weight:600;color:var(--ink)}
+.checks label{display:flex;gap:6px;align-items:center}
+.stack{display:flex;height:34px;border-radius:8px;overflow:hidden;gap:2px;background:var(--bg)}
+.stack i{display:block;height:100%;min-width:3px}
+.stack i:first-child{border-radius:4px 0 0 4px}.stack i:last-child{border-radius:0 4px 4px 0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:flex;gap:6px;align-items:center}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.issue{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 12px;border-radius:10px;background:var(--danger-soft);font-size:13.5px}
+.issue b{color:var(--danger);font-family:var(--f-head)}
+.cust-list{display:grid;gap:6px}
+.cust-list button{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px;text-align:left;cursor:pointer;align-items:center}
+.cust-list button[aria-pressed="true"]{border-color:var(--umber);background:var(--umber-soft)}
+.split{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1100px){.split{grid-template-columns:minmax(0,1fr)}}
+.bars{display:grid;gap:6px}
+.bars div{display:grid;grid-template-columns:minmax(0,190px) 1fr auto;gap:10px;align-items:center;font-size:12.5px}
+.bars i{display:block;height:10px;border-radius:0 4px 4px 0;background:var(--s1)}
+
+/* tests */
+.tsum{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.tsum .n{font-family:var(--f-display);font-weight:600;font-size:40px;line-height:1}
+.tgroup{display:grid;gap:6px}
+.trow{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;align-items:start;background:var(--bg)}
+.trow .d{font-size:12.5px;color:var(--ink-2)}
+.tp{font-family:var(--f-head);font-weight:800;font-size:11.5px;border-radius:6px;padding:2px 8px}
+.tp.pass{background:var(--olive-soft);color:var(--olive)}
+.tp.fail{background:var(--danger-soft);color:var(--danger)}
+.tp.manual{background:var(--surface-2);color:var(--ink-2)}
+.notes{display:grid;gap:18px;max-width:980px}
+.notes .card h3{font-family:var(--f-head);font-weight:800;font-size:16px;margin-bottom:6px}
+.notes ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.cov{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:700;font-size:14px;z-index:60;box-shadow:var(--shadow);max-width:calc(100vw - 32px)}
+ @media (max-width:700px){.top{position:static}.seg button{padding:7px 10px;font-size:13px}.ritem{gap:10px}.ritem .rv{min-width:0;font-size:19px}.phone{height:min(760px,calc(100dvh - 40px))}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+
+<div id="app"></div>
+<script>
+/* =====================================================================
+   ECOFYND REWARDS — LOYALTY ENGINE (runs as the "server" in this prototype)
+   The UI never writes balances directly: every change goes through this
+   engine, and every point change is a ledger transaction.
+   ===================================================================== */
+const DAY = 864e5;
+const START = Date.UTC(2026, 8, 30, 6, 30); // 30 Sep 2026, 12:00 IST
+
+const PRODUCTS = [
+  { id: 'cpot039-05', sku: 'CPOT039-05', title: 'Ceramic Tulsi Plant Pot', sub: 'Glazed ceramic planter for tulsi and indoor plants', price: 419, collection: 'planters', gst: 5, art: 'pot' },
+  { id: 'pot031', sku: 'POT031', title: 'Two-Tier Disco Ball Planter with Macrame Hanger', sub: 'Mirrored mosaic planters on a cotton macrame hanger', price: 1349, collection: 'planters', gst: 18, art: 'disco' },
+  { id: 'pot030', sku: 'POT030', title: 'Shimmer & Shine Disco Glass Planter', sub: 'Single mirrored planter with macrame hanger', price: 749, collection: 'planters', gst: 18, art: 'disco1' },
+  { id: 'ps057-blk-102', sku: 'PS057-BLK-102', title: '2 Pack Cora Wall Mounted Plant Stand', sub: 'Round tray shelf with built-in hanging hook', price: 999, collection: 'plant-stands', gst: 18, art: 'wall' },
+  { id: 'ps049-go', sku: 'PS049-GO', title: 'Adam Golden Metal Plant Stand, 2 Tier', sub: 'Two-tier display stand for home and garden', price: 2329, collection: 'plant-stands', gst: 18, art: 'stand' },
+  { id: 'cpdisc-110', sku: 'CPDISC-110', title: 'Organic Coir Seedling Coins (Set of 10)', sub: 'Mess-free coir discs for germination', price: 199, collection: 'gardening-essentials', gst: 5, art: 'coins' },
+  { id: 'ga001', sku: 'GA001-050', title: 'Plant Support Clips for Climbers (50)', sub: 'Reusable stem and vine clips', price: 179, collection: 'gardening-essentials', gst: 18, art: 'clips' },
+  { id: 'gt029', sku: 'GT029', title: 'Garden Hedge Shears, 7.8" Steel Blades', sub: 'Straight blades for hedges and shrubs', price: 659, collection: 'garden-tools', gst: 0, art: 'shears' },
+  { id: 'gvase019-wht', sku: 'GVASE019-WHT', title: 'Ribbed Glass Vase, Clear', sub: 'Symmetrical ribbed glass for flowers and décor', price: 349, collection: 'home-decor', gst: 18, art: 'vase' },
+  { id: 'gift-1000', sku: 'GIFT-1000', title: 'Ecofynd Gift Card ₹1,000', sub: 'Demo item: shows how gift cards are excluded', price: 1000, collection: 'gift-cards', gst: 0, art: 'card', giftCard: true },
+];
+const PMAP = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
+const COLLECTIONS = { 'planters': 'Planters', 'plant-stands': 'Plant Stands', 'gardening-essentials': 'Gardening Essentials', 'garden-tools': 'Garden Tools', 'home-decor': 'Home Décor', 'gift-cards': 'Gift Cards' };
+const COUPONS = { GARDEN10: { pct: 10, label: 'GARDEN10 · 10% off' } };
+
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+
+function defaultConfig() {
+  return {
+    earn: { spend: 100, points: 100, basis: 'after_discount', includeShipping: false, includeTax: false, excludeGiftCards: true, excludedCollections: ['gift-cards'], rounding: 'floor' },
+    redeem: { points: 100, value: 10 },
+    holdingDays: 30,
+    expiryMonths: 12,
+    shortfallPolicy: 'void_unused_then_owe',
+    returnPointsOnCodeExpiry: true,
+    restoreRewardOnFullRefund: true,
+    campaign: { enabled: false, name: 'Double Points Weekend', multiplier: 2, start: START, end: START + 2 * DAY, collections: [], maxBonus: 1000 },
+    notifications: {
+      points_earned: { onsite: true, email: false, whatsapp: false },
+      points_activated: { onsite: true, email: true, whatsapp: false },
+      reward_unlocked: { onsite: true, email: false, whatsapp: false },
+      reward_redeemed: { onsite: false, email: true, whatsapp: false },
+      points_expiring: { onsite: true, email: true, whatsapp: false },
+      bonus_points: { onsite: true, email: false, whatsapp: false },
+      special_campaign: { onsite: false, email: false, whatsapp: false },
+    },
+  };
+}
+function defaultRewards() {
+  const mk = (id, v, p, min) => ({ id, name: `₹${v} OFF`, type: 'fixed_discount', points: p, value: v, minCart: min, maxUses: 0, eligibleCollections: [], excludedCollections: ['gift-cards'], expiryDays: 30, stackable: false, couponCompatible: true, eligibility: 'all', status: 'active' });
+  return [mk('rw10', 10, 100, 299), mk('rw25', 25, 250, 499), mk('rw50', 50, 500, 699), mk('rw100', 100, 1000, 999), mk('rw200', 200, 2000, 1999)];
+}
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+class Engine {
+  constructor(now = START) {
+    this.rand = mulberry(20260930);
+    this.s = {
+      now, seq: { txn: 5000, red: 700, ord: 1000, evt: 90000, lot: 1, audit: 1, acct: 300 },
+      config: defaultConfig(), rewards: defaultRewards(),
+      customers: {}, accounts: {}, txns: [], lots: [], orders: {}, redemptions: [],
+      processed: {}, eventLog: [], failed: [], audit: [], analytics: [], outbox: [],
+      guestHolds: [], failNext: 0, idem: {},
+    };
+  }
+  get now() { return this.s.now; }
+  get cfg() { return this.s.config; }
+  nid(kind, prefix) { return prefix + (++this.s.seq[kind]); }
+  rate() { return this.cfg.redeem.value / this.cfg.redeem.points; }
+  valueOf(points) { return round2(points * this.rate()); }
+
+  /* ---------- telemetry, notifications, audit ---------- */
+  track(name, props = {}) { this.s.analytics.unshift({ t: this.now, name, props }); }
+  notify(type, customerId, text) {
+    const c = this.cfg.notifications[type]; if (!c) return;
+    ['onsite', 'email', 'whatsapp'].forEach(ch => { if (c[ch]) this.s.outbox.unshift({ t: this.now, type, ch, customerId, text }); });
+  }
+  audit(admin, action, prev, next, reason) {
+    this.s.audit.unshift({ id: this.nid('audit', 'AUD-'), t: this.now, admin, action, prev, next, reason });
+  }
+
+  /* ---------- customers & accounts ---------- */
+  createCustomer({ id, name, email, phone }) {
+    const existing = Object.values(this.s.customers).find(c => c.email.toLowerCase() === String(email).toLowerCase());
+    if (existing) return { ok: true, duplicate: true, customer: existing, account: this.ensureAccount(existing.id) };
+    const cid = id || 'c' + (Object.keys(this.s.customers).length + 1) + '-' + Math.floor(this.rand() * 1e4);
+    const customer = { id: cid, name, email, phone: phone || '', createdAt: this.now, shopifyId: 'gid://shopify/Customer/' + (7400000000 + Math.floor(this.rand() * 9e8)) };
+    this.s.customers[cid] = customer;
+    const account = this.ensureAccount(cid);
+    this.claimGuestHolds(customer);
+    return { ok: true, customer, account };
+  }
+  ensureAccount(customerId) {
+    const found = Object.values(this.s.accounts).find(a => a.customerId === customerId);
+    if (found) return found;
+    const a = { id: this.nid('acct', 'LA-'), customerId, available: 0, pending: 0, debt: 0, lifetimeEarned: 0, lifetimeRedeemed: 0, status: 'active', createdAt: this.now, updatedAt: this.now };
+    this.s.accounts[a.id] = a;
+    this.track('loyalty_account_created', { customerId });
+    return a;
+  }
+  acctOf(customerId) { return Object.values(this.s.accounts).find(a => a.customerId === customerId) || null; }
+
+  /* ---------- ledger ---------- */
+  addTxn(t) {
+    const acct = t.accountId ? this.s.accounts[t.accountId] : null;
+    const txn = Object.assign({ id: this.nid('txn', 'TX-'), createdAt: this.now, effectiveAt: this.now, pendingDelta: 0, availableDelta: 0, availableAt: null, expiresAt: null, ref: null, orderId: null, meta: {} }, t);
+    if (acct) {
+      acct.pending += txn.pendingDelta; acct.available += txn.availableDelta; acct.updatedAt = this.now;
+      if (['purchase', 'bonus'].includes(txn.type) || (txn.type === 'adjustment' && txn.points > 0)) acct.lifetimeEarned += txn.points;
+      if (['cancellation', 'reversal'].includes(txn.type)) acct.lifetimeEarned += txn.points; // points negative
+      if (txn.type === 'redemption') acct.lifetimeRedeemed += -txn.points;
+      if (txn.type === 'reward_return') acct.lifetimeRedeemed -= txn.points;
+    }
+    this.s.txns.push(txn);
+    return txn;
+  }
+  addLot(acct, amount, sourceTxn, orderId, base) {
+    const pay = Math.min(acct.debt, amount); acct.debt -= pay;
+    const expiresAt = this.cfg.expiryMonths > 0 ? this.addMonths(base || this.now, this.cfg.expiryMonths) : null;
+    const lot = { id: this.nid('lot', 'LOT-'), accountId: acct.id, sourceTxn: sourceTxn.id, orderId: orderId || null, amount, remaining: amount - pay, settledDebt: pay, expiresAt, createdAt: this.now, warned: false };
+    this.s.lots.push(lot);
+    if (pay > 0) sourceTxn.meta.settledOwed = pay;
+    return lot;
+  }
+  consumeLots(acct, k, preferOrderId) {
+    const lots = this.s.lots.filter(l => l.accountId === acct.id && l.remaining > 0)
+      .sort((a, b) => ((b.orderId === preferOrderId) - (a.orderId === preferOrderId)) || ((a.expiresAt || 9e15) - (b.expiresAt || 9e15)));
+    let left = k;
+    for (const l of lots) { if (!left) break; const take = Math.min(l.remaining, left); l.remaining -= take; left -= take; }
+    return left; // shortfall
+  }
+  addMonths(ms, m) { const d = new Date(ms); d.setUTCMonth(d.getUTCMonth() + m); return d.getTime(); }
+
+  /* ---------- rule engine: eligibility → calculation ---------- */
+  eligibleValue(lines, discount = 0, shipping = 0) {
+    const c = this.cfg.earn; let all = 0, elig = 0, eligTax = 0, campaignElig = 0;
+    for (const l of lines) {
+      const p = PMAP[l.productId]; const v = l.price * l.qty; all += v;
+      const excluded = (c.excludeGiftCards && p.giftCard) || c.excludedCollections.includes(p.collection);
+      if (!excluded) { elig += v; eligTax += v - v / (1 + p.gst / 100); }
+    }
+    const share = all ? elig / all : 0;
+    let base = c.basis === 'after_discount' ? elig - discount * share : elig;
+    if (!c.includeTax && elig) base = base * (1 - eligTax / elig);
+    if (c.includeShipping) base += shipping;
+    // campaign-eligible part (same basis) for future multipliers
+    const camp = this.cfg.campaign;
+    if (camp.enabled && elig) {
+      for (const l of lines) {
+        const p = PMAP[l.productId];
+        const excluded = (c.excludeGiftCards && p.giftCard) || c.excludedCollections.includes(p.collection);
+        if (!excluded && (!camp.collections.length || camp.collections.includes(p.collection))) campaignElig += l.price * l.qty;
+      }
+      campaignElig = campaignElig / elig * (base - (c.includeShipping ? shipping : 0));
+    }
+    return { value: Math.max(0, round2(base)), campaignValue: Math.max(0, round2(campaignElig)), merch: all, eligibleMerch: elig };
+  }
+  pointsFor(value) {
+    const { spend, points, rounding } = this.cfg.earn;
+    if (rounding === 'block') return Math.floor(value / spend + 1e-9) * points;
+    const raw = value * points / spend;
+    return rounding === 'round' ? Math.round(raw) : Math.floor(raw + 1e-9);
+  }
+  campaignActive(at = this.now) { const c = this.cfg.campaign; return c.enabled && at >= c.start && at < c.end; }
+  calcPoints(lines, discount = 0, shipping = 0) {
+    const ev = this.eligibleValue(lines, discount, shipping);
+    const base = this.pointsFor(ev.value);
+    let bonus = 0;
+    if (this.campaignActive()) { const c = this.cfg.campaign; bonus = Math.min(c.maxBonus, this.pointsFor(ev.campaignValue) * (c.multiplier - 1)); }
+    return { ...ev, base, bonus, points: base + bonus };
+  }
+
+  /* ---------- Shopify webhook intake (idempotent) ---------- */
+  ingest(evt) {
+    if (this.s.processed[evt.id]) {
+      this.s.eventLog.unshift({ t: this.now, id: evt.id, topic: evt.topic, ref: evt.payload.name || evt.payload.orderId, result: 'duplicate', note: 'Already processed — ignored' });
+      return { status: 'duplicate' };
+    }
+    if (this.s.failNext > 0) {
+      this.s.failNext--;
+      const attempts = (evt.attempts || 0) + 1;
+      const f = { ...evt, attempts, error: 'Loyalty DB write timed out (simulated)', nextRetryAt: this.now + Math.min(6, 2 ** attempts) * 36e5 };
+      this.s.failed = this.s.failed.filter(x => x.id !== evt.id); this.s.failed.push(f);
+      this.s.eventLog.unshift({ t: this.now, id: evt.id, topic: evt.topic, ref: evt.payload.name || evt.payload.orderId, result: 'failed', note: `Attempt ${attempts} failed · queued for retry` });
+      return { status: 'failed' };
+    }
+    let res;
+    try {
+      if (evt.topic === 'orders/create') res = this.onOrderCreate(evt.payload);
+      else if (evt.topic === 'refunds/create') res = this.onRefund(evt.payload);
+      else if (evt.topic === 'orders/cancelled') res = this.onCancel(evt.payload);
+      else throw new Error('Unknown topic ' + evt.topic);
+    } catch (e) {
+      const attempts = (evt.attempts || 0) + 1;
+      this.s.failed.push({ ...evt, attempts, error: e.message, nextRetryAt: this.now + 36e5 });
+      this.s.eventLog.unshift({ t: this.now, id: evt.id, topic: evt.topic, ref: evt.payload.orderId, result: 'failed', note: e.message });
+      return { status: 'failed', error: e.message };
+    }
+    this.s.processed[evt.id] = this.now;
+    this.s.failed = this.s.failed.filter(x => x.id !== evt.id);
+    this.s.eventLog.unshift({ t: this.now, id: evt.id, topic: evt.topic, ref: evt.payload.name || (this.s.orders[evt.payload.orderId] || {}).name, result: res && res.skipped ? 'skipped' : 'processed', note: (res && res.note) || '' });
+    return { status: 'processed', ...res };
+  }
+  retryEvent(id) {
+    const f = this.s.failed.find(x => x.id === id); if (!f) return { status: 'missing' };
+    return this.ingest(f);
+  }
+
+  /* ---------- checkout (server validates reward before creating order) ---------- */
+  cartTotals(lines, { couponCode, rewardCode, customerId } = {}) {
+    const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
+    const coupon = couponCode && COUPONS[couponCode] ? round2(subtotal * COUPONS[couponCode].pct / 100) : 0;
+    let reward = 0, rewardErr = null;
+    if (rewardCode) { const v = this.validateRewardForCart(customerId, rewardCode, lines, couponCode); if (v.ok) reward = v.discount; else rewardErr = v.error; }
+    const discount = round2(coupon + reward);
+    const afterDisc = subtotal - discount;
+    const shipping = subtotal === 0 ? 0 : afterDisc >= 499 ? 0 : 79;
+    const total = round2(afterDisc + shipping);
+    const gst = round2(lines.reduce((s, l) => { const p = PMAP[l.productId]; const v = l.price * l.qty * (subtotal ? afterDisc / subtotal : 0); return s + v - v / (1 + p.gst / 100); }, 0));
+    return { subtotal, coupon, reward, discount, shipping, total, gst, rewardErr };
+  }
+  checkout({ customerId, email, lines, couponCode, rewardCode, eventId }) {
+    if (!lines.length) return { ok: false, error: 'Your cart is empty.' };
+    const cust = customerId ? this.s.customers[customerId] : null;
+    if (rewardCode) { const v = this.validateRewardForCart(customerId, rewardCode, lines, couponCode); if (!v.ok) return { ok: false, error: v.error }; }
+    const t = this.cartTotals(lines, { couponCode, rewardCode, customerId });
+    const orderId = 'gid://shopify/Order/' + (5900000000 + this.s.seq.ord + 1);
+    const payload = { orderId, name: '#' + (this.s.seq.ord + 1), customerId: cust ? cust.id : null, email: cust ? cust.email : email, lines: lines.map(l => ({ ...l })), discount: t.discount, shipping: t.shipping, total: t.total, rewardCode: rewardCode || null, couponCode: couponCode || null, createdAt: this.now };
+    this.s.seq.ord++;
+    const r = this.ingest({ id: eventId || this.nid('evt', 'evt_'), topic: 'orders/create', payload });
+    return { ok: true, orderId, name: payload.name, webhook: r.status, order: this.s.orders[orderId] || null, payload };
+  }
+
+  onOrderCreate(p) {
+    if (this.s.orders[p.orderId]) return { skipped: true, note: `${p.name} already has loyalty entries — not awarded twice` };
+    const calc = this.calcPoints(p.lines, p.discount, p.shipping);
+    const order = { id: p.orderId, name: p.name, customerId: p.customerId, email: p.email, lines: p.lines, discount: p.discount, shipping: p.shipping, total: p.total, createdAt: p.createdAt || this.now,
+      eligible: calc.value, points: calc.points, bonus: calc.bonus, pendingLeft: 0, activated: 0, reversed: 0, refundedValue: 0, refunds: [], status: 'open', rewardCode: p.rewardCode, couponCode: p.couponCode, earnTxn: null, availableAt: this.now + this.cfg.holdingDays * DAY, guest: !p.customerId };
+    this.s.orders[order.id] = order;
+    if (p.rewardCode) this.markRewardUsed(p.rewardCode, order);
+    if (!order.points) return { note: `${p.name}: no eligible value — 0 points` };
+    if (!p.customerId) {
+      this.s.guestHolds.push({ email: p.email.toLowerCase(), orderId: order.id, points: order.points, availableAt: order.availableAt, claimed: false });
+      return { note: `${p.name}: ${order.points} pts held for guest ${p.email}` };
+    }
+    this.earnForOrder(order);
+    return { note: `${p.name}: +${order.points} pts pending` };
+  }
+  earnForOrder(order) {
+    const acct = this.ensureAccount(order.customerId);
+    const bonusNote = order.bonus ? ` (incl. ${order.bonus} campaign bonus)` : '';
+    order.earnTxn = this.addTxn({ accountId: acct.id, customerId: order.customerId, orderId: order.id, type: 'purchase', points: order.points, pendingDelta: order.points, status: 'Pending', source: 'shopify_order',
+      description: `Order ${order.name}${bonusNote}`, availableAt: order.availableAt, meta: { eligibleValue: order.eligible, rule: `₹${this.cfg.earn.spend} → ${this.cfg.earn.points} pts · ${this.cfg.earn.rounding}` } }).id;
+    order.pendingLeft = order.points;
+    this.track('points_earned', { order: order.name, points: order.points }); this.track('points_pending', { order: order.name, points: order.points });
+    this.notify('points_earned', order.customerId, `You're earning ${order.points} points on ${order.name}`);
+    if (order.availableAt <= this.now) this.activate(order);
+  }
+  claimGuestHolds(customer) {
+    const holds = this.s.guestHolds.filter(h => !h.claimed && h.email === customer.email.toLowerCase());
+    for (const h of holds) {
+      const order = this.s.orders[h.orderId]; h.claimed = true;
+      order.customerId = customer.id; order.guest = false; order.claimedAt = this.now;
+      const remaining = order.points - order.reversed;
+      if (remaining > 0) { const saved = order.points; order.points = remaining; this.earnForOrder(order); order.points = saved; order.pendingLeft = remaining; }
+    }
+    return holds.length;
+  }
+  activate(order) {
+    const r = order.pendingLeft; if (r <= 0) return 0;
+    const acct = this.acctOf(order.customerId);
+    const eff = Math.min(this.now, order.availableAt);
+    const txn = this.addTxn({ accountId: acct.id, customerId: order.customerId, orderId: order.id, type: 'activation', points: r, pendingDelta: -r, availableDelta: r, status: 'Available', source: 'lifecycle', description: `Points from order ${order.name} are ready to use`, ref: order.earnTxn, effectiveAt: eff });
+    const lot = this.addLot(acct, r, txn, order.id, eff); txn.expiresAt = lot.expiresAt;
+    order.pendingLeft = 0; order.activated += r;
+    const e = this.s.txns.find(t => t.id === order.earnTxn); if (e) e.status = 'Available';
+    this.track('points_activated', { order: order.name, points: r });
+    this.notify('points_activated', order.customerId, `${r} points from ${order.name} are now available`);
+    return r;
+  }
+
+  onRefund(p) {
+    const order = this.s.orders[p.orderId]; if (!order) throw new Error('Order not found yet (out-of-order webhook)');
+    if (order.refunds.find(r => r.refundId === p.refundId)) return { skipped: true, note: 'Refund already applied' };
+    const room = round2(order.eligibleMerchRemaining ?? this.merchValue(order));
+    const amt = Math.min(p.amount, room);
+    order.refunds.push({ refundId: p.refundId, amount: amt, kind: p.kind, at: this.now });
+    order.eligibleMerchRemaining = round2(room - amt);
+    const full = order.eligibleMerchRemaining <= 0.005;
+    const note = this.reverseForOrder(order, full, p.kind === 'return' ? 'returned' : 'refunded', amt);
+    if (full) { order.status = p.kind === 'return' ? 'returned' : 'refunded'; this.restoreRewardIfNeeded(order, 'Order fully refunded'); }
+    else order.status = 'partially ' + (p.kind === 'return' ? 'returned' : 'refunded');
+    return { note };
+  }
+  onCancel(p) {
+    const order = this.s.orders[p.orderId]; if (!order) throw new Error('Order not found yet');
+    if (order.status === 'cancelled') return { skipped: true, note: 'Already cancelled' };
+    order.eligibleMerchRemaining = 0;
+    const note = this.reverseForOrder(order, true, 'cancelled', null);
+    order.status = 'cancelled';
+    this.restoreRewardIfNeeded(order, 'Order cancelled');
+    return { note };
+  }
+  merchValue(order) { return order.lines.reduce((s, l) => s + (this.isEarnExcluded(l.productId) ? 0 : l.price * l.qty), 0); }
+  isEarnExcluded(pid) { const p = PMAP[pid], c = this.cfg.earn; return (c.excludeGiftCards && p.giftCard) || c.excludedCollections.includes(p.collection); }
+
+  // Proportional, cumulative reversal: target = round(points × refunded share). A final full refund always lands on exactly order.points.
+  reverseForOrder(order, full, verb, amount) {
+    const merch = this.merchValue(order) || 1;
+    const refunded = merch - (order.eligibleMerchRemaining ?? merch);
+    const target = full ? order.points : Math.round(order.points * refunded / merch);
+    const k = target - order.reversed;
+    const amtTxt = amount != null ? `₹${amount.toLocaleString('en-IN')} ${verb}` : verb;
+    if (k <= 0) return `${order.name}: ${amtTxt} — no points to reverse`;
+    order.reversed += k;
+    if (order.guest || !order.customerId) {
+      const h = this.s.guestHolds.find(x => x.orderId === order.id); if (h) h.points = Math.max(0, h.points - k);
+      return `${order.name}: ${k} held guest points removed`;
+    }
+    const acct = this.acctOf(order.customerId);
+    const fromPending = Math.min(k, order.pendingLeft);
+    if (fromPending > 0) {
+      order.pendingLeft -= fromPending;
+      this.addTxn({ accountId: acct.id, customerId: order.customerId, orderId: order.id, type: 'cancellation', points: -fromPending, pendingDelta: -fromPending, status: 'Cancelled', source: 'shopify_' + verb,
+        description: `Order ${order.name}: ${amtTxt} before points were available — pending points cancelled`, ref: order.earnTxn, meta: { reason: verb, amount } });
+    }
+    const rest = k - fromPending;
+    let owed = 0, voided = [];
+    if (rest > 0) {
+      if (acct.available < rest && this.cfg.shortfallPolicy === 'void_unused_then_owe') voided = this.voidUnusedRewards(acct, rest - acct.available);
+      const txn = this.addTxn({ accountId: acct.id, customerId: order.customerId, orderId: order.id, type: 'reversal', points: -rest, availableDelta: -rest, status: 'Reversed', source: 'shopify_' + verb,
+        description: `Order ${order.name}: ${amtTxt} — points reversed`, ref: order.earnTxn, meta: { reason: verb, amount } });
+      owed = this.consumeLots(acct, rest, order.id);
+      if (owed > 0) { acct.debt += owed; txn.meta.owed = owed; }
+      this.track('points_reversed', { order: order.name, points: rest });
+    }
+    const e = this.s.txns.find(t => t.id === order.earnTxn);
+    if (e && order.reversed >= order.points) e.status = order.activated > 0 ? 'Reversed' : 'Cancelled';
+    return `${order.name}: ${fromPending ? fromPending + ' pending cancelled ' : ''}${rest ? rest + ' reversed' : ''}${voided.length ? ` · ${voided.length} unused reward voided` : ''}${owed ? ` · ${owed} owed` : ''}`.trim();
+  }
+  voidUnusedRewards(acct, need) {
+    const reds = this.s.redemptions.filter(r => r.customerId === acct.customerId && r.status === 'unlocked').sort((a, b) => b.createdAt - a.createdAt);
+    const voided = [];
+    for (const r of reds) {
+      if (need <= 0) break;
+      r.status = 'cancelled'; r.cancelReason = 'Voided to cover a returned order';
+      const txn = this.addTxn({ accountId: acct.id, customerId: acct.customerId, type: 'reward_return', points: r.pointsUsed, availableDelta: r.pointsUsed, status: 'Adjusted', source: 'lifecycle',
+        description: `Unused ${r.name} reward cancelled — ${r.pointsUsed} points returned to cover a returned order`, ref: r.txnId, meta: { redemption: r.id } });
+      this.addLot(acct, r.pointsUsed, txn, null);
+      need -= r.pointsUsed; voided.push(r.id);
+    }
+    return voided;
+  }
+  restoreRewardIfNeeded(order, why) {
+    if (!order.rewardCode || !this.cfg.restoreRewardOnFullRefund || !order.customerId) return;
+    const r = this.s.redemptions.find(x => x.code === order.rewardCode && x.status === 'used'); if (!r) return;
+    r.status = 'returned';
+    const acct = this.acctOf(order.customerId);
+    const txn = this.addTxn({ accountId: acct.id, customerId: order.customerId, orderId: order.id, type: 'reward_return', points: r.pointsUsed, availableDelta: r.pointsUsed, status: 'Adjusted', source: 'lifecycle',
+      description: `${why} — ${r.pointsUsed} points from your ${r.name} reward returned`, ref: r.txnId, meta: { redemption: r.id } });
+    this.addLot(acct, r.pointsUsed, txn, null);
+  }
+
+  /* ---------- rewards & redemption ---------- */
+  customerEligible(reward, customerId) {
+    if (reward.eligibility === 'has_order') return Object.values(this.s.orders).some(o => o.customerId === customerId);
+    return true;
+  }
+  redeem(customerId, rewardId, idemKey) {
+    if (idemKey && this.s.idem[idemKey]) { const r = this.s.redemptions.find(x => x.id === this.s.idem[idemKey]); return { ok: true, replay: true, redemption: r }; }
+    const acct = this.acctOf(customerId); if (!acct) return { ok: false, error: 'Create an account to use rewards.' };
+    const reward = this.s.rewards.find(r => r.id === rewardId);
+    if (!reward || reward.status !== 'active') return { ok: false, error: 'This reward is no longer available.' };
+    if (!this.customerEligible(reward, customerId)) return { ok: false, error: `${reward.name} unlocks after your first order.` };
+    if (acct.debt > 0) return { ok: false, error: `Rewards are paused while ${acct.debt.toLocaleString('en-IN')} points from a returned order are recovered.` };
+    if (acct.available < reward.points) { const n = reward.points - acct.available; return { ok: false, error: `You need ${n.toLocaleString('en-IN')} more point${n === 1 ? '' : 's'} for ${reward.name}.` }; }
+    const used = this.s.redemptions.filter(r => r.customerId === customerId && r.rewardId === rewardId && !['cancelled', 'returned', 'expired'].includes(r.status)).length;
+    if (reward.maxUses && used >= reward.maxUses) return { ok: false, error: `${reward.name} can be used ${reward.maxUses} time${reward.maxUses > 1 ? 's' : ''} per customer.` };
+    const code = 'ECO-' + Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(this.rand() * 32)]).join('');
+    const txn = this.addTxn({ accountId: acct.id, customerId, type: 'redemption', points: -reward.points, availableDelta: -reward.points, status: 'Redeemed', source: 'customer', description: `${reward.name} reward unlocked`, meta: { rewardId, code } });
+    this.consumeLots(acct, reward.points);
+    const red = { id: this.nid('red', 'RD-'), customerId, rewardId, name: reward.name, pointsUsed: reward.points, discountValue: reward.value, minCart: reward.minCart, code,
+      shopifyRef: 'gid://shopify/DiscountCodeNode/' + (1100000000 + this.s.seq.red), status: 'unlocked', createdAt: this.now, expiresAt: this.now + reward.expiryDays * DAY, usedAt: null, orderId: null, txnId: txn.id };
+    txn.meta.redemption = red.id;
+    this.s.redemptions.push(red);
+    if (idemKey) this.s.idem[idemKey] = red.id;
+    this.track('reward_redeemed', { reward: reward.name, points: reward.points });
+    this.notify('reward_unlocked', customerId, `${reward.name} unlocked — code ${code}`);
+    return { ok: true, redemption: red };
+  }
+  validateRewardForCart(customerId, code, lines, couponCode) {
+    const r = this.s.redemptions.find(x => x.code === code);
+    if (!r || r.customerId !== customerId) return { ok: false, error: 'This reward code does not belong to your account.' };
+    if (r.status === 'used') return { ok: false, error: `This reward was already used on order ${this.s.orders[r.orderId] ? this.s.orders[r.orderId].name : ''}.` };
+    if (r.status !== 'unlocked') return { ok: false, error: `This reward is ${r.status} and can't be applied.` };
+    if (r.expiresAt <= this.now) return { ok: false, error: 'This reward has expired.' };
+    const reward = this.s.rewards.find(x => x.id === r.rewardId) || {};
+    const eligSub = lines.reduce((s, l) => { const p = PMAP[l.productId];
+      const inc = (!reward.eligibleCollections || !reward.eligibleCollections.length || reward.eligibleCollections.includes(p.collection)) && !(reward.excludedCollections || []).includes(p.collection);
+      return s + (inc ? l.price * l.qty : 0); }, 0);
+    const couponAmt = couponCode && COUPONS[couponCode] ? eligSub * COUPONS[couponCode].pct / 100 : 0;
+    if (couponCode && reward.couponCompatible === false) return { ok: false, error: `${r.name} can't be combined with coupon ${couponCode}.` };
+    if (eligSub - couponAmt < r.minCart) return { ok: false, error: `Add ₹${Math.ceil(r.minCart - (eligSub - couponAmt)).toLocaleString('en-IN')} more of eligible items to use ${r.name} (min. order ₹${r.minCart.toLocaleString('en-IN')}).`, shortBy: r.minCart - (eligSub - couponAmt) };
+    return { ok: true, discount: Math.min(r.discountValue, eligSub - couponAmt), redemption: r };
+  }
+  markRewardUsed(code, order) {
+    const r = this.s.redemptions.find(x => x.code === code); if (!r) return;
+    r.status = 'used'; r.usedAt = this.now; r.orderId = order.id;
+    this.track('reward_used', { reward: r.name, order: order.name });
+  }
+
+  /* ---------- time-based lifecycle ---------- */
+  processDue() {
+    const out = [];
+    for (const f of [...this.s.failed]) if (f.nextRetryAt <= this.now && f.attempts < 5) { const r = this.ingest(f); out.push(`Queued ${f.topic === 'refunds/create' ? 'refund' : 'event'} ${r.status}`); }
+    for (const o of Object.values(this.s.orders)) {
+      if (o.customerId && o.pendingLeft > 0 && o.availableAt <= this.now && o.status !== 'cancelled') { const n = this.activate(o); if (n) out.push(`${n} pts activated · ${o.name}`); }
+    }
+    for (const l of this.s.lots) {
+      if (l.remaining > 0 && l.expiresAt && l.expiresAt <= this.now) {
+        const acct = this.s.accounts[l.accountId]; const k = l.remaining; l.remaining = 0;
+        const src = this.s.txns.find(t => t.id === l.sourceTxn); const ord = l.orderId ? this.s.orders[l.orderId] : null;
+        this.addTxn({ accountId: acct.id, customerId: acct.customerId, orderId: l.orderId, type: 'expiry', points: -k, availableDelta: -k, status: 'Expired', source: 'lifecycle',
+          description: `${k} points ${ord ? 'from order ' + ord.name : ''} expired ${this.cfg.expiryMonths} months after they became available`.replace('  ', ' '), ref: src ? src.id : null });
+        this.track('points_expired', { points: k }); out.push(`${k} pts expired`);
+      } else if (l.remaining > 0 && l.expiresAt && !l.warned && l.expiresAt - this.now <= 30 * DAY) {
+        l.warned = true; const acct = this.s.accounts[l.accountId];
+        this.notify('points_expiring', acct.customerId, `${l.remaining} points expire on ${new Date(l.expiresAt).toDateString()}`);
+      }
+    }
+    for (const r of this.s.redemptions) {
+      if (r.status === 'unlocked' && r.expiresAt <= this.now) {
+        r.status = 'expired';
+        if (this.cfg.returnPointsOnCodeExpiry) {
+          const acct = this.acctOf(r.customerId);
+          const txn = this.addTxn({ accountId: acct.id, customerId: r.customerId, type: 'reward_return', points: r.pointsUsed, availableDelta: r.pointsUsed, status: 'Adjusted', source: 'lifecycle',
+            description: `${r.name} reward expired unused — ${r.pointsUsed} points returned`, ref: r.txnId, meta: { redemption: r.id } });
+          this.addLot(acct, r.pointsUsed, txn, null);
+        }
+        out.push(`${r.name} code ${r.code} expired`);
+      }
+    }
+    return out;
+  }
+  advance(days) { this.s.now += days * DAY; return this.processDue(); }
+  setNow(ms) { this.s.now = ms; return this.processDue(); }
+
+  /* ---------- admin operations ---------- */
+  adjust(customerId, delta, reason, note, admin) {
+    const acct = this.acctOf(customerId);
+    if (!acct) return { ok: false, error: 'Customer has no rewards account.' };
+    if (!Number.isInteger(delta) || delta === 0) return { ok: false, error: 'Enter a whole number of points other than 0.' };
+    if (!reason) return { ok: false, error: 'Choose a reason.' };
+    if (!note || note.trim().length < 5) return { ok: false, error: 'Add an internal note (at least 5 characters) so support can explain this change.' };
+    if (!admin) return { ok: false, error: 'Admin name is required.' };
+    if (delta < 0 && -delta > acct.available) return { ok: false, error: `Deduction exceeds the available balance of ${acct.available.toLocaleString('en-IN')} points.` };
+    const prev = acct.available;
+    const isBonus = reason === 'Special bonus';
+    const txn = this.addTxn({ accountId: acct.id, customerId, type: isBonus ? 'bonus' : 'adjustment', points: delta, availableDelta: delta, status: isBonus ? 'Available' : 'Adjusted', source: 'admin:' + admin,
+      description: isBonus ? `Special bonus from Ecofynd` : `${delta > 0 ? 'Added' : 'Deducted'} by Ecofynd: ${reason}`, meta: { reason, note: note.trim(), admin } });
+    if (delta > 0) { const lot = this.addLot(acct, delta, txn, null); txn.expiresAt = lot.expiresAt; } else this.consumeLots(acct, -delta);
+    this.audit(admin, 'points_adjusted', `${prev} available`, `${acct.available} available`, `${reason} (${delta > 0 ? '+' : ''}${delta}) — ${note.trim()}`);
+    this.track(isBonus ? 'bonus_points_earned' : 'points_adjusted', { customerId, points: delta });
+    if (isBonus) this.notify('bonus_points', customerId, `You received ${delta} bonus points`);
+    return { ok: true, txn };
+  }
+  validateConfig(c) {
+    const e = [];
+    const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+    if (!(c.earn.spend > 0)) e.push('Spend amount must be greater than ₹0.');
+    if (!int(c.earn.points, 1, 100000)) e.push('Points earned must be a whole number from 1.');
+    if (!['floor', 'round', 'block'].includes(c.earn.rounding)) e.push('Choose a rounding rule.');
+    if (!int(c.redeem.points, 1, 1e6)) e.push('Redemption points must be a whole number from 1.');
+    if (!(c.redeem.value > 0)) e.push('Redemption value must be greater than ₹0.');
+    if (!int(c.holdingDays, 0, 365)) e.push('Holding period must be 0–365 days.');
+    if (!int(c.expiryMonths, 0, 60)) e.push('Expiry must be 0–60 months (0 = never).');
+    if (c.redeem.value / c.redeem.points * c.earn.points / c.earn.spend > 0.5) e.push('This combination returns more than 50% of spend as reward value. Check the numbers.');
+    if (c.campaign.enabled && !(c.campaign.multiplier > 1)) e.push('Campaign multiplier must be above 1.');
+    return e;
+  }
+  updateConfig(next, admin, reason) {
+    const errs = this.validateConfig(next); if (errs.length) return { ok: false, errors: errs };
+    if (!reason || reason.trim().length < 3) return { ok: false, errors: ['Add a reason for this rule change (kept in the audit log).'] };
+    const flat = (o, p = '') => Object.entries(o).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ? flat(v, p + k + '.') : [[p + k, JSON.stringify(v)]]);
+    const before = Object.fromEntries(flat(this.cfg)), after = Object.fromEntries(flat(next));
+    const changed = Object.keys(after).filter(k => before[k] !== after[k]);
+    if (!changed.length) return { ok: false, errors: ['Nothing changed.'] };
+    changed.forEach(k => this.audit(admin, 'rule_changed:' + k, before[k], after[k], reason.trim()));
+    this.s.config = JSON.parse(JSON.stringify(next));
+    return { ok: true, changed };
+  }
+  validateReward(r) {
+    const e = [];
+    if (!r.name || !r.name.trim()) e.push('Reward name is required.');
+    if (!Number.isInteger(r.points) || r.points < 1) e.push('Points required must be a whole number from 1.');
+    if (!(r.value > 0)) e.push('Reward value must be greater than ₹0.');
+    if (!(r.minCart >= 0)) e.push('Minimum cart value cannot be negative.');
+    if (r.minCart && r.value >= r.minCart) e.push('Reward value must be lower than the minimum cart value.');
+    if (!Number.isInteger(r.expiryDays) || r.expiryDays < 1) e.push('Code validity must be at least 1 day.');
+    if ((r.eligibleCollections || []).some(c => (r.excludedCollections || []).includes(c))) e.push('A collection cannot be both eligible and excluded.');
+    return e;
+  }
+  saveReward(r, admin, reason) {
+    const errs = this.validateReward(r); if (errs.length) return { ok: false, errors: errs };
+    const i = this.s.rewards.findIndex(x => x.id === r.id);
+    const prev = i >= 0 ? JSON.stringify(this.s.rewards[i]) : '—';
+    if (i >= 0) this.s.rewards[i] = r; else this.s.rewards.push(r);
+    this.s.rewards.sort((a, b) => a.points - b.points);
+    this.audit(admin, i >= 0 ? 'reward_changed' : 'reward_created', prev, JSON.stringify(r), reason || 'Catalog update');
+    const warn = Math.abs(r.value - this.valueOf(r.points)) > 0.01 ? `Note: ${r.points} points are worth ${'₹' + this.valueOf(r.points)} at the redemption rule, but this reward gives ₹${r.value}.` : null;
+    return { ok: true, warn };
+  }
+
+  /* ---------- read models ---------- */
+  balances(customerId) {
+    const a = this.acctOf(customerId);
+    if (!a) return null;
+    const pendingOrders = Object.values(this.s.orders).filter(o => o.customerId === customerId && o.pendingLeft > 0).sort((x, y) => x.availableAt - y.availableAt)
+      .map(o => ({ name: o.name, points: o.pendingLeft, availableAt: o.availableAt }));
+    const soon = this.s.lots.filter(l => l.accountId === a.id && l.remaining > 0 && l.expiresAt && l.expiresAt - this.now <= 45 * DAY).sort((x, y) => x.expiresAt - y.expiresAt);
+    return { acct: a, available: a.available, pending: a.pending, debt: a.debt, availableValue: this.valueOf(Math.max(0, a.available)), pendingValue: this.valueOf(a.pending), pendingOrders, expiring: soon[0] ? { points: soon.filter(l => l.expiresAt === soon[0].expiresAt).reduce((s, l) => s + l.remaining, 0), at: soon[0].expiresAt } : null };
+  }
+  rewardState(customerId) {
+    const b = customerId ? this.balances(customerId) : null;
+    const have = b ? Math.max(0, b.available) : 0;
+    const active = this.s.rewards.filter(r => r.status === 'active' && (!customerId || this.customerEligible(r, customerId)));
+    const blocked = b && b.debt > 0;
+    const affordable = blocked ? [] : active.filter(r => r.points <= have);
+    const next = active.find(r => r.points > have) || null;
+    const best = affordable[affordable.length - 1] || null;
+    return { have, affordable, next, best, need: next ? next.points - have : 0, progress: next ? have / next.points : 1, blocked, all: active };
+  }
+  estimate(lines) { return this.calcPoints(lines, 0, 0); }
+
+  /* ---------- reconciliation ---------- */
+  reconcile() {
+    const issues = [];
+    const rows = Object.values(this.s.accounts).map(a => {
+      const tx = this.s.txns.filter(t => t.accountId === a.id);
+      const lp = tx.reduce((s, t) => s + t.pendingDelta, 0), la = tx.reduce((s, t) => s + t.availableDelta, 0);
+      const lotSum = this.s.lots.filter(l => l.accountId === a.id).reduce((s, l) => s + l.remaining, 0);
+      const c = this.s.customers[a.customerId];
+      const ok = lp === a.pending && la === a.available && lotSum - a.debt === la;
+      if (lp !== a.pending || la !== a.available) issues.push({ kind: 'Incorrect balance', who: c ? c.name : a.id, detail: `Cached ${a.available}/${a.pending} vs ledger ${la}/${lp} (available/pending)` });
+      if (lotSum - a.debt !== la) issues.push({ kind: 'Lot mismatch', who: c ? c.name : a.id, detail: `Point lots ${lotSum} − owed ${a.debt} ≠ ledger available ${la}` });
+      return { acct: a, name: c ? c.name : a.id, cachedA: a.available, cachedP: a.pending, ledgerA: la, ledgerP: lp, ok };
+    });
+    for (const o of Object.values(this.s.orders)) {
+      if (!o.customerId) continue;
+      const earns = this.s.txns.filter(t => t.orderId === o.id && t.type === 'purchase');
+      if (o.points > 0 && earns.length === 0) issues.push({ kind: 'Missing points', who: o.name, detail: `${o.points} points expected, no ledger entry` });
+      if (earns.length > 1) issues.push({ kind: 'Duplicate points', who: o.name, detail: `${earns.length} purchase entries for one order` });
+      const rev = -this.s.txns.filter(t => t.orderId === o.id && ['cancellation', 'reversal'].includes(t.type)).reduce((s, t) => s + t.points, 0);
+      if (rev !== o.reversed) issues.push({ kind: 'Incorrect reversal', who: o.name, detail: `Ledger reversed ${rev}, order expects ${o.reversed}` });
+    }
+    for (const f of this.s.failed) issues.push({ kind: 'Failed event', who: (this.s.orders[f.payload.orderId] || {}).name || f.payload.name || f.id, detail: `${f.topic} · ${f.attempts} attempt(s) · ${f.error}` });
+    return { at: this.now, rows, issues, orders: Object.keys(this.s.orders).length };
+  }
+  rebuildCache(admin) {
+    for (const a of Object.values(this.s.accounts)) {
+      const tx = this.s.txns.filter(t => t.accountId === a.id);
+      const prev = `${a.available}/${a.pending}`;
+      a.pending = tx.reduce((s, t) => s + t.pendingDelta, 0); a.available = tx.reduce((s, t) => s + t.availableDelta, 0);
+      if (prev !== `${a.available}/${a.pending}`) this.audit(admin, 'balance_rebuilt', prev, `${a.available}/${a.pending}`, 'Rebuilt cached balance from ledger');
+    }
+  }
+
+  stats() {
+    const S = this.s, accts = Object.values(S.accounts), orders = Object.values(S.orders);
+    const sumT = type => S.txns.filter(t => t.type === type).reduce((s, t) => s + t.points, 0);
+    const members = accts.length;
+    const active = accts.filter(a => S.txns.some(t => t.accountId === a.id && this.now - t.createdAt <= 90 * DAY)).length;
+    const newM = accts.filter(a => this.now - a.createdAt <= 30 * DAY).length;
+    const byCust = {}; orders.filter(o => o.customerId).forEach(o => { (byCust[o.customerId] = byCust[o.customerId] || []).push(o); });
+    const buyers = Object.keys(byCust).length, returning = Object.values(byCust).filter(x => x.length > 1).length;
+    const memberOrders = orders.filter(o => o.customerId && o.status !== 'cancelled');
+    const revenue = memberOrders.reduce((s, o) => s + o.total - (o.refunds || []).reduce((a, r) => a + r.amount, 0), 0);
+    const issued = sumT('purchase') + sumT('bonus') + S.txns.filter(t => t.type === 'adjustment' && t.points > 0).reduce((s, t) => s + t.points, 0);
+    const pending = accts.reduce((s, a) => s + a.pending, 0);
+    const available = accts.reduce((s, a) => s + Math.max(0, a.available), 0);
+    const owed = accts.reduce((s, a) => s + a.debt, 0);
+    const redeemed = -sumT('redemption') - sumT('reward_return');
+    const expired = Math.abs(sumT('expiry'));
+    const reversed = -(sumT('reversal') + sumT('cancellation'));
+    const reds = S.redemptions;
+    const unlockedOpen = reds.filter(r => r.status === 'unlocked');
+    const used = reds.filter(r => r.status === 'used');
+    const activatedEver = sumT('activation') + sumT('bonus');
+    return { members, active, newM, returning, buyers, issued, pending, available, owed, redeemed, expired, reversed,
+      unlocked: reds.length, rewardsUsed: used.length, openRewards: unlockedOpen.length, openRewardValue: unlockedOpen.reduce((s, r) => s + r.discountValue, 0), usedValue: used.reduce((s, r) => s + r.discountValue, 0),
+      redemptionRate: activatedEver ? redeemed / activatedEver : 0, revenue, aov: memberOrders.length ? revenue / memberOrders.length : 0,
+      repeatRate: buyers ? returning / buyers : 0, frequency: buyers ? memberOrders.length / buyers : 0, clv: buyers ? revenue / buyers : 0 };
+  }
+}
+
+/* ---------- seed: real Ecofynd products, sample customers, run through the engine so every number is ledger-derived ---------- */
+function seedEngine() {
+  const E = new Engine(Date.UTC(2025, 6, 1, 6, 30));
+  const at = (y, m, d) => E.setNow(Date.UTC(y, m - 1, d, 6, 30));
+  const L = (...pairs) => pairs.map(([id, qty]) => ({ productId: id, qty, price: PMAP[id].price, title: PMAP[id].title }));
+  E.createCustomer({ id: 'ananya', name: 'Ananya Iyer', email: 'ananya.iyer@example.com', phone: '+91 98450 12345' });
+  at(2025, 7, 20); E.checkout({ customerId: 'ananya', lines: L(['gt029', 1]) });
+  at(2026, 5, 2); E.createCustomer({ id: 'priya', name: 'Priya Sharma', email: 'priya.sharma@example.com', phone: '+91 98200 44321' });
+  at(2026, 7, 12); E.checkout({ customerId: 'priya', lines: L(['cpot039-05', 1], ['pot030', 1]) });
+  at(2026, 7, 28); E.createCustomer({ id: 'kabir', name: 'Kabir Nair', email: 'kabir.nair@example.com', phone: '+91 99300 76543' });
+  at(2026, 8, 1); const k1 = E.checkout({ customerId: 'kabir', lines: L(['ps049-go', 1], ['pot031', 1], ['gt029', 1]) });
+  at(2026, 8, 14); const r1 = E.redeem('priya', 'rw50', 'seed-1');
+  at(2026, 8, 18); E.checkout({ customerId: 'priya', lines: L(['ps057-blk-102', 1]), rewardCode: r1.redemption.code });
+  at(2026, 8, 25); E.checkout({ customerId: 'ananya', lines: L(['gvase019-wht', 1], ['ga001', 1], ['cpdisc-110', 1]) });
+  at(2026, 9, 1); const kr = E.redeem('kabir', 'rw200', 'seed-2');
+  at(2026, 9, 5); E.checkout({ customerId: 'kabir', lines: L(['pot031', 1], ['ps057-blk-102', 1]), rewardCode: kr.redemption.code });
+  at(2026, 9, 10); E.adjust('priya', 100, 'Special bonus', 'Monsoon garden bonus for July buyers', 'Sumair');
+  at(2026, 9, 20); const p3 = E.checkout({ customerId: 'priya', lines: L(['cpdisc-110', 2], ['ga001', 1]) });
+  E.ingest({ id: 'evt_dup_' + p3.orderId, topic: 'orders/create', payload: p3.payload }); // duplicate order webhook (different event id) — ignored
+  at(2026, 9, 22); E.checkout({ email: 'meera.kapoor@example.com', lines: L(['pot030', 1]) }); // guest checkout
+  at(2026, 9, 24); E.ingest({ id: 'evt_ret_k1', topic: 'refunds/create', payload: { orderId: k1.orderId, refundId: 'rf_k1', amount: 2329, kind: 'return' } });
+  at(2026, 9, 28); E.checkout({ customerId: 'priya', lines: L(['gvase019-wht', 1]) });
+  at(2026, 9, 30); E.createCustomer({ id: 'rahul', name: 'Rahul Mehta', email: 'rahul.mehta@example.com', phone: '+91 97111 22334' });
+  E.s.failNext = 1; E.ingest({ id: 'evt_rf_p3', topic: 'refunds/create', payload: { orderId: p3.orderId, refundId: 'rf_p3', amount: 179, kind: 'return' } });
+  E.s.failed.forEach(f => f.nextRetryAt = E.now + 36e5);
+  E.s.analytics = E.s.analytics.slice(0, 40);
+  return E;
+}
+if (typeof module !== 'undefined') module.exports = { Engine, seedEngine, PRODUCTS, PMAP, DAY, START, COUPONS };
+
+/* =====================================================================
+   EDGE-CASE TEST SUITE (BRD §73) — every test runs on a fresh engine
+   ===================================================================== */
+function runRewardTests() {
+  const L = (...pairs) => pairs.map(([id, qty]) => ({ productId: id, qty, price: PMAP[id].price, title: PMAP[id].title }));
+  const fresh = (patch) => {
+    const E = new Engine(START);
+    if (patch) patch(E.s.config);
+    E.createCustomer({ id: 'u1', name: 'Test One', email: 'one@test.in' });
+    return E;
+  };
+  const ledgerOK = E => E.reconcile().issues.filter(i => i.kind !== 'Failed event').length === 0;
+  // gift-free, GST-0 product so ₹ in = points out: hedge shears ₹659
+  const T = [];
+  const t = (group, name, fn) => T.push({ group, name, fn });
+
+  t('Customers', 'New customer gets exactly one loyalty account', () => {
+    const E = fresh(); E.ensureAccount('u1'); E.ensureAccount('u1');
+    const n = Object.values(E.s.accounts).filter(a => a.customerId === 'u1').length;
+    return [n === 1, `${n} account(s) for one customer`];
+  });
+  t('Customers', 'Returning customer: each order earns its own ledger entry', () => {
+    const E = fresh(); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    const n = E.s.txns.filter(x => x.type === 'purchase').length; const b = E.balances('u1');
+    return [n === 2 && b.pending === 1318, `${n} purchase entries, ${b.pending} pending`];
+  });
+  t('Customers', 'Zero points: no rewards affordable, next reward is the smallest', () => {
+    const E = fresh(); const r = E.rewardState('u1');
+    return [r.have === 0 && r.affordable.length === 0 && r.next.id === 'rw10', `have ${r.have}, next ${r.next && r.next.name}`];
+  });
+  t('Customers', 'Duplicate customer (same email) reuses the existing account', () => {
+    const E = fresh(); const r = E.createCustomer({ name: 'Test Dup', email: 'ONE@test.in' });
+    return [r.duplicate && Object.keys(E.s.accounts).length === 1, `duplicate=${r.duplicate}, accounts=${Object.keys(E.s.accounts).length}`];
+  });
+  t('Customers', 'Guest checkout holds points; account creation claims them with the original date', () => {
+    const E = fresh(); const o = E.checkout({ email: 'guest@test.in', lines: L(['gt029', 1]) });
+    const before = E.s.guestHolds[0].points; E.advance(5);
+    E.createCustomer({ id: 'g', name: 'Guest Person', email: 'guest@test.in' });
+    const b = E.balances('g'); const ord = E.s.orders[o.orderId];
+    return [before === 659 && b.pending === 659 && ord.availableAt === START + 30 * DAY, `held ${before}, claimed pending ${b.pending}, available ${new Date(ord.availableAt).toISOString().slice(0, 10)}`];
+  });
+
+  t('Earning', 'Earning rule is configurable (₹100 → 50 points)', () => {
+    const E = fresh(c => { c.earn.points = 50; }); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    return [E.balances('u1').pending === 329, `₹659 → ${E.balances('u1').pending} pts`];
+  });
+  t('Earning', 'Rounding: ₹149 → 149 (proportional), 100 (per full ₹100 block), 150 when ₹149.5 rounds', () => {
+    const E = fresh(); const a = E.pointsFor(149); E.s.config.earn.rounding = 'block'; const b = E.pointsFor(149); E.s.config.earn.rounding = 'round'; const c = E.pointsFor(149.5);
+    return [a === 149 && b === 100 && c === 150, `floor ${a} · block ${b} · round ${c}`];
+  });
+  t('Earning', 'Eligible value excludes gift cards, shipping and GST; uses price after discount', () => {
+    const E = fresh(); const r = E.calcPoints(L(['gt029', 1], ['gift-1000', 1]), 100, 79);
+    // share of discount on eligible = 100 × 659/1659 = 39.72 → 619.28, GST 0
+    return [r.points === 619, `₹659 shears + ₹1,000 gift card, ₹100 discount, ₹79 shipping → ${r.points} pts`];
+  });
+  t('Earning', 'GST-inclusive price: ₹419 at 5% GST earns on ₹399.05', () => {
+    const E = fresh(); const r = E.calcPoints(L(['cpot039-05', 1]));
+    return [r.points === 399, `${r.points} pts`];
+  });
+
+  t('Lifecycle', 'Purchase points start pending with the holding-period date', () => {
+    const E = fresh(); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); const b = E.balances('u1');
+    return [b.pending === 659 && b.available === 0 && b.pendingOrders[0].availableAt === START + 30 * DAY, `pending ${b.pending}, available ${b.available}`];
+  });
+  t('Lifecycle', 'Points activate after the holding period (not a day before)', () => {
+    const E = fresh(); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.advance(29); const mid = E.balances('u1').available; E.advance(1);
+    return [mid === 0 && E.balances('u1').available === 659, `day 29: ${mid}, day 30: ${E.balances('u1').available}`];
+  });
+  t('Lifecycle', 'Holding period 0 days → available immediately', () => {
+    const E = fresh(c => { c.holdingDays = 0; }); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    return [E.balances('u1').available === 659, `available ${E.balances('u1').available}`];
+  });
+  t('Lifecycle', 'Expired points: expire 12 months after activation, with a ledger entry', () => {
+    const E = fresh(); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.advance(30); E.advance(366);
+    const x = E.s.txns.find(t => t.type === 'expiry');
+    return [E.balances('u1').available === 0 && x && x.points === -659, `available ${E.balances('u1').available}, expiry entry ${x ? x.points : 'none'}`];
+  });
+  t('Lifecycle', 'Expiry takes oldest points first; redeemed points are not expired again', () => {
+    const E = fresh(c => { c.holdingDays = 0; c.returnPointsOnCodeExpiry = false; }); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.redeem('u1', 'rw50', 'k'); E.advance(200); E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.advance(170);
+    const exp = -E.s.txns.filter(t => t.type === 'expiry').reduce((s, t) => s + t.points, 0);
+    return [exp === 159 && E.balances('u1').available === 659, `expired ${exp}, available ${E.balances('u1').available}`];
+  });
+
+  t('Returns & refunds', 'Full return before activation cancels pending points', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    E.ingest({ id: 'r1', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf1', amount: 659, kind: 'return' } }); E.advance(31);
+    const b = E.balances('u1'); const c = E.s.txns.find(t => t.type === 'cancellation');
+    return [b.pending === 0 && b.available === 0 && c.status === 'Cancelled' && E.s.txns.filter(t => t.type === 'purchase').length === 1, `pending ${b.pending}, available ${b.available}, original entry kept`];
+  });
+  t('Returns & refunds', 'Full return after activation creates a linked reversal', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.advance(30);
+    E.ingest({ id: 'r1', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf1', amount: 659, kind: 'return' } });
+    const r = E.s.txns.find(t => t.type === 'reversal'); const orig = E.s.txns.find(t => t.type === 'purchase');
+    return [E.balances('u1').available === 0 && r.ref === orig.id && orig.status === 'Reversed', `reversal ${r.points} → ref ${r.ref}`];
+  });
+  t('Returns & refunds', 'Partial return reverses only the returned share (₹500 of ₹2,000)', () => {
+    const E = fresh(c => { c.earn.includeTax = true; }); // ₹ = points for easy reading
+    const o = E.checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 2]) }); // ₹1,998
+    E.advance(30); E.ingest({ id: 'r1', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf1', amount: 500, kind: 'return' } });
+    const rev = -E.s.txns.find(t => t.type === 'reversal').points;
+    return [rev === 500 && E.balances('u1').available === 1498, `reversed ${rev} of 1,998`];
+  });
+  t('Returns & refunds', 'Multiple refunds (3 × ₹333 on ₹999) reverse exactly the points earned', () => {
+    const E = fresh(c => { c.earn.includeTax = true; }); const o = E.checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 1]) }); E.advance(30);
+    [1, 2, 3].forEach(i => E.ingest({ id: 'r' + i, topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf' + i, amount: 333, kind: 'refund' } }));
+    const rev = -E.s.txns.filter(t => t.type === 'reversal').reduce((s, t) => s + t.points, 0);
+    return [rev === 999 && E.balances('u1').available === 0, `reversed ${rev}, balance ${E.balances('u1').available}`];
+  });
+  t('Returns & refunds', 'Same refund delivered twice is applied once', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    E.ingest({ id: 'r1', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf1', amount: 200, kind: 'refund' } });
+    E.ingest({ id: 'r1b', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf1', amount: 200, kind: 'refund' } });
+    return [E.balances('u1').pending === 459, `pending ${E.balances('u1').pending}`];
+  });
+  t('Returns & refunds', 'Cancellation cancels pending points', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    E.ingest({ id: 'c1', topic: 'orders/cancelled', payload: { orderId: o.orderId } }); E.advance(40);
+    return [E.balances('u1').pending === 0 && E.balances('u1').available === 0, `pending ${E.balances('u1').pending}`];
+  });
+  t('Returns & refunds', 'Negative balance: reward already used, return creates an owed balance that later earnings repay', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.advance(30);
+    const r = E.redeem('u1', 'rw50', 'x'); E.checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 1]), rewardCode: r.redemption.code });
+    E.ingest({ id: 'rr', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf', amount: 659, kind: 'return' } });
+    const owed = E.balances('u1').debt, avail1 = E.balances('u1').available; const blocked = E.redeem('u1', 'rw10', 'y');
+    E.advance(30); const b = E.balances('u1');
+    return [owed === 500 && avail1 === -500 && !blocked.ok && b.debt === 0 && b.available === 804 - 500 && ledgerOK(E), `owed ${owed} (balance ${avail1}), redeem blocked: ${!blocked.ok}; after next activation available ${b.available}, owed ${b.debt}`];
+  });
+  t('Returns & refunds', 'Unused reward is voided before creating an owed balance', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.advance(30);
+    const r = E.redeem('u1', 'rw50', 'x');
+    E.ingest({ id: 'rr', topic: 'refunds/create', payload: { orderId: o.orderId, refundId: 'rf', amount: 659, kind: 'return' } });
+    const red = E.s.redemptions.find(x => x.id === r.redemption.id);
+    return [red.status === 'cancelled' && E.balances('u1').available === 0 && E.balances('u1').debt === 0 && ledgerOK(E), `code ${red.status}, available ${E.balances('u1').available}, owed ${E.balances('u1').debt}`];
+  });
+
+  t('Webhooks', 'Duplicate webhook (same event id) awards points once', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]), eventId: 'e1' });
+    const d = E.ingest({ id: 'e1', topic: 'orders/create', payload: o.payload });
+    return [d.status === 'duplicate' && E.balances('u1').pending === 659, `second delivery: ${d.status}`];
+  });
+  t('Webhooks', 'Same order via a different event id is still awarded once', () => {
+    const E = fresh(); const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
+    E.ingest({ id: 'other', topic: 'orders/create', payload: o.payload });
+    return [E.s.txns.filter(t => t.type === 'purchase').length === 1, `purchase entries: ${E.s.txns.filter(t => t.type === 'purchase').length}`];
+  });
+  t('Webhooks', 'Failed webhook is kept, visible, and retried without duplicates', () => {
+    const E = fresh(); E.s.failNext = 1; const o = E.checkout({ customerId: 'u1', lines: L(['gt029', 1]), eventId: 'ef' });
+    const failedVisible = E.s.failed.length === 1 && E.balances('u1').pending === 0 && E.reconcile().issues.some(i => i.kind === 'Failed event');
+    E.advance(1); E.retryEvent('ef');
+    return [failedVisible && E.balances('u1').pending === 659 && E.s.failed.length === 0, `queued: ${failedVisible}; after retry pending ${E.balances('u1').pending}`];
+  });
+  t('Webhooks', 'Refund arriving before its order is queued, then applied on retry', () => {
+    const E = fresh(); E.ingest({ id: 'early', topic: 'refunds/create', payload: { orderId: 'gid://shopify/Order/5900001001', refundId: 'rfx', amount: 100, kind: 'refund' } });
+    const q = E.s.failed.length; E.checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); E.retryEvent('early');
+    return [q === 1 && E.balances('u1').pending === 559, `queued ${q}, pending after retry ${E.balances('u1').pending}`];
+  });
+
+  t('Redemption', 'Exactly enough points (500) redeems ₹50 OFF and leaves 0', () => {
+    const E = fresh(c => { c.holdingDays = 0; }); E.adjust('u1', 500, 'Customer service goodwill', 'test setup exact', 'QA');
+    const r = E.redeem('u1', 'rw50', 'a');
+    return [r.ok && E.balances('u1').available === 0, `ok=${r.ok}, left ${E.balances('u1').available}`];
+  });
+  t('Redemption', 'Insufficient points (499) is refused with the gap', () => {
+    const E = fresh(); E.adjust('u1', 499, 'Customer service goodwill', 'test setup short', 'QA');
+    const r = E.redeem('u1', 'rw50', 'a');
+    return [!r.ok && /1 more point\b/.test(r.error), r.error];
+  });
+  t('Redemption', 'Double-tap on Redeem (same request key) debits once', () => {
+    const E = fresh(); E.adjust('u1', 1000, 'Customer service goodwill', 'test setup dbl', 'QA');
+    const a = E.redeem('u1', 'rw50', 'same'), b = E.redeem('u1', 'rw50', 'same');
+    return [a.redemption.id === b.redemption.id && E.balances('u1').available === 500, `replay=${b.replay}, balance ${E.balances('u1').available}`];
+  });
+  t('Redemption', 'Simultaneous redemptions from two browser sessions: only one succeeds', () => {
+    const E = fresh(); E.adjust('u1', 600, 'Customer service goodwill', 'test setup race', 'QA');
+    const tabA = E.redeem('u1', 'rw50', 'tabA'), tabB = E.redeem('u1', 'rw50', 'tabB');
+    return [tabA.ok && !tabB.ok && E.balances('u1').available === 100, `tab A ${tabA.ok ? 'ok' : 'refused'}, tab B ${tabB.ok ? 'ok' : 'refused'}, balance ${E.balances('u1').available}`];
+  });
+  t('Redemption', 'Reward already used cannot be applied again', () => {
+    const E = fresh(); E.adjust('u1', 500, 'Customer service goodwill', 'test setup used', 'QA'); const r = E.redeem('u1', 'rw50', 'a');
+    E.checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 1]), rewardCode: r.redemption.code });
+    const again = E.checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 1]), rewardCode: r.redemption.code });
+    return [!again.ok && /already used/.test(again.error), again.error];
+  });
+  t('Redemption', 'Minimum cart value is enforced server-side', () => {
+    const E = fresh(); E.adjust('u1', 500, 'Customer service goodwill', 'test setup min', 'QA'); const r = E.redeem('u1', 'rw50', 'a');
+    const v = E.checkout({ customerId: 'u1', lines: L(['gvase019-wht', 1]), rewardCode: r.redemption.code });
+    return [!v.ok && /min\. order ₹699/.test(v.error), v.error];
+  });
+  t('Redemption', 'Another customer\'s code is refused', () => {
+    const E = fresh(); E.createCustomer({ id: 'u2', name: 'Two', email: 'two@test.in' }); E.adjust('u1', 500, 'Customer service goodwill', 'test setup steal', 'QA');
+    const r = E.redeem('u1', 'rw50', 'a'); const v = E.checkout({ customerId: 'u2', lines: L(['ps057-blk-102', 1]), rewardCode: r.redemption.code });
+    return [!v.ok, v.error];
+  });
+  t('Redemption', 'Expired reward code returns its points', () => {
+    const E = fresh(); E.adjust('u1', 500, 'Customer service goodwill', 'test setup exp', 'QA'); const r = E.redeem('u1', 'rw50', 'a'); E.advance(31);
+    const red = E.s.redemptions[0]; const v = E.validateRewardForCart('u1', r.redemption.code, L(['ps057-blk-102', 1]));
+    return [red.status === 'expired' && E.balances('u1').available === 500 && !v.ok, `code ${red.status}, balance ${E.balances('u1').available}`];
+  });
+  t('Redemption', 'Cancelling an order that used a reward returns the reward\'s points', () => {
+    const E = fresh(); E.adjust('u1', 500, 'Customer service goodwill', 'test setup cancel', 'QA'); const r = E.redeem('u1', 'rw50', 'a');
+    const o = E.checkout({ customerId: 'u1', lines: L(['ps057-blk-102', 1]), rewardCode: r.redemption.code });
+    E.ingest({ id: 'cx', topic: 'orders/cancelled', payload: { orderId: o.orderId } });
+    return [E.balances('u1').available === 500 && E.balances('u1').pending === 0, `available ${E.balances('u1').available}`];
+  });
+
+  t('Admin', 'Manual adjustment needs amount, reason, note and admin; it lands in ledger and audit log', () => {
+    const E = fresh(); const bad = E.adjust('u1', 200, 'Customer service goodwill', '', 'QA'); const good = E.adjust('u1', 200, 'Customer service goodwill', 'Delayed delivery apology', 'QA');
+    return [!bad.ok && good.ok && E.s.audit[0].action === 'points_adjusted' && E.s.txns.some(t => t.type === 'adjustment'), `without note: ${bad.error}`];
+  });
+  t('Admin', 'Deduction larger than the available balance is refused', () => {
+    const E = fresh(); E.adjust('u1', 100, 'Customer service goodwill', 'setup deduct', 'QA'); const r = E.adjust('u1', -300, 'Order issue correction', 'Wrong order credit', 'QA');
+    return [!r.ok, r.error];
+  });
+  t('Admin', 'Invalid rule (₹0 spend) is refused and the live rule is unchanged', () => {
+    const E = fresh(); const next = JSON.parse(JSON.stringify(E.cfg)); next.earn.spend = 0; const r = E.updateConfig(next, 'QA', 'test');
+    return [!r.ok && E.cfg.earn.spend === 100, r.errors && r.errors[0]];
+  });
+  t('Admin', 'Rule change is recorded with previous and new value', () => {
+    const E = fresh(); const next = JSON.parse(JSON.stringify(E.cfg)); next.holdingDays = 14; E.updateConfig(next, 'QA', 'Faster activation');
+    const a = E.s.audit[0];
+    return [a.prev === '30' && a.next === '14' && E.cfg.holdingDays === 14, `${a.action}: ${a.prev} → ${a.next}`];
+  });
+  t('Admin', 'Invalid reward (value above min cart) is refused', () => {
+    const E = fresh(); const r = E.saveReward({ ...E.s.rewards[0], value: 400, minCart: 299 }, 'QA');
+    return [!r.ok, r.errors && r.errors[0]];
+  });
+
+  t('Integrity', 'Reconciliation is clean after a busy scenario', () => {
+    const E = seedEngine(); E.advance(45);
+    const r = E.reconcile(); const bad = r.issues.filter(i => i.kind !== 'Failed event');
+    return [bad.length === 0, `${r.rows.length} accounts, ${r.orders} orders, ${bad.length} issues`];
+  });
+  t('Integrity', 'Reconciliation detects a drifted cached balance; rebuild fixes it from the ledger', () => {
+    const E = seedEngine(); E.acctOf('priya').available += 250; const found = E.reconcile().issues.some(i => i.kind === 'Incorrect balance');
+    E.rebuildCache('QA');
+    return [found && !E.reconcile().issues.some(i => i.kind === 'Incorrect balance'), `detected ${found}, fixed after rebuild`];
+  });
+  t('Integrity', 'Future campaign: 2× points only inside its window, capped at max bonus', () => {
+    const E = fresh(c => { c.campaign.enabled = true; c.campaign.maxBonus = 300; });
+    const inside = E.calcPoints(L(['gt029', 1])); E.advance(3); const outside = E.calcPoints(L(['gt029', 1]));
+    return [inside.points === 959 && outside.points === 659, `inside ${inside.points} (bonus capped 300), outside ${outside.points}`];
+  });
+  return T.map(x => { let r; try { r = x.fn(); } catch (e) { r = [false, 'Threw: ' + e.message]; } return { group: x.group, name: x.name, pass: !!r[0], detail: r[1] }; });
+}
+if (typeof module !== 'undefined') module.exports = { runRewardTests };
+
+/* =====================================================================
+   UI — storefront (customer), admin console, test suite, build notes
+   The UI reads from engine read-models and calls engine commands only.
+   ===================================================================== */
+let E = seedEngine();
+const ADMIN = 'Sumair';
+const ui = {
+  mode: 'store', screen: 'rewards', cid: 'priya', pid: 'pot031', qty: 1,
+  carts: {}, sheet: null, widget: false, cartConfirm: null, lastOrder: null, signup: { name: 'Meera Kapoor', email: 'meera.kapoor@example.com' },
+  a: { tab: 'overview', cid: 'priya', q: '', adj: null, rewardEdit: null, orderAct: null, recon: null, msg: null, ruleMsg: null, rwMsg: null },
+  tests: null, toast: null,
+};
+
+/* ---------- formatting ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const P = n => Math.round(n).toLocaleString('en-IN');
+const INR = n => { const r = round2(n); return '₹' + (Number.isInteger(r) ? r.toLocaleString('en-IN') : r.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })); };
+const D = (ms, y) => new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(y ? { year: 'numeric' } : {}), timeZone: 'Asia/Kolkata' });
+const DT = ms => new Date(ms).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+const dayKey = ms => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+const plural = (n, w) => `${P(n)} ${w}${Math.abs(n) === 1 ? '' : 's'}`;
+
+/* ---------- icons ---------- */
+const IC = {
+  gift: '<path d="M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z"/><path d="M3 7h18v4H3z"/><path d="M12 7v14"/><path d="M12 7c-1.5-3-5-3.5-5-1.2C7 7 9.5 7 12 7Zm0 0c1.5-3 5-3.5 5-1.2C17 7 14.5 7 12 7Z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+  ret: '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  tag: '<path d="M3 12V4h8l10 10-8 8L3 12Z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  check: '<path d="m5 12 5 5 9-10"/>',
+  home: '<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4v-9Z"/>',
+  cart: '<path d="M3 4h2l2.4 11h11L21 7H6.2"/><circle cx="9" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  back: '<path d="M15 5 8 12l7 7"/>',
+  hour: '<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/>',
+  minus: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+  plus: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19 13 11"/>',
+};
+const ic = (n, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+
+/* ---------- product illustrations (real catalogue, drawn — CDN images can't load inside the artifact) ---------- */
+function art(p) {
+  const u = 'var(--umber)', g = 'var(--gold)', o = 'var(--olive)', b = 'var(--blush)', l = 'var(--line-2)';
+  const leaves = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})" fill="${o}"><path d="M0 0c-10-6-22-4-26 4 12 4 20 2 26-4Z"/><path d="M0 0c8-10 22-12 28-4-10 6-20 8-28 4Z"/><path d="M0 0c-2-14 4-24 12-28 2 12-2 22-12 28Z"/></g>`;
+  const A = {
+    pot: `<path d="M34 58h52l-6 36H40Z" fill="${u}"/><rect x="30" y="52" width="60" height="9" rx="3" fill="${u}"/><path d="M40 70h40" stroke="${g}" stroke-width="3"/>${leaves(60, 50)}`,
+    disco: `<path d="M60 8v18M44 26h32" stroke="${l}" stroke-width="2"/><circle cx="60" cy="44" r="16" fill="${l}"/><path d="M47 38h26M45 46h30M49 53h22M54 30v28M62 28v30M70 32v24" stroke="var(--bg)" stroke-width="1.5"/><path d="M60 60v14" stroke="${l}" stroke-width="2"/><circle cx="60" cy="90" r="16" fill="${l}"/><path d="M47 84h26M45 92h30M49 99h22M54 76v28M62 74v30M70 78v24" stroke="var(--bg)" stroke-width="1.5"/>${leaves(60, 32, .6)}`,
+    disco1: `<path d="M60 10v28" stroke="${l}" stroke-width="2"/><path d="M44 38h32" stroke="${l}" stroke-width="2"/><circle cx="60" cy="68" r="24" fill="${l}"/><path d="M40 60h40M37 70h46M41 80h38M52 46v44M62 44v48M72 48v40" stroke="var(--bg)" stroke-width="1.6"/>${leaves(60, 48, .8)}`,
+    wall: `<rect x="24" y="14" width="6" height="92" rx="2" fill="${u}"/><path d="M30 50h44" stroke="${u}" stroke-width="4"/><ellipse cx="72" cy="52" rx="22" ry="5" fill="${u}"/><path d="M30 22c30 0 40 4 44 14" stroke="${u}" stroke-width="3" fill="none"/><path d="M60 44h24l-3 8H63Z" fill="${b}"/>${leaves(72, 42, .6)}`,
+    stand: `<path d="M34 104 42 30M86 104 78 30M42 30h36M38 70h44" stroke="${g}" stroke-width="4"/><path d="M46 20h28l-3 10H49Z" fill="${u}"/><path d="M44 60h32l-4 10H48Z" fill="${u}"/>${leaves(60, 20, .6)}${leaves(60, 60, .6)}`,
+    coins: `<ellipse cx="44" cy="78" rx="18" ry="6" fill="${u}"/><rect x="26" y="66" width="36" height="12" fill="${u}"/><ellipse cx="44" cy="66" rx="18" ry="6" fill="var(--umber-strong)"/><ellipse cx="78" cy="88" rx="18" ry="6" fill="${u}"/><rect x="60" y="76" width="36" height="12" fill="${u}"/><ellipse cx="78" cy="76" rx="18" ry="6" fill="var(--umber-strong)"/>${leaves(44, 62, .5)}`,
+    clips: `<path d="M60 12c-6 30 6 60 0 96" stroke="${o}" stroke-width="4" fill="none"/>${[30, 58, 86].map(y => `<circle cx="60" cy="${y}" r="9" fill="none" stroke="${l}" stroke-width="5"/>`).join('')}${leaves(60, 44, .5)}${leaves(60, 72, .5)}`,
+    shears: `<path d="M58 60 24 18M62 60l34-42" stroke="${l}" stroke-width="7" stroke-linecap="round"/><path d="M56 62 38 104M64 62l18 42" stroke="${u}" stroke-width="9" stroke-linecap="round"/><circle cx="60" cy="61" r="5" fill="${g}"/>`,
+    vase: `<path d="M44 16h32v8c0 6 14 14 14 36s-10 44-30 44-30-22-30-44 14-30 14-36Z" fill="${l}" opacity=".85"/>${[50, 58, 66, 74].map(x => `<path d="M${x} 28c-4 20-4 50 0 72" stroke="var(--bg)" stroke-width="1.5" fill="none"/>`).join('')}<path d="M60 16V4" stroke="${o}" stroke-width="3"/><circle cx="60" cy="4" r="5" fill="${b}"/>`,
+    card: `<rect x="16" y="34" width="88" height="56" rx="8" fill="${u}"/><rect x="16" y="46" width="88" height="8" fill="${g}"/><text x="26" y="80" font-family="Fraunces,serif" font-size="14" fill="var(--on-umber)">₹1,000</text>`,
+  };
+  return `<svg viewBox="0 0 120 120" role="img" aria-label="${esc(p.title)}">${A[p.art] || ''}</svg>`;
+}
+
+/* ---------- storefront helpers ---------- */
+const cust = () => ui.cid ? E.s.customers[ui.cid] : null;
+const cartOf = () => (ui.carts[ui.cid || 'guest'] = ui.carts[ui.cid || 'guest'] || { lines: [], coupon: null, rewardCode: null });
+const cartLines = () => cartOf().lines.map(l => ({ productId: l.productId, qty: l.qty, price: PMAP[l.productId].price, title: PMAP[l.productId].title }));
+function go(screen) { ui.screen = screen; ui.sheet = null; ui.widget = false; ui.cartConfirm = null; ui.scrollTop = true;
+  const ev = { rewards: 'loyalty_page_viewed', cart: ui.cid ? 'cart_reward_viewed' : null, pdp: 'pdp_points_viewed' }[screen]; if (ev) E.track(ev, screen === 'pdp' ? { product: ui.pid } : {});
+  render(); }
+
+function storeView() {
+  const c = cust();
+  const n = cartOf().lines.reduce((s, l) => s + l.qty, 0);
+  const tabs = [['shop', 'Shop', 'home'], ['rewards', 'Rewards', 'gift'], ['cart', 'Cart', 'cart'], ['account', 'Account', 'user']];
+  const screen = { shop: shopScreen, pdp: pdpScreen, cart: cartScreen, rewards: rewardsScreen, account: accountScreen, done: doneScreen }[ui.screen]();
+  return `<div class="store">
+    <div>
+      <div class="phone" aria-label="Ecofynd storefront, mobile">
+        <div class="ph-head"><button class="logo" data-act="go" data-v="shop">ecofynd</button><span class="who">${c ? 'Hi, ' + esc(c.name.split(' ')[0]) : 'Guest'}</span></div>
+        <div class="screen" id="screen">${screen}</div>
+        ${widgetView()}
+        <nav class="tabbar" aria-label="Store">${tabs.map(([k, l, i]) => `<button data-act="go" data-v="${k}" ${ui.screen === k || (k === 'shop' && ui.screen === 'pdp') ? 'aria-current="page"' : ''}>${ic(i)}${l}${k === 'cart' && n ? `<span class="badge">${n}</span>` : ''}</button>`).join('')}</nav>
+        ${ui.sheet ? sheetView() : ''}
+      </div>
+    </div>
+    ${demoPanel()}
+  </div>`;
+}
+
+function earnLine(lines, compact) {
+  const c = cust(); const est = E.estimate(lines); const excluded = lines.every(l => E.isEarnExcluded(l.productId));
+  if (excluded) return `<div class="earnline plain">${ic('gift')}<span>Gift cards don't earn Ecofynd Points.</span></div>`;
+  if (!est.points) return '';
+  const camp = est.bonus ? ` <span class="pill st-Adjusted">${esc(E.cfg.campaign.name)}: +${P(est.bonus)}</span>` : '';
+  if (!c) return `<div class="earnline">${ic('gift')}<span><b>Earn ${P(est.points)} Ecofynd Points</b> with this purchase when you sign in.${camp}</span></div>`;
+  return `<div class="earnline">${ic('gift')}<span><b>Earn ${P(est.points)} Ecofynd Points</b> with this purchase.${compact ? '' : `<br>That's ${INR(E.valueOf(est.points))} toward your next reward.`}${camp}</span></div>`;
+}
+
+function shopScreen() {
+  return `<div class="rw-title"><h1>Shop the garden</h1><p>Every eligible purchase earns Ecofynd Points.</p></div>
+  <div class="pgrid">${PRODUCTS.map(p => {
+    const pts = E.isEarnExcluded(p.id) ? 0 : E.estimate([{ productId: p.id, qty: 1, price: p.price }]).points;
+    return `<button class="pcard" data-act="pdp" data-v="${p.id}"><div class="art">${art(p)}</div><span class="t">${esc(p.title)}</span><span class="p">${INR(p.price)}</span><span class="e">${pts ? `Earn ${P(pts)} pts` : 'No points on gift cards'}</span></button>`;
+  }).join('')}</div>`;
+}
+function pdpScreen() {
+  const p = PMAP[ui.pid]; const lines = [{ productId: p.id, qty: ui.qty, price: p.price }];
+  return `<button class="back" data-act="go" data-v="shop">${ic('back')} All products</button>
+  <div class="pdp-art art">${art(p)}</div>
+  <div class="pdp" style="display:grid;gap:10px">
+    <span class="eyebrow">${esc(COLLECTIONS[p.collection])} · <span class="mono">${esc(p.sku)}</span></span>
+    <h2>${esc(p.title)}</h2>
+    <div class="price num">${INR(p.price * ui.qty)}<small>incl. ${p.gst}% GST</small></div>
+    <div id="pdp-earn">${earnLine(lines)}</div>
+    <p class="muted" style="font-size:14px">${esc(p.sub)}.</p>
+    <div class="row-between"><div class="qty" role="group" aria-label="Quantity"><button data-act="qty" data-v="-1" aria-label="Decrease">−</button><span class="num">${ui.qty}</span><button data-act="qty" data-v="1" aria-label="Increase">+</button></div>
+    <button class="btn" data-act="add" style="flex:1">Add to cart</button></div>
+  </div>`;
+}
+
+function cartScreen() {
+  const c = cust(), cart = cartOf(), lines = cartLines();
+  if (!lines.length) return `<div class="rw-title"><h1>Your cart</h1><p>Your cart is empty.</p></div><button class="btn" data-act="go" data-v="shop">Start shopping</button>${c ? cartLoyalty(c, cart, lines) : ''}`;
+  const t = E.cartTotals(lines, { couponCode: cart.coupon, rewardCode: cart.rewardCode, customerId: ui.cid });
+  if (t.rewardErr) { cart.rewardCode = null; }
+  const earn = E.calcPoints(lines, t.discount, t.shipping);
+  return `<div class="rw-title"><h1>Your cart</h1></div>
+  <div style="display:grid;gap:12px">${cart.lines.map((l, i) => { const p = PMAP[l.productId]; return `<div class="cline"><div class="art">${art(p)}</div><div style="display:grid;gap:6px"><span class="t">${esc(p.title)}</span>
+    <div class="row-between"><div class="qty"><button data-act="cqty" data-i="${i}" data-v="-1" aria-label="Decrease">−</button><span class="num">${l.qty}</span><button data-act="cqty" data-i="${i}" data-v="1" aria-label="Increase">+</button></div><b class="num">${INR(p.price * l.qty)}</b></div></div></div>`; }).join('')}</div>
+  ${c ? cartLoyalty(c, cart, lines, t) : `<div class="loy">${`<div class="loy-h">${ic('gift')}<div><b>This order can earn ${P(earn.points)} points</b><p>Create an account at checkout or later with the same email to claim them.</p></div></div>`}</div>`}
+  <form class="row-between" data-form="coupon" style="gap:8px"><label class="sr" for="coupon">Coupon code</label><input class="inp" id="coupon" name="coupon" placeholder="Coupon code (try GARDEN10)" value="${esc(cart.coupon || '')}"><button class="btn ghost small" type="submit">${cart.coupon ? 'Remove' : 'Apply'}</button></form>
+  <div class="sum num">
+    <div><span>Subtotal</span><span>${INR(t.subtotal)}</span></div>
+    ${t.coupon ? `<div><span>Coupon ${esc(cart.coupon)}</span><span>−${INR(t.coupon)}</span></div>` : ''}
+    ${t.reward ? `<div><span>Ecofynd reward</span><span class="plus">−${INR(t.reward)}</span></div>` : ''}
+    <div><span>Shipping</span><span>${t.shipping ? INR(t.shipping) : 'Free'}</span></div>
+    <div class="tot"><span>Total</span><span>${INR(t.total)}</span></div>
+    <div class="faint" style="font-size:12px"><span>Includes ${INR(t.gst)} GST</span></div>
+  </div>
+  ${c ? `<div class="earnline">${ic('gift')}<span>This order earns <b>${P(earn.points)} points</b> (${INR(E.valueOf(earn.points))} reward value).</span></div>` : ''}
+  <button class="btn block" data-act="checkout">Place order · ${INR(t.total)}</button>
+  <p class="faint" style="font-size:12px;text-align:center">Demo checkout: sends an orders/create webhook to the loyalty engine.</p>`;
+}
+function cartLoyalty(c, cart, lines, t) {
+  const b = E.balances(c.id); const rs = E.rewardState(c.id);
+  if (cart.rewardCode) {
+    const r = E.s.redemptions.find(x => x.code === cart.rewardCode);
+    return `<div class="loy applied"><div class="loy-h">${ic('check')}<div><b>${esc(r.name)} reward applied</b><p>Code <span class="mono">${esc(r.code)}</span> · ${P(r.pointsUsed)} points used</p></div></div><div><button class="link" data-act="unapply">Remove reward</button></div></div>`;
+  }
+  if (b.debt > 0) return `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>Rewards are paused</b><p>${P(b.debt)} points from a returned order are being recovered. Points from this order go toward that first.</p></div></div></div>`;
+  const ready = E.s.redemptions.filter(r => r.customerId === c.id && r.status === 'unlocked' && r.expiresAt > E.now);
+  const sub = lines.length ? E.cartTotals(lines, { couponCode: cart.coupon }).subtotal - (t ? t.coupon : 0) : 0;
+  if (ready.length) {
+    const r = ready.sort((x, y) => y.discountValue - x.discountValue)[0];
+    const v = lines.length ? E.validateRewardForCart(c.id, r.code, lines, cart.coupon) : { ok: false, error: 'Add items to use it.' };
+    return `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>Your ${esc(r.name)} reward is ready</b><p>${v.ok ? `Valid until ${D(r.expiresAt)}.` : esc(v.error)}</p></div></div>${v.ok ? `<div><button class="btn small" data-act="apply" data-v="${r.code}">Apply Reward</button></div>` : ''}</div>`;
+  }
+  const usable = rs.affordable.filter(r => sub >= r.minCart && !(cart.coupon && !r.couponCompatible)).pop();
+  if (usable) {
+    if (ui.cartConfirm === usable.id) return `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>Use ${P(usable.points)} points for ${esc(usable.name)}?</b><p>You'll have ${P(b.available - usable.points)} points (${INR(E.valueOf(b.available - usable.points))}) left.</p></div></div>
+      <div class="confirm"><button class="btn small" data-act="cartredeem" data-v="${usable.id}">Redeem and apply</button><button class="link" data-act="cartcancel">Not now</button></div></div>`;
+    return `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>You have ${P(b.available)} points</b><p>You can redeem <b>${esc(usable.name)}</b> on this order.</p></div></div><div><button class="btn small" data-act="cartconfirm" data-v="${usable.id}">Apply Reward</button></div></div>`;
+  }
+  const blockedByMin = rs.affordable.filter(r => sub < r.minCart)[0];
+  if (blockedByMin && lines.length) return `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>You have ${P(b.available)} points</b><p>Add ${INR(blockedByMin.minCart - sub)} more to use ${esc(blockedByMin.name)} (min. order ${INR(blockedByMin.minCart)}).</p></div></div></div>`;
+  if (rs.next) return `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>You're ${plural(rs.need, 'point')} away from ${esc(rs.next.name)}.</b><p>${b.pending ? `${P(b.pending)} more points are on the way.` : 'This order moves you closer.'}</p></div></div></div>`;
+  return '';
+}
+
+function doneScreen() {
+  const o = ui.lastOrder && E.s.orders[ui.lastOrder];
+  if (!o) return `<p>Order is being processed.</p>`;
+  const red = o.rewardCode && E.s.redemptions.find(r => r.code === o.rewardCode);
+  return `<div class="zero" style="text-align:left"><div class="check">${ic('check')}</div><h2>Order ${esc(o.name)} placed</h2><p class="muted">Thank you for shopping with Ecofynd. Total paid ${INR(o.total)}.</p></div>
+  ${o.points ? `<div class="loy"><div class="loy-h">${ic('gift')}<div><b>You're earning ${P(o.points)} Ecofynd Points</b><p>${o.guest ? `Create an account with ${esc(o.email)} to claim them.` : `Worth ${INR(E.valueOf(o.points))}. They'll be available on <b>${D(o.availableAt)}</b>, after your order's return window.`}</p></div></div>
+    ${o.guest ? `<button class="btn small" data-act="go" data-v="rewards">Create account &amp; claim points</button>` : `<div><button class="btn small" data-act="go" data-v="rewards">View Rewards</button></div>`}</div>` : ''}
+  ${red ? `<div class="earnline">${ic('check')}<span>${esc(red.name)} reward used on this order.</span></div>` : ''}
+  <button class="btn ghost" data-act="go" data-v="shop">Continue shopping</button>`;
+}
+
+/* ---------- Rewards page (BRD §6–§14, §30, §34, §76) ---------- */
+function rewardsScreen() {
+  const c = cust();
+  if (!c) return guestRewards();
+  const b = E.balances(c.id), rs = E.rewardState(c.id);
+  const first = esc(c.name.split(' ')[0]);
+  const ready = E.s.redemptions.filter(r => r.customerId === c.id && r.status === 'unlocked' && r.expiresAt > E.now);
+  const hasAny = E.s.txns.some(t => t.customerId === c.id);
+  const head = `<div class="rw-title"><span class="eyebrow">Shop. Grow. Get rewarded.</span><h1>Ecofynd Rewards</h1><p>Welcome back, ${first}</p></div>`;
+  if (!hasAny) return head + zeroState() + waysToEarn();
+  const pct = Math.round(rs.progress * 100);
+  return `${head}
+  <section class="bal" aria-label="Available balance">
+    <div class="lbl">Available to use</div>
+    <div class="big num">${b.available < 0 ? '0' : P(b.available)}<small>points</small></div>
+    <span class="val num">${INR(b.availableValue)} reward value</span>
+    ${b.expiring ? `<div class="exp">${P(b.expiring.points)} points expire on ${D(b.expiring.at, true)}. Use them before then.</div>` : ''}
+  </section>
+  ${b.debt > 0 ? `<div class="owed" role="status"><b>${P(b.debt)} points are being recovered</b>A returned order reversed points you had already used on a reward. New points go toward this first, then your balance grows again. Rewards unlock once it's cleared.</div>` : ''}
+  ${b.pending > 0 ? pendingCard(b) : ''}
+  ${ready.length ? `<section style="display:grid;gap:10px"><div class="sec-h"><h3>Ready to use</h3></div><div class="rlist">${ready.map(r => `<div class="ritem ready"><div class="rv">${esc(r.name)}</div><div class="rm"><b class="mono">${esc(r.code)}</b>On orders over ${INR(r.minCart)} · until ${D(r.expiresAt)}</div><button class="btn small" data-act="use" data-v="${r.code}">Use Reward</button></div>`).join('')}</div></section>` : ''}
+  ${rs.affordable.length ? `<section style="display:grid;gap:10px"><div class="sec-h"><h3>Rewards you can use</h3><span class="faint" style="font-size:12.5px">${rs.affordable.length} available</span></div>
+    <div class="rlist">${rs.affordable.slice().reverse().map(r => `<div class="ritem"><div class="rv">${esc(r.name)}</div><div class="rm"><b>${P(r.points)} points</b>Min. order ${INR(r.minCart)}</div><button class="btn small" data-act="redeem" data-v="${r.id}">Redeem</button></div>`).join('')}</div></section>` : ''}
+  ${rs.blocked ? '' : rs.next ? `<section class="card goal" aria-label="Your next reward">
+      <span class="eyebrow">Your next reward</span>
+      <div class="row-between"><span class="gname">${esc(rs.next.name)}</span><span class="faint num" style="font-size:13px">${P(rs.next.points)} points</span></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${rs.next.points}" aria-valuenow="${rs.have}" aria-label="Progress to ${esc(rs.next.name)}"><i style="width:${Math.max(2, pct)}%"></i></div>
+      <div class="row-between"><span class="muted num" style="font-size:13px">You have ${P(rs.have)} points</span><span class="togo num">${P(rs.need)} points to go</span></div>
+      ${b.pending && b.pending >= rs.need && !rs.blocked ? `<p class="muted" style="font-size:13px">Your ${P(b.pending)} points on the way will get you there once they're available.</p>` : ''}
+      ${rs.best ? '' : `<button class="btn ghost small" data-act="go" data-v="shop">Keep Shopping</button>`}
+    </section>` : `<div class="ok">You can unlock every reward in the catalogue.</div>`}
+  ${rs.best && rs.next ? `<section class="choice" aria-label="Use now or keep earning"><span class="eyebrow" style="color:var(--gold-ink)">Your choice</span>
+      <div class="two"><div class="opt"><span class="eyebrow">Use now</span><b>${esc(rs.best.name)}</b><span class="muted" style="font-size:12.5px">${P(rs.best.points)} points</span></div>
+      <div class="opt"><span class="eyebrow">Or keep earning</span><b>${esc(rs.next.name)}</b><span class="muted num" style="font-size:12.5px">${P(rs.need)} more points</span></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="redeem" data-v="${rs.best.id}">Use ${esc(rs.best.name)}</button><button class="btn ghost small" data-act="go" data-v="shop">Keep Earning</button></div></section>` : ''}
+  ${waysToEarn()}
+  ${activity(c.id)}`;
+}
+function pendingCard(b) {
+  const first = b.pendingOrders[0];
+  return `<section class="pend" aria-label="Pending points">
+    <div class="pend-top">${ic('clock')}<div><h4 class="num">${P(b.pending)} points are on the way</h4><p>Earned from your recent purchases. They become available after each order's return window.</p></div></div>
+    <div class="row-between"><b class="num" style="font-family:var(--f-head)">${INR(b.pendingValue)} future reward value</b>${first ? `<span class="num" style="font-size:13px;font-weight:700;color:var(--blush-ink)">Next: ${D(first.availableAt)}</span>` : ''}</div>
+    ${b.pendingOrders.length ? `<div class="rows">${b.pendingOrders.map(o => `<div class="row num"><span>Order ${esc(o.name)} · ${P(o.points)} pts</span><b>Available on ${D(o.availableAt)}</b></div>`).join('')}</div>` : ''}
+  </section>`;
+}
+function zeroState() {
+  const rw = E.s.rewards.filter(r => r.status === 'active');
+  return `<section class="zero"><h2>Start earning Ecofynd Rewards</h2><p class="muted">Earn points with eligible purchases and special bonuses. Every ${INR(E.cfg.earn.spend)} you spend earns ${P(E.cfg.earn.points)} points, and ${P(E.cfg.redeem.points)} points are worth ${INR(E.cfg.redeem.value)}.</p>
+    <div class="ladder">${rw.slice(0, 4).map(r => `<div><b>${esc(r.name)}</b><span class="muted num">${P(r.points)} points</span></div>`).join('')}</div>
+    <button class="btn" data-act="go" data-v="shop">Start Shopping</button></section>`;
+}
+function waysToEarn() {
+  return `<section style="display:grid;gap:10px"><div class="sec-h"><h3>Ways to earn</h3></div><div class="earn">
+    <div class="e">${ic('bag')}<div><b>Shop</b><p>Earn ${P(E.cfg.earn.points)} points for every ${INR(E.cfg.earn.spend)} spent on eligible products (after discounts, excluding shipping${E.cfg.earn.includeTax ? '' : ' and GST'}). Gift cards don't earn.</p></div></div>
+    <div class="e">${ic('spark')}<div><b>Special bonuses</b><p>Receive bonus points from selected Ecofynd promotions.</p></div></div>
+  </div></section>`;
+}
+function describeTxn(t) {
+  const icon = { purchase: 'bag', activation: 'check', cancellation: 'ret', reversal: 'ret', redemption: 'tag', reward_return: 'gift', expiry: 'hour', adjustment: t.points > 0 ? 'plus' : 'minus', bonus: 'spark' }[t.type];
+  const o = t.orderId ? E.s.orders[t.orderId] : null;
+  let title = t.description, sub = '';
+  if (t.type === 'purchase') { title = `Order ${o ? o.name : ''}`; sub = t.status === 'Pending' ? `On the way · available ${D(t.availableAt)}` : t.status === 'Available' ? 'Earned on your purchase' : t.status === 'Cancelled' ? 'Order returned before points were available' : 'Order returned — points reversed'; }
+  if (t.type === 'activation') { title = 'Points are ready to use'; sub = `From order ${o ? o.name : ''}${t.meta.settledOwed ? ` · ${P(t.meta.settledOwed)} went toward points being recovered` : ''}${t.expiresAt ? ` · valid until ${D(t.expiresAt, true)}` : ''}`; }
+  if (t.type === 'redemption') { title = t.description; sub = `Code ${t.meta.code}`; }
+  if (t.type === 'cancellation' || t.type === 'reversal') { title = `Order ${o ? o.name : ''} ${t.meta.reason === 'cancelled' ? 'cancelled' : t.meta.reason}`; sub = t.type === 'cancellation' ? 'Pending points for the returned items were cancelled' : `Points for the returned items were reversed${t.meta.owed ? ` · ${P(t.meta.owed)} to recover` : ''}`; }
+  if (t.type === 'bonus') { title = 'Special bonus'; sub = t.meta.note || 'From an Ecofynd promotion'; }
+  if (t.type === 'adjustment') { title = t.points > 0 ? 'Points added by Ecofynd' : 'Points deducted by Ecofynd'; sub = t.meta.reason; }
+  if (t.type === 'expiry') { title = 'Points expired'; sub = t.description.replace(/^\d+ points /, '').replace(/^expired/, 'Expired'); }
+  if (t.type === 'reward_return') { title = 'Points returned'; sub = t.description; }
+  return { icon, title, sub };
+}
+function activity(cid, limit = 30) {
+  const tx = E.s.txns.filter(t => t.customerId === cid).slice().reverse().slice(0, limit);
+  if (!tx.length) return '';
+  const groups = [];
+  tx.forEach(t => { const k = dayKey(t.createdAt); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, t: t.createdAt, items: [] }); g.items.push(t); });
+  const today = dayKey(E.now);
+  return `<section style="display:grid;gap:12px"><div class="sec-h"><h3>Activity</h3></div><div class="tl">${groups.map(g => `<div class="tl-day"><span class="eyebrow">${g.k === today ? 'Today' : D(g.t, new Date(g.t).getUTCFullYear() !== new Date(E.now).getUTCFullYear())}</span>
+    ${g.items.map(t => { const d = describeTxn(t); const move = t.type === 'activation';
+      return `<div class="tl-item"><span class="tl-ic">${ic(d.icon)}</span><div class="tl-t"><b>${esc(d.title)}</b><p>${esc(d.sub)}</p></div><div class="tl-p"><b class="num ${move ? '' : t.points > 0 ? 'plus' : 'minus'}">${move ? P(t.points) : (t.points > 0 ? '+' : '−') + P(Math.abs(t.points))} pts</b><span class="pill st-${t.status}">${t.status}</span></div></div>`; }).join('')}</div>`).join('')}</div></section>`;
+}
+function guestRewards() {
+  const holds = E.s.guestHolds.filter(h => !h.claimed && h.email === ui.signup.email.toLowerCase() && h.points > 0);
+  const tot = holds.reduce((s, h) => s + h.points, 0);
+  return `<div class="rw-title"><span class="eyebrow">Shop. Grow. Get rewarded.</span><h1>Ecofynd Rewards</h1><p>Join free and earn on every eligible order.</p></div>
+  ${zeroState().replace('Start earning Ecofynd Rewards', 'Earn points on every order')}
+  <form class="card" data-form="signup" style="display:grid;gap:10px"><h3 style="font-family:var(--f-head);font-weight:800">Create your account</h3>
+    <label class="f" for="su-name">Name<input class="inp" id="su-name" name="name" value="${esc(ui.signup.name)}" required></label>
+    <label class="f" for="su-email">Email<input class="inp" id="su-email" name="email" type="email" value="${esc(ui.signup.email)}" required></label>
+    ${tot ? `<div class="earnline">${ic('gift')}<span><b>${P(tot)} points</b> from your guest order${holds.length > 1 ? 's' : ''} will move to your account.</span></div>` : ''}
+    <button class="btn" type="submit">Create account</button></form>`;
+}
+
+/* ---------- Account (BRD §35) ---------- */
+function accountScreen() {
+  const c = cust();
+  if (!c) return `<div class="rw-title"><h1>Account</h1><p>You're browsing as a guest.</p></div>${guestRewards()}`;
+  const b = E.balances(c.id);
+  const orders = Object.values(E.s.orders).filter(o => o.customerId === c.id).sort((x, y) => y.createdAt - x.createdAt);
+  const reds = E.s.redemptions.filter(r => r.customerId === c.id).slice().reverse();
+  const oState = o => o.status === 'cancelled' ? ['Cancelled', 'Points cancelled'] : !o.points ? ['Expired', 'No points'] : o.pendingLeft > 0 ? ['Pending', `${P(o.pendingLeft)} pts on ${D(o.availableAt)}`] : o.reversed >= o.points ? ['Reversed', 'Points reversed'] : ['Available', `${P(o.points - o.reversed)} pts earned`];
+  return `<div class="rw-title"><h1>${esc(c.name)}</h1><p>${esc(c.email)} · ${esc(c.phone)}</p></div>
+  <button class="card" data-act="go" data-v="rewards" style="text-align:left;cursor:pointer;display:grid;gap:6px;background:var(--surface)">
+    <span class="eyebrow">Ecofynd Rewards</span>
+    <span class="row-between"><b style="font-family:var(--f-display);font-size:26px;font-weight:600" class="num">${P(Math.max(0, b.available))} pts</b><span class="pill st-Available">${INR(b.availableValue)} value</span></span>
+    <span class="muted num" style="font-size:13px">${b.pending ? `${P(b.pending)} points on the way (${INR(b.pendingValue)})` : 'No points pending'}${b.debt ? ` · ${P(b.debt)} being recovered` : ''}</span>
+    <span class="link" style="font-size:13.5px">View rewards, progress and activity</span></button>
+  <section style="display:grid;gap:10px"><div class="sec-h"><h3>Orders</h3></div>
+    ${orders.length ? orders.map(o => { const [st, txt] = oState(o); return `<div class="card row-between" style="padding:12px 14px"><div><b style="font-family:var(--f-head)">${esc(o.name)}</b><div class="muted num" style="font-size:12.5px">${D(o.createdAt, true)} · ${INR(o.total)}${o.status !== 'open' ? ' · ' + esc(o.status) : ''}</div></div><div style="text-align:right;display:grid;justify-items:end;gap:3px"><span class="pill st-${st}">${st}</span><span class="muted num" style="font-size:12px">${txt}</span></div></div>`; }).join('') : '<p class="muted">No orders yet.</p>'}
+  </section>
+  <section style="display:grid;gap:10px"><div class="sec-h"><h3>Redemption history</h3></div>
+    ${reds.length ? reds.map(r => `<div class="card row-between" style="padding:12px 14px"><div><b style="font-family:var(--f-head)">${esc(r.name)}</b><div class="muted" style="font-size:12.5px"><span class="mono">${esc(r.code)}</span> · ${P(r.pointsUsed)} pts · ${D(r.createdAt)}</div></div><div style="text-align:right;display:grid;justify-items:end;gap:3px"><span class="pill st-${r.status}">${r.status === 'unlocked' ? 'Ready to use' : r.status[0].toUpperCase() + r.status.slice(1)}</span><span class="muted" style="font-size:12px">${r.status === 'used' ? 'On ' + esc((E.s.orders[r.orderId] || {}).name || '') : r.status === 'unlocked' ? 'Until ' + D(r.expiresAt) : ''}</span></div></div>`).join('') : '<p class="muted">No rewards redeemed yet.</p>'}
+  </section>
+  <button class="btn ghost" data-act="persona" data-v="">Sign out (browse as guest)</button>`;
+}
+
+/* ---------- widget (BRD §29) ---------- */
+function widgetView() {
+  const c = cust(); if (ui.screen === 'rewards') return '';
+  const b = c ? E.balances(c.id) : null; const rs = c ? E.rewardState(c.id) : null;
+  const label = !c ? 'Rewards' : b.debt ? 'Rewards' : `${P(Math.max(0, b.available))} pts`;
+  let panel = '';
+  if (ui.widget) {
+    if (!c || !E.s.txns.some(t => t.customerId === c.id)) panel = `<h4>Start earning Ecofynd Rewards</h4><p class="muted" style="font-size:13px">Earn ${P(E.cfg.earn.points)} points for every ${INR(E.cfg.earn.spend)} on eligible purchases.</p><button class="btn small" data-act="go" data-v="${c ? 'shop' : 'rewards'}">${c ? 'Start Shopping' : 'Join Ecofynd Rewards'}</button>`;
+    else panel = `<h4>Your Ecofynd Rewards</h4><div class="wbig num">${P(Math.max(0, b.available))} <span style="font-size:14px;font-family:var(--f-head)">points</span></div><span class="pill st-Available" style="justify-self:start">${INR(b.availableValue)} available value</span>
+      ${b.debt ? `<p class="minus" style="font-size:13px">${P(b.debt)} points being recovered from a return</p>` : rs.next ? `<b class="num" style="font-family:var(--f-head);font-size:14px">${P(rs.need)} points to your next reward</b><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${rs.next.points}" aria-valuenow="${rs.have}" aria-label="Progress to ${esc(rs.next.name)}"><i style="width:${Math.max(2, Math.round(rs.progress * 100))}%"></i></div>` : ''}
+      ${b.pending ? `<p class="muted num" style="font-size:12.5px">${P(b.pending)} more on the way</p>` : ''}<button class="btn small" data-act="go" data-v="rewards">View Rewards</button>`;
+  }
+  return `<div class="widget">${ui.widget ? `<div class="wpanel" role="dialog" aria-label="Your rewards">${panel}</div>` : ''}<button class="wbtn" data-act="widget" aria-expanded="${ui.widget}">${ic('gift')}<span class="num">${label}</span></button></div>`;
+}
+
+/* ---------- redemption sheet (BRD §12) ---------- */
+function sheetView() {
+  const s = ui.sheet;
+  if (s.kind === 'redeem') {
+    const r = E.s.rewards.find(x => x.id === s.rewardId); const b = E.balances(ui.cid);
+    return `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Redeem ${esc(r.name)}" data-stop>
+      <div class="grab"></div><span class="eyebrow">Redeem reward</span><h3>${esc(r.name)}</h3>
+      <div class="kv num"><div><span class="muted">Use</span><b>${P(r.points)} points</b></div><div><span class="muted">Balance after</span><b>${P(b.available - r.points)} pts · ${INR(E.valueOf(b.available - r.points))}</b></div><div><span class="muted">Works on</span><b>Orders over ${INR(r.minCart)}</b></div><div><span class="muted">Valid for</span><b>${r.expiryDays} days</b></div></div>
+      ${s.error ? `<div class="err">${esc(s.error)}</div>` : ''}
+      <button class="btn block" data-act="doredeem" data-v="${r.id}" ${s.busy ? 'disabled' : ''}>Redeem ${esc(r.name.replace(' OFF', ''))} Reward</button><button class="btn ghost block" data-act="closesheet">Cancel</button></div></div>`;
+  }
+  if (s.kind === 'done') {
+    const r = E.s.redemptions.find(x => x.id === s.redId);
+    return `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Reward unlocked" data-stop>
+      <div class="grab"></div><div class="check">${ic('check')}</div><span class="eyebrow" style="color:var(--olive)">Reward unlocked</span><h3>${esc(r.name)}</h3>
+      <div class="code"><span>${esc(r.code)}</span><button class="link" data-act="copy" data-v="${r.code}">Copy</button></div>
+      <p class="muted" style="font-size:13px">Applies automatically when you tap Use Reward. Valid until ${D(r.expiresAt)} on orders over ${INR(r.minCart)}.</p>
+      <button class="btn block" data-act="use" data-v="${r.code}">Use Reward</button><button class="btn ghost block" data-act="closesheet">Save for later</button></div></div>`;
+  }
+  return '';
+}
+
+/* ---------- demo side panel ---------- */
+const PERSONAS = [
+  ['priya', 'Priya Sharma', 'Available + pending points, one reward used'],
+  ['kabir', 'Kabir Nair', 'Returned an order after using a reward'],
+  ['ananya', 'Ananya Iyer', 'Has expired points, can redeem ₹50'],
+  ['rahul', 'Rahul Mehta', 'New member, zero points'],
+  ['', 'Guest', 'Not signed in; Meera has a guest order'],
+];
+function demoPanel() {
+  const c = cust();
+  const tips = {
+    priya: ['Tap <b>Redeem</b> on ₹100 OFF, then <b>Use Reward</b> — it lands in the cart applied.', 'Move the store date <b>+30 days</b>: the queued refund for the returned clips retries first, then order #1007 activates on 20 Oct.', 'Open a product: the points line updates with quantity.'],
+    kabir: ['Kabir returned the ₹2,329 stand after spending its points on ₹200 OFF. His balance is recovering 252 points.', 'Move the store date <b>+7 days</b>: order #1006 activates and repays what is owed first.', 'Try to redeem: rewards stay paused until the recovery clears.'],
+    ananya: ['Her July 2025 points expired after 12 months. See the <b>Points expired</b> entry in Activity.', 'She has 636 points: enough for ₹50 OFF, 364 short of ₹100 OFF.', 'Add the ₹349 vase and open the cart: it offers ₹10 OFF, the best reward that fits a ₹349 order.'],
+    rahul: ['Zero-balance state: no empty dashboard, just how to start.', 'Add something to the cart and place the order. The confirmation shows points on the way.'],
+    '': ['Meera checked out as a guest on 22 Sep. Open <b>Rewards</b> and create her account to claim 634 held points.', 'The product page shows what a signed-in member would earn.'],
+  }[ui.cid || ''];
+  const recent = c ? E.s.txns.filter(t => t.customerId === c.id).slice(-6).reverse() : [];
+  const ev = E.s.analytics.slice(0, 6);
+  return `<aside class="side" aria-label="Demo controls">
+    <div class="panel"><h3>View the store as</h3><div class="persona">${PERSONAS.map(([id, n, d]) => `<button data-act="persona" data-v="${id}" aria-pressed="${(ui.cid || '') === id}"><b>${n}</b><span>${d}</span></button>`).join('')}</div></div>
+    <div class="panel"><h3>Try this</h3><ul class="try">${tips.map(t => `<li><span>${t}</span></li>`).join('')}</ul></div>
+    ${c ? `<div class="panel"><div class="row-between"><h3>Ledger for ${esc(c.name.split(' ')[0])}</h3><button class="link" data-act="admincust" data-v="${c.id}" style="font-size:13px">Open in admin</button></div>
+      <div class="mini">${recent.map(t => `<div><span class="mono faint">${t.id}</span><span>${esc(t.description)}</span><span class="pill st-${t.status}">${t.type === 'activation' ? '' : t.points > 0 ? '+' : ''}${P(t.points)}</span></div>`).join('') || '<p class="muted">No entries yet.</p>'}</div></div>` : ''}
+    <div class="panel"><h3>Analytics events</h3><div class="mini">${ev.map(e => `<div><span class="mono faint">${DT(e.t).split(',')[1] || ''}</span><span class="mono">${e.name}</span><span class="faint" style="font-size:11.5px">${esc(Object.values(e.props).slice(0, 2).join(' · '))}</span></div>`).join('')}</div></div>
+  </aside>`;
+}
+
+/* =====================================================================
+   ADMIN CONSOLE
+   ===================================================================== */
+const ATABS = [['overview', 'Overview'], ['customers', 'Customers'], ['orders', 'Orders & webhooks'], ['rules', 'Earning & redemption'], ['rewards', 'Reward catalogue'], ['recon', 'Reconciliation'], ['notify', 'Notifications'], ['audit', 'Audit log'], ['analytics', 'Analytics events']];
+function adminView() {
+  const fails = E.s.failed.length;
+  const body = { overview: aOverview, customers: aCustomers, orders: aOrders, rules: aRules, rewards: aRewards, recon: aRecon, notify: aNotify, audit: aAudit, analytics: aAnalytics }[ui.a.tab]();
+  return `<div class="admin"><nav class="anav" aria-label="Admin">${ATABS.map(([k, l]) => `<button data-act="atab" data-v="${k}" ${ui.a.tab === k ? 'aria-current="page"' : ''}>${l}${k === 'orders' && fails ? `<span class="cnt">${fails}</span>` : ''}</button>`).join('')}</nav><div class="amain">${body}</div></div>`;
+}
+const kpi = (k, v, s) => `<div class="kpi"><span class="k">${k}</span><span class="v num">${v}</span>${s ? `<span class="s">${s}</span>` : ''}</div>`;
+const pct = x => (x * 100).toFixed(1) + '%';
+
+function aOverview() {
+  const s = E.stats();
+  const seg = [['Pending', s.pending, 'var(--s1)'], ['Available', s.available, 'var(--s2)'], ['Redeemed', s.redeemed, 'var(--s3)'], ['Expired', s.expired, 'var(--s4)'], ['Reversed', s.reversed, 'var(--s5)']];
+  const tot = seg.reduce((a, x) => a + x[1], 0) || 1;
+  return `<div><h2>Rewards overview</h2><p class="lede">All figures are computed from the ledger in this prototype's sample data (${Object.keys(E.s.orders).length} orders, store date ${D(E.now, true)}).</p></div>
+  <div class="kgroup"><span class="eyebrow">Members</span><div class="kpis">${kpi('Total members', P(s.members))}${kpi('Active (90 days)', P(s.active))}${kpi('New (30 days)', P(s.newM))}${kpi('Returning buyers', P(s.returning), `of ${P(s.buyers)} buyers`)}</div></div>
+  <div class="kgroup"><span class="eyebrow">Points</span><div class="kpis">${kpi('Issued', P(s.issued), INR(E.valueOf(s.issued)))}${kpi('Pending', P(s.pending), INR(E.valueOf(s.pending)))}${kpi('Available', P(s.available), INR(E.valueOf(s.available)))}${kpi('Redeemed', P(s.redeemed), INR(E.valueOf(s.redeemed)))}${kpi('Expired', P(s.expired), INR(E.valueOf(s.expired)))}${kpi('Reversed', P(s.reversed), INR(E.valueOf(s.reversed)))}</div>
+    <div class="card" style="display:grid;gap:10px"><b style="font-family:var(--f-head)">Where issued points are now</b>
+      <div class="stack" role="img" aria-label="${seg.map(x => `${x[0]} ${P(x[1])}`).join(', ')}">${seg.filter(x => x[1] > 0).map(x => `<i style="width:${x[1] / tot * 100}%;background:${x[2]}" title="${x[0]}: ${P(x[1])} pts"></i>`).join('')}</div>
+      <div class="legend">${seg.map(x => `<span><i style="background:${x[2]}"></i>${x[0]} <b class="num" style="color:var(--ink)">${P(x[1])}</b></span>`).join('')}</div></div></div>
+  <div class="kgroup"><span class="eyebrow">Outstanding reward value (liability)</span>
+    <div class="tbl-wrap"><table><thead><tr><th>Bucket</th><th class="r">Points</th><th class="r">₹ value</th><th>How to read it</th></tr></thead><tbody>
+      <tr><td><b>Available</b></td><td class="r num">${P(s.available)}</td><td class="r num"><b>${INR(E.valueOf(s.available))}</b></td><td>Customers can redeem this today. This is the live liability.</td></tr>
+      <tr><td><b>Unlocked, not used</b></td><td class="r num">${P(s.openRewards)} codes</td><td class="r num"><b>${INR(s.openRewardValue)}</b></td><td>Discount codes issued and still valid.</td></tr>
+      <tr><td>Pending</td><td class="r num">${P(s.pending)}</td><td class="r num">${INR(E.valueOf(s.pending))}</td><td>Contingent. Becomes liability only after the holding period, net of returns.</td></tr>
+      <tr><td>Redeemed</td><td class="r num">${P(s.redeemed)}</td><td class="r num">${INR(E.valueOf(s.redeemed))}</td><td>Already converted to discounts (${INR(s.usedValue)} used on orders).</td></tr>
+      <tr><td>Expired</td><td class="r num">${P(s.expired)}</td><td class="r num">${INR(E.valueOf(s.expired))}</td><td>No longer valid. Not a liability.</td></tr>
+      <tr><td>Being recovered</td><td class="r num">${P(s.owed)}</td><td class="r num">${INR(E.valueOf(s.owed))}</td><td>Points reversed after they were spent; recovered from future earnings.</td></tr>
+    </tbody></table></div></div>
+  <div class="kgroup"><span class="eyebrow">Rewards</span><div class="kpis">${kpi('Rewards unlocked', P(s.unlocked))}${kpi('Rewards used', P(s.rewardsUsed), INR(s.usedValue) + ' discount')}${kpi('Open codes', P(s.openRewards))}${kpi('Points redemption rate', pct(s.redemptionRate), 'redeemed ÷ activated')}</div></div>
+  <div class="kgroup"><span class="eyebrow">Business (members only, to date)</span><div class="kpis">${kpi('Member revenue', INR(Math.round(s.revenue)))}${kpi('AOV', INR(Math.round(s.aov)))}${kpi('Repeat purchase rate', pct(s.repeatRate))}${kpi('Orders per buyer', s.frequency.toFixed(2))}${kpi('Revenue per buyer', INR(Math.round(s.clv)), 'CLV to date')}</div>
+    <p class="faint" style="font-size:12.5px">These describe members only. Proving that loyalty causes repeat purchases needs a comparison against non-member or holdout cohorts over the same period (BRD §58–59).</p></div>`;
+}
+
+function aCustomers() {
+  const q = ui.a.q.toLowerCase();
+  const list = Object.values(E.s.customers).filter(c => !q || [c.name, c.email, c.phone].join(' ').toLowerCase().includes(q));
+  const c = E.s.customers[ui.a.cid] || list[0];
+  return `<div><h2>Customers</h2><p class="lede">Search a member to see balances, the full ledger and why each change happened. Support never needs database access.</p></div>
+  <div class="split"><div style="display:grid;gap:10px"><label class="sr" for="csearch">Search customers</label><input class="inp" id="csearch" data-input="csearch" placeholder="Name, email or phone" value="${esc(ui.a.q)}">
+    <div class="cust-list">${list.map(x => { const b = E.balances(x.id); return `<button data-act="acust" data-v="${x.id}" aria-pressed="${c && x.id === c.id}"><span><b style="font-family:var(--f-head)">${esc(x.name)}</b><br><span class="faint" style="font-size:12px">${esc(x.email)}</span></span><span class="num" style="font-weight:800">${P(b.available)}</span></button>`; }).join('') || '<p class="muted">No match.</p>'}</div></div>
+    <div style="display:grid;gap:16px;min-width:0">${c ? custDetail(c) : ''}</div></div>`;
+}
+function custDetail(c) {
+  const b = E.balances(c.id), a = b.acct;
+  const tx = E.s.txns.filter(t => t.customerId === c.id).slice().reverse();
+  const orders = Object.values(E.s.orders).filter(o => o.customerId === c.id);
+  const reds = E.s.redemptions.filter(r => r.customerId === c.id);
+  const adj = ui.a.adj;
+  return `<div class="card" style="display:grid;gap:12px"><div class="row-between" style="flex-wrap:wrap"><div><h3 style="font-family:var(--f-display);font-weight:600;font-size:24px">${esc(c.name)}</h3><p class="muted" style="font-size:13.5px">${esc(c.email)} · ${esc(c.phone)} · <span class="mono">${esc(a.id)}</span> · member since ${D(a.createdAt, true)}</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="adjopen" data-v="add">Add Points</button><button class="btn ghost small" data-act="adjopen" data-v="deduct">Deduct Points</button><button class="btn soft small" data-act="scrollledger">View Ledger</button></div></div>
+    <div class="kpis">${kpi('Available', P(b.available), INR(b.availableValue))}${kpi('Pending', P(b.pending), INR(b.pendingValue))}${kpi('Lifetime earned', P(a.lifetimeEarned), 'net of returns')}${kpi('Lifetime redeemed', P(a.lifetimeRedeemed))}${b.debt ? kpi('Being recovered', P(b.debt), 'from a return') : ''}</div>
+    ${adj ? `<form class="fs" data-form="adjust" style="background:var(--surface)"><h3>${adj.kind === 'add' ? 'Add points' : 'Deduct points'}</h3>
+      <div class="form-grid"><label class="f" for="adj-amt">Points<input class="inp num" id="adj-amt" name="amt" type="number" min="1" step="1" required value="${esc(adj.amt || '')}"></label>
+      <label class="f" for="adj-reason">Reason<select class="inp" id="adj-reason" name="reason" required><option value="">Choose…</option>${(adj.kind === 'add' ? ['Customer service goodwill', 'Special bonus', 'Order issue correction', 'Missing points'] : ['Order issue correction', 'Duplicate points', 'Points recovery', 'Policy abuse']).map(r => `<option ${adj.reason === r ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+      <label class="f" for="adj-admin">Admin<input class="inp" id="adj-admin" name="admin" value="${ADMIN}" required></label></div>
+      <label class="f" for="adj-note">Internal note (not shown to the customer)<textarea class="inp" id="adj-note" name="note" placeholder="e.g. Ticket #4821 — planter arrived chipped">${esc(adj.note || '')}</textarea></label>
+      ${adj.error ? `<div class="err">${esc(adj.error)}</div>` : ''}<div style="display:flex;gap:8px"><button class="btn small" type="submit">${adj.kind === 'add' ? 'Add points' : 'Deduct points'}</button><button class="btn ghost small" type="button" data-act="adjclose">Cancel</button></div></form>` : ''}
+    ${ui.a.msg ? `<div class="ok">${esc(ui.a.msg)}</div>` : ''}</div>
+  <div style="display:grid;gap:8px" id="ledger"><b style="font-family:var(--f-head);font-size:16px">Ledger (${tx.length} transactions)</b>
+    <div class="tbl-wrap"><table><thead><tr><th>Transaction</th><th>Created</th><th>Activity</th><th class="r">Points</th><th>Status</th><th>Order</th><th>Source</th><th>Available / expires</th><th>Ref</th><th>Why (support view)</th></tr></thead><tbody>
+    ${tx.map(t => { const o = t.orderId ? E.s.orders[t.orderId] : null; const pend = t.pendingDelta ? `pending ${t.pendingDelta > 0 ? '+' : ''}${P(t.pendingDelta)}` : ''; const av = t.availableDelta ? `available ${t.availableDelta > 0 ? '+' : ''}${P(t.availableDelta)}` : '';
+      return `<tr><td class="mono">${t.id}</td><td class="num" style="white-space:nowrap">${DT(t.createdAt)}</td><td>${t.type}</td><td class="r num"><b class="${t.points > 0 && t.type !== 'activation' ? 'plus' : t.points < 0 ? 'minus' : ''}">${t.points > 0 && t.type !== 'activation' ? '+' : ''}${P(t.points)}</b><br><span class="faint" style="font-size:11px">${[pend, av].filter(Boolean).join(' · ')}</span></td><td><span class="pill st-${t.status}">${t.status}</span></td><td>${o ? esc(o.name) : '—'}</td><td class="mono">${esc(t.source)}</td><td class="num" style="white-space:nowrap">${t.availableAt ? 'avail. ' + D(t.availableAt) : ''}${t.expiresAt ? 'exp. ' + D(t.expiresAt, true) : ''}${!t.availableAt && !t.expiresAt ? '—' : ''}</td><td class="mono">${t.ref || '—'}</td><td style="min-width:240px">${esc(t.description)}${t.meta.note ? `<br><span class="faint">Note: ${esc(t.meta.note)} · by ${esc(t.meta.admin)}</span>` : ''}${t.meta.owed ? `<br><span class="minus">${P(t.meta.owed)} could not be covered → recovered from future earnings</span>` : ''}</td></tr>`; }).join('')}
+    </tbody></table></div></div>
+  <div class="form-grid" style="align-items:start">
+    <div style="display:grid;gap:8px"><b style="font-family:var(--f-head)">Orders</b><div class="tbl-wrap"><table><thead><tr><th>Order</th><th class="r">Eligible</th><th class="r">Points</th><th class="r">Reversed</th><th>State</th></tr></thead><tbody>${orders.map(o => `<tr><td>${esc(o.name)}<br><span class="faint">${D(o.createdAt, true)}</span></td><td class="r num">${INR(o.eligible)}</td><td class="r num">${P(o.points)}</td><td class="r num">${P(o.reversed)}</td><td>${esc(o.status)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No orders</td></tr>'}</tbody></table></div></div>
+    <div style="display:grid;gap:8px"><b style="font-family:var(--f-head)">Rewards &amp; redemptions</b><div class="tbl-wrap"><table><thead><tr><th>Code</th><th>Reward</th><th>Status</th><th>Shopify ref</th></tr></thead><tbody>${reds.map(r => `<tr><td class="mono">${r.code}</td><td>${esc(r.name)} · ${P(r.pointsUsed)} pts</td><td><span class="pill st-${r.status}">${r.status}</span>${r.orderId ? '<br><span class="faint">on ' + esc(E.s.orders[r.orderId].name) + '</span>' : ''}</td><td class="mono faint">${r.shopifyRef.split('/').pop()}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">None</td></tr>'}</tbody></table></div></div>
+  </div>`;
+}
+
+function aOrders() {
+  const orders = Object.values(E.s.orders).sort((a, b) => b.createdAt - a.createdAt);
+  const act = ui.a.orderAct;
+  return `<div><h2>Orders &amp; webhooks</h2><p class="lede">Simulate what Shopify sends: returns, partial refunds, cancellations, duplicate deliveries and failures. Every event is idempotent and logged.</p></div>
+  ${E.s.failed.length ? `<div class="card" style="display:grid;gap:10px;border-color:var(--danger)"><b style="font-family:var(--f-head);color:var(--danger)">Failed events awaiting retry (${E.s.failed.length})</b>
+    ${E.s.failed.map(f => `<div class="row-between" style="flex-wrap:wrap;font-size:13.5px"><span><span class="mono">${f.id}</span> · ${f.topic} · ${esc((E.s.orders[f.payload.orderId] || {}).name || f.payload.name || '')} ${f.payload.amount ? '· ' + INR(f.payload.amount) : ''}<br><span class="faint">${esc(f.error)} · attempt ${f.attempts} · auto-retry ${DT(f.nextRetryAt)}</span></span><button class="btn small" data-act="retry" data-v="${f.id}">Retry now</button></div>`).join('')}</div>` : ''}
+  <div class="card row-between" style="flex-wrap:wrap"><span style="font-size:14px"><b style="font-family:var(--f-head)">Failure simulator</b><br><span class="muted">Make the next webhook fail so you can watch the retry queue and reconciliation catch it.</span></span>
+    <button class="btn ${E.s.failNext ? '' : 'ghost'} small" data-act="failnext">${E.s.failNext ? 'Next webhook will fail ✓' : 'Fail the next webhook'}</button></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th class="r">Paid</th><th class="r">Eligible</th><th class="r">Points</th><th>Points state</th><th>Order status</th><th>Actions</th></tr></thead><tbody>
+  ${orders.map(o => { const c = o.customerId ? E.s.customers[o.customerId] : null; const state = o.guest ? 'Held for guest' : o.pendingLeft ? `${P(o.pendingLeft)} pending → ${D(o.availableAt)}` : o.activated ? `${P(o.activated)} activated` : o.points ? 'Cancelled' : '—';
+    return `<tr><td><b>${esc(o.name)}</b><br><span class="faint">${D(o.createdAt, true)}</span></td><td>${c ? esc(c.name) : `<span class="faint">Guest · ${esc(o.email)}</span>`}</td><td class="r num">${INR(o.total)}${o.rewardCode ? '<br><span class="faint">reward used</span>' : ''}</td><td class="r num">${INR(o.eligible)}</td><td class="r num">${P(o.points)}${o.reversed ? `<br><span class="minus">−${P(o.reversed)}</span>` : ''}</td><td>${state}</td><td>${esc(o.status)}</td>
+    <td style="white-space:nowrap">${o.status === 'cancelled' || o.status === 'returned' || o.status === 'refunded' ? '<span class="faint">closed</span>' : `<button class="link" data-act="oact" data-v="${o.id}" data-k="return">Return</button> · <button class="link" data-act="oact" data-v="${o.id}" data-k="refund">Refund</button> · <button class="link" data-act="ocancel" data-v="${o.id}">Cancel</button> · <button class="link" data-act="odup" data-v="${o.id}">Resend webhook</button>`}</td></tr>
+    ${act && act.id === o.id ? `<tr><td colspan="8" style="background:var(--surface)"><form data-form="refund" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><label class="f" for="rf-amt">${act.kind === 'return' ? 'Returned item value (₹, incl. GST)' : 'Refunded item value (₹, incl. GST)'}<input class="inp num" id="rf-amt" name="amt" type="number" min="1" step="1" max="${Math.round(o.eligibleMerchRemaining ?? E.merchValue(o))}" value="${Math.round(o.lines[o.lines.length - 1].price)}" required></label>
+      <span class="faint" style="font-size:12.5px;max-width:320px">Up to ${INR(o.eligibleMerchRemaining ?? E.merchValue(o))} of eligible items remain. Points reverse in proportion; the final refund lands exactly on what was earned.</span><button class="btn small" type="submit">Send refunds/create</button><button class="btn ghost small" type="button" data-act="oactclose">Cancel</button></form></td></tr>` : ''}`; }).join('')}
+  </tbody></table></div>
+  <div style="display:grid;gap:8px"><b style="font-family:var(--f-head);font-size:16px">Webhook event log</b><div class="tbl-wrap"><table><thead><tr><th>Received</th><th>Event ID</th><th>Topic</th><th>Order</th><th>Result</th><th>Detail</th></tr></thead><tbody>
+    ${E.s.eventLog.slice(0, 40).map(e => `<tr><td class="num" style="white-space:nowrap">${DT(e.t)}</td><td class="mono">${esc(String(e.id).slice(0, 26))}</td><td class="mono">${e.topic}</td><td>${esc(e.ref || '')}</td><td><span class="pill ${e.result === 'processed' ? 'st-Available' : e.result === 'failed' ? 'st-Reversed' : 'st-Expired'}">${e.result}</span></td><td>${esc(e.note)}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+
+function aRules() {
+  const c = E.cfg, m = ui.a.ruleMsg;
+  return `<div><h2>Earning &amp; redemption rules</h2><p class="lede">Rules are configuration, not code. Every saved change is validated and written to the audit log with its previous value.</p></div>
+  <form data-form="rules" style="display:grid;gap:16px">
+  <div class="fs"><h3>Purchase earning</h3>
+    <div class="form-grid"><label class="f" for="r-spend">Spend (₹)<input class="inp num" id="r-spend" name="spend" type="number" step="1" value="${c.earn.spend}" data-input="rulepreview"></label>
+    <label class="f" for="r-pts">Earn (points)<input class="inp num" id="r-pts" name="points" type="number" step="1" value="${c.earn.points}" data-input="rulepreview"></label>
+    <label class="f" for="r-round">Rounding<select class="inp" id="r-round" name="rounding" data-input="rulepreview"><option value="floor" ${c.earn.rounding === 'floor' ? 'selected' : ''}>Proportional, round down</option><option value="round" ${c.earn.rounding === 'round' ? 'selected' : ''}>Proportional, nearest</option><option value="block" ${c.earn.rounding === 'block' ? 'selected' : ''}>Per full spend block only</option></select></label>
+    <label class="f" for="r-basis">Calculate on<select class="inp" id="r-basis" name="basis"><option value="after_discount" ${c.earn.basis === 'after_discount' ? 'selected' : ''}>Product value after discounts</option><option value="before_discount" ${c.earn.basis === 'before_discount' ? 'selected' : ''}>Product value before discounts</option></select></label></div>
+    <div class="checks"><label><input type="checkbox" name="includeTax" ${c.earn.includeTax ? 'checked' : ''}> Include GST in eligible value</label><label><input type="checkbox" name="includeShipping" ${c.earn.includeShipping ? 'checked' : ''}> Include shipping</label><label><input type="checkbox" name="excludeGiftCards" ${c.earn.excludeGiftCards ? 'checked' : ''}> Exclude gift cards</label></div>
+    <div><span class="f" style="font-size:13px;font-weight:700;color:var(--ink-2)">Collections that don't earn</span><div class="checks" style="margin-top:6px">${Object.entries(COLLECTIONS).map(([k, v]) => `<label><input type="checkbox" name="exc_${k}" ${c.earn.excludedCollections.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div></div>
+    <div class="warnbox" id="rule-preview" aria-live="polite">${rulePreview(c.earn.spend, c.earn.points, c.earn.rounding)}</div></div>
+  <div class="fs"><h3>Redemption &amp; lifecycle</h3>
+    <div class="form-grid"><label class="f" for="r-rp">Points<input class="inp num" id="r-rp" name="rpoints" type="number" step="1" value="${c.redeem.points}"></label>
+    <label class="f" for="r-rv">are worth (₹)<input class="inp num" id="r-rv" name="rvalue" type="number" step="0.5" value="${c.redeem.value}"></label>
+    <label class="f" for="r-hold">Points holding period<select class="inp" id="r-hold" name="holding">${[0, 7, 14, 30].map(d => `<option value="${d}" ${c.holdingDays === d ? 'selected' : ''}>${d} days</option>`).join('')}<option value="custom" ${[0, 7, 14, 30].includes(c.holdingDays) ? '' : 'selected'}>Custom…</option></select></label>
+    <label class="f" for="r-holdc">Custom days<input class="inp num" id="r-holdc" name="holdingCustom" type="number" step="1" value="${c.holdingDays}"></label>
+    <label class="f" for="r-exp">Points expire after (months, 0 = never)<input class="inp num" id="r-exp" name="expiry" type="number" step="1" value="${c.expiryMonths}"></label></div>
+    <p class="hint">Holding period decides when points become usable. Expiry counts from that date. They are set independently.</p>
+    <label class="f" for="r-short">When a return reverses points the customer already spent<select class="inp" id="r-short" name="shortfall"><option value="void_unused_then_owe" ${c.shortfallPolicy === 'void_unused_then_owe' ? 'selected' : ''}>Cancel unused reward codes first, then recover the rest from future points</option><option value="owe_only" ${c.shortfallPolicy === 'owe_only' ? 'selected' : ''}>Recover from future points only</option></select></label>
+    <div class="checks"><label><input type="checkbox" name="returnOnExpiry" ${c.returnPointsOnCodeExpiry ? 'checked' : ''}> Return points when an unlocked reward code expires unused</label><label><input type="checkbox" name="restore" ${c.restoreRewardOnFullRefund ? 'checked' : ''}> Return reward points when the order that used it is fully refunded or cancelled</label></div></div>
+  <div class="fs"><h3>Campaign rule <span class="pill st-Expired" style="vertical-align:middle">engine-ready, off for V1</span></h3>
+    <div class="form-grid"><label class="f" for="r-cn">Name<input class="inp" id="r-cn" name="cname" value="${esc(c.campaign.name)}"></label><label class="f" for="r-cm">Multiplier<input class="inp num" id="r-cm" name="cmult" type="number" step="0.5" value="${c.campaign.multiplier}"></label><label class="f" for="r-cx">Max bonus points per order<input class="inp num" id="r-cx" name="cmax" type="number" step="1" value="${c.campaign.maxBonus}"></label><label class="f" for="r-cd">Runs for (days from today)<input class="inp num" id="r-cd" name="cdays" type="number" step="1" value="2"></label></div>
+    <div class="checks"><label><input type="checkbox" name="cenabled" ${c.campaign.enabled ? 'checked' : ''}> Campaign active</label></div></div>
+  <div class="fs"><label class="f" for="r-reason">Reason for this change (audit log)<input class="inp" id="r-reason" name="reason" placeholder="e.g. Shorter holding period for festive season"></label>
+    ${m ? `<div class="${m.ok ? 'ok' : 'err'}">${m.ok ? esc(m.text) : m.errors.map(esc).join('<br>')}</div>` : ''}
+    <div><button class="btn" type="submit">Save rules</button></div></div></form>`;
+}
+function rulePreview(spend, points, rounding) {
+  const t = new Engine(); t.s.config.earn = { ...E.cfg.earn, spend: +spend, points: +points, rounding };
+  if (!(+spend > 0) || !(+points > 0)) return 'Enter a spend above ₹0 and at least 1 point.';
+  const eff = (E.cfg.redeem.value / E.cfg.redeem.points) * (+points / +spend) * 100;
+  return `Preview: ₹149 → <b>${P(t.pointsFor(149))} pts</b> · ₹999 → <b>${P(t.pointsFor(999))} pts</b> · ₹1,549 → <b>${P(t.pointsFor(1549))} pts</b>. At the current redemption rule customers get back <b>${eff.toFixed(1)}%</b> of eligible spend as reward value.`;
+}
+
+function aRewards() {
+  const ed = ui.a.rewardEdit, m = ui.a.rwMsg;
+  return `<div><h2>Reward catalogue</h2><p class="lede">Customers see only active rewards they can afford under "Rewards you can use"; the nearest one above their balance becomes "Your next reward".</p></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Reward</th><th class="r">Points</th><th class="r">Value</th><th class="r">Min. cart</th><th>Code valid</th><th>Uses / customer</th><th>Collections</th><th>Rules</th><th>Status</th><th></th></tr></thead><tbody>
+  ${E.s.rewards.map(r => `<tr><td><b>${esc(r.name)}</b></td><td class="r num">${P(r.points)}</td><td class="r num">${INR(r.value)}</td><td class="r num">${INR(r.minCart)}</td><td>${r.expiryDays} days</td><td>${r.maxUses || 'Unlimited'}</td><td style="font-size:12px">${r.eligibleCollections.length ? 'Only ' + r.eligibleCollections.map(k => COLLECTIONS[k]).join(', ') : 'All'}${r.excludedCollections.length ? '<br>Not ' + r.excludedCollections.map(k => COLLECTIONS[k]).join(', ') : ''}</td><td style="font-size:12px">${r.stackable ? 'Stackable' : 'One per order'} · ${r.couponCompatible ? 'Works with coupons' : 'No coupons'}${r.eligibility === 'has_order' ? ' · After 1st order' : ''}</td><td><span class="pill ${r.status === 'active' ? 'st-Available' : 'st-Expired'}">${r.status}</span></td><td><button class="link" data-act="redit" data-v="${r.id}">Edit</button></td></tr>`).join('')}
+  </tbody></table></div>
+  <div><button class="btn ghost small" data-act="rnew">Add reward</button></div>
+  ${ed ? `<form class="fs" data-form="reward"><h3>${E.s.rewards.some(r => r.id === ed.id) ? 'Edit ' + esc(ed.name) : 'New reward'}</h3>
+    <div class="form-grid"><label class="f" for="w-name">Reward name<input class="inp" id="w-name" name="name" value="${esc(ed.name)}"></label>
+    <label class="f" for="w-pts">Points required<input class="inp num" id="w-pts" name="points" type="number" step="1" value="${ed.points}"></label>
+    <label class="f" for="w-val">Value (₹)<input class="inp num" id="w-val" name="value" type="number" step="1" value="${ed.value}"></label>
+    <label class="f" for="w-min">Minimum cart (₹)<input class="inp num" id="w-min" name="minCart" type="number" step="1" value="${ed.minCart}"></label>
+    <label class="f" for="w-max">Max uses per customer (0 = unlimited)<input class="inp num" id="w-max" name="maxUses" type="number" step="1" value="${ed.maxUses}"></label>
+    <label class="f" for="w-exp">Code valid for (days)<input class="inp num" id="w-exp" name="expiryDays" type="number" step="1" value="${ed.expiryDays}"></label>
+    <label class="f" for="w-elig">Customer eligibility<select class="inp" id="w-elig" name="eligibility"><option value="all" ${ed.eligibility === 'all' ? 'selected' : ''}>All members</option><option value="has_order" ${ed.eligibility === 'has_order' ? 'selected' : ''}>Members with at least one order</option></select></label>
+    <label class="f" for="w-status">Status<select class="inp" id="w-status" name="status"><option ${ed.status === 'active' ? 'selected' : ''}>active</option><option ${ed.status === 'paused' ? 'selected' : ''}>paused</option></select></label></div>
+    <div><span style="font-size:13px;font-weight:700;color:var(--ink-2)">Eligible collections (none = all)</span><div class="checks" style="margin-top:6px">${Object.entries(COLLECTIONS).map(([k, v]) => `<label><input type="checkbox" name="inc_${k}" ${ed.eligibleCollections.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div></div>
+    <div><span style="font-size:13px;font-weight:700;color:var(--ink-2)">Excluded collections</span><div class="checks" style="margin-top:6px">${Object.entries(COLLECTIONS).map(([k, v]) => `<label><input type="checkbox" name="exc_${k}" ${ed.excludedCollections.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div></div>
+    <div class="checks"><label><input type="checkbox" name="stackable" ${ed.stackable ? 'checked' : ''}> Stackable with other rewards</label><label><input type="checkbox" name="couponCompatible" ${ed.couponCompatible ? 'checked' : ''}> Can combine with coupon codes</label></div>
+    ${m ? `<div class="${m.ok ? (m.warn ? 'warnbox' : 'ok') : 'err'}">${m.ok ? esc(m.warn || 'Saved.') : m.errors.map(esc).join('<br>')}</div>` : ''}
+    <div style="display:flex;gap:8px"><button class="btn small" type="submit">Save reward</button><button class="btn ghost small" type="button" data-act="rclose">Close</button></div></form>` : ''}`;
+}
+
+function aRecon() {
+  const r = ui.a.recon || E.reconcile();
+  return `<div><h2>Reconciliation</h2><p class="lede">Compares Shopify orders, refunds and cancellations with ledger entries, and every cached balance with the sum of its ledger. Missing, duplicate or wrong entries show up here.</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="recon">Run reconciliation</button><button class="btn ghost small" data-act="drift">Simulate cache drift</button><button class="btn ghost small" data-act="rebuild">Rebuild balances from ledger</button></div>
+  <p class="muted" style="font-size:13.5px">Last run ${DT(r.at)} · ${r.rows.length} accounts · ${r.orders} orders · <b>${r.issues.length ? r.issues.length + ' issue' + (r.issues.length > 1 ? 's' : '') : 'no issues'}</b></p>
+  ${r.issues.length ? `<div style="display:grid;gap:8px">${r.issues.map(i => `<div class="issue"><b>${esc(i.kind)}</b><span>${esc(i.who)} · ${esc(i.detail)}</span></div>`).join('')}</div>` : '<div class="ok">Every balance matches its ledger, every order has exactly one earning entry, and every reversal matches its refunds.</div>'}
+  <div class="tbl-wrap"><table><thead><tr><th>Member</th><th class="r">Cached available</th><th class="r">Ledger available</th><th class="r">Cached pending</th><th class="r">Ledger pending</th><th>Match</th></tr></thead><tbody>
+  ${r.rows.map(x => `<tr><td>${esc(x.name)}</td><td class="r num">${P(x.cachedA)}</td><td class="r num">${P(x.ledgerA)}</td><td class="r num">${P(x.cachedP)}</td><td class="r num">${P(x.ledgerP)}</td><td><span class="pill ${x.ok ? 'st-Available' : 'st-Reversed'}">${x.ok ? 'Match' : 'Mismatch'}</span></td></tr>`).join('')}</tbody></table></div>`;
+}
+function aNotify() {
+  const N = E.cfg.notifications; const lab = { points_earned: 'Points earned', points_activated: 'Points activated', reward_unlocked: 'Reward unlocked', reward_redeemed: 'Reward redeemed', points_expiring: 'Points expiring (30 days before)', bonus_points: 'Bonus points', special_campaign: 'Special campaign' };
+  return `<div><h2>Notifications</h2><p class="lede">Each message type can be switched on per channel. Defaults are deliberately sparse to avoid notification fatigue; WhatsApp is off until a provider is connected.</p></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Message</th><th>On-site</th><th>Email</th><th>WhatsApp</th></tr></thead><tbody>${Object.keys(N).map(k => `<tr><td>${lab[k]}</td>${['onsite', 'email', 'whatsapp'].map(ch => `<td><label><span class="sr">${lab[k]} ${ch}</span><input type="checkbox" data-act="ntoggle" data-v="${k}" data-k="${ch}" ${N[k][ch] ? 'checked' : ''}></label></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <div style="display:grid;gap:8px"><b style="font-family:var(--f-head);font-size:16px">Outbox (${E.s.outbox.length})</b><div class="tbl-wrap"><table><thead><tr><th>Queued</th><th>Channel</th><th>Type</th><th>Customer</th><th>Message</th></tr></thead><tbody>${E.s.outbox.slice(0, 30).map(o => `<tr><td class="num" style="white-space:nowrap">${DT(o.t)}</td><td>${o.ch}</td><td class="mono">${o.type}</td><td>${esc((E.s.customers[o.customerId] || {}).name || '')}</td><td>${esc(o.text)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function aAudit() {
+  return `<div><h2>Audit log</h2><p class="lede">Admin actions with who, when, previous value, new value and reason: point adjustments, rule changes, reward changes and balance rebuilds.</p></div>
+  <div class="tbl-wrap"><table><thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Previous</th><th>New</th><th>Reason</th></tr></thead><tbody>${E.s.audit.map(a => `<tr><td class="num" style="white-space:nowrap">${DT(a.t)}</td><td>${esc(a.admin)}</td><td class="mono">${esc(a.action)}</td><td class="mono" style="max-width:220px;overflow-wrap:anywhere">${esc(String(a.prev).slice(0, 140))}</td><td class="mono" style="max-width:220px;overflow-wrap:anywhere">${esc(String(a.next).slice(0, 140))}</td><td>${esc(a.reason)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No admin actions yet.</td></tr>'}</tbody></table></div>`;
+}
+function aAnalytics() {
+  const counts = {}; E.s.analytics.forEach(e => counts[e.name] = (counts[e.name] || 0) + 1);
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]); const max = rows[0] ? rows[0][1] : 1;
+  return `<div><h2>Analytics events</h2><p class="lede">Core loyalty events from BRD §56, fired by the storefront and the engine in this session. In production these go to the analytics pipeline for cohort and holdout analysis.</p></div>
+  <div class="card"><div class="bars">${rows.map(([n, c]) => `<div><span class="mono">${n}</span><i style="width:${c / max * 100}%" title="${n}: ${c}"></i><b class="num">${c}</b></div>`).join('')}</div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Event</th><th>Properties</th></tr></thead><tbody>${E.s.analytics.slice(0, 50).map(e => `<tr><td class="num" style="white-space:nowrap">${DT(e.t)}</td><td class="mono">${e.name}</td><td class="mono faint">${esc(JSON.stringify(e.props))}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* =====================================================================
+   TEST SUITE VIEW
+   ===================================================================== */
+function testsView() {
+  const res = ui.tests || (ui.tests = runRewardTests());
+  const pass = res.filter(r => r.pass).length;
+  const groups = [...new Set(res.map(r => r.group))];
+  const manual = [['Mobile', 'Rewards page, cart and redemption sheet use cards and 44px+ touch targets inside the phone frame; the whole prototype reflows to one column below 900px.'], ['Desktop', 'Storefront renders in a phone frame beside the demo panel; admin uses a side navigation and scrollable tables.']];
+  return `<div class="amain" style="max-width:980px"><div><h2>Edge-case test suite</h2><p class="lede">Every scenario in BRD §73 runs against a fresh copy of the loyalty engine each time this page opens. Nothing here is mocked: the same engine drives the storefront and admin.</p></div>
+  <div class="tsum"><span class="n num">${pass}/${res.length}</span><span class="muted">automated checks passing</span><button class="btn small" data-act="runtests">Run again</button></div>
+  ${groups.map(g => `<div class="tgroup"><span class="eyebrow">${g}</span>${res.filter(r => r.group === g).map(r => `<div class="trow"><span class="tp ${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span><div><b style="font-size:14px">${esc(r.name)}</b><div class="d">${esc(r.detail || '')}</div></div></div>`).join('')}</div>`).join('')}
+  <div class="tgroup"><span class="eyebrow">Layout (checked by hand)</span>${manual.map(([n, d]) => `<div class="trow"><span class="tp manual">VISUAL</span><div><b style="font-size:14px">${n}</b><div class="d">${d}</div></div></div>`).join('')}</div></div>`;
+}
+
+/* =====================================================================
+   BUILD NOTES — how this maps to the Shopify implementation
+   ===================================================================== */
+function notesView() {
+  const cov = [
+    ['Point ledger, statuses, reversal links', 'Engine · Admin → Customers → Ledger'], ['Configurable earning, rounding, basis', 'Admin → Earning & redemption'], ['Holding period & expiry (independent)', 'Admin → Earning & redemption'],
+    ['Returns, partial returns, refunds, cancellations', 'Admin → Orders & webhooks'], ['Idempotency & retry queue', 'Admin → Orders & webhooks'], ['Reward configuration (§11)', 'Admin → Reward catalogue'],
+    ['Redemption with double-tap protection', 'Storefront → Rewards → Redeem'], ['Rewards page hierarchy (§76)', 'Storefront → Rewards'], ['Widget collapsed/expanded', 'Storefront → any screen'],
+    ['PDP earning message', 'Storefront → Shop → product'], ['Cart reward experience', 'Storefront → Cart'], ['Post-purchase message', 'Storefront → Place order'],
+    ['Customer account', 'Storefront → Account'], ['Manual adjustments + audit', 'Admin → Customers'], ['Dashboard & liability', 'Admin → Overview'], ['Reconciliation', 'Admin → Reconciliation'], ['Analytics events', 'Admin → Analytics events'], ['Notifications (sparse defaults)', 'Admin → Notifications'],
+  ];
+  return `<div class="notes"><div><h2 style="font-family:var(--f-display);font-weight:600;font-size:28px">Build notes for the dev team</h2><p class="lede" style="color:var(--ink-2);margin-top:4px">This page is a working model of the V1 target. The engine code on this page is the reference logic for the production service.</p></div>
+  <div class="card"><h3>Recommended architecture (custom ledger, Shopify-native surfaces)</h3><ul>
+    <li><b>Loyalty service</b> (small Shopify app backend + Postgres) owns the ledger, point lots, redemptions, events and audit tables exactly as modelled here. The ledger is the only source of truth; a cached balance is written to a customer metafield for fast storefront reads.</li>
+    <li><b>Webhooks</b>: <span class="mono">orders/create</span> (or <span class="mono">orders/paid</span> for COD policy), <span class="mono">refunds/create</span>, <span class="mono">orders/cancelled</span>, <span class="mono">customers/create</span> (claims guest holds by email). Store <span class="mono">X-Shopify-Webhook-Id</span> as the idempotency key and keep order ID uniqueness on purchase entries.</li>
+    <li><b>Redemption</b> creates a single-use, customer-specific discount via <span class="mono">discountCodeBasicCreate</span> with the reward's minimum subtotal and collection rules. "Use Reward" applies it through <span class="mono">/discount/CODE</span> or the cart AJAX API, so no copy-paste.</li>
+    <li><b>Storefront</b>: a theme app extension with app blocks for PDP and cart, and an app embed for the widget, loaded lazily after first interaction. The PDP estimate is computed from rule values in a shop metafield, so it needs no API call.</li>
+    <li><b>Account</b>: a Customer Account UI extension for the Rewards page on new customer accounts; an app proxy page for classic accounts.</li>
+    <li><b>Jobs</b>: an hourly job runs the same <span class="mono">processDue()</span> steps: activate, expire, expire codes, retry failed events. A nightly job runs reconciliation and alerts on issues.</li></ul></div>
+  <div class="card"><h3>Decisions to confirm before build</h3><ul>
+    <li><b>GST in the earning base.</b> The BRD default excludes taxes, and prices on ecofynd.com include GST, so a ₹419 pot earns 399 points, not 419. If "₹100 = 100 points" should read literally to customers, tick "Include GST" in the rules.</li>
+    <li><b>Reward rate.</b> The baseline rules (₹100 → 100 points, 100 points → ₹10) return 10% of spend. Rewards at ₹200 OFF need ₹2,000+ of spend. Check this against margin before launch.</li>
+    <li><b>Returns after points are spent.</b> This build cancels unused codes first, then recovers the remainder from future points and pauses redemption meanwhile. It never deducts money or silently zeroes a balance.</li>
+    <li><b>Orders paid with a reward</b> earn on the amount after the reward discount. A fully refunded or cancelled order returns the reward's points.</li>
+    <li><b>COD orders.</b> For cash on delivery, start the holding period on delivery (fulfilment webhook) rather than order creation.</li></ul></div>
+  <div class="card"><h3>What this build covers</h3><div class="cov">${cov.map(([a, b]) => `<div style="font-size:13.5px"><b>${a}</b><br><span class="muted">${b}</span></div>`).join('')}</div></div>
+  <div class="card"><h3>Future-ready, not built (per BRD §68)</h3><ul><li>Review, photo and video rewards, referrals, birthday and signup bonuses slot in as new ledger transaction types with their own idempotency keys (e.g. one per review ID).</li><li>Campaign multipliers already run through the rule engine (switched off). Tiers can reuse the same rule-evaluation step as an earning multiplier.</li></ul></div>
+  <p class="faint" style="font-size:12.5px">Product names, SKUs, prices and GST rates come from the live ecofynd.com catalogue as of 30 Sep 2026. Customers, orders and the gift card are sample data. Product images are drawn because store CDN images can't load inside this page.</p></div>`;
+}
+
+/* =====================================================================
+   RENDER + ACTIONS
+   ===================================================================== */
+function render() {
+  const sc = document.getElementById('screen'); const keep = sc && !ui.scrollTop ? sc.scrollTop : 0; ui.scrollTop = false;
+  const modes = [['store', 'Storefront'], ['admin', 'Admin'], ['tests', 'Test suite'], ['notes', 'Build notes']];
+  document.getElementById('app').innerHTML = `<header class="top"><div class="top-in">
+    <div class="brand"><b>ecofynd</b><span>Rewards · V1 build</span></div>
+    <div class="seg" role="group" aria-label="View">${modes.map(([k, l]) => `<button data-act="mode" data-v="${k}" aria-pressed="${ui.mode === k}">${l}</button>`).join('')}</div>
+    <div class="clock" aria-label="Simulated store date"><span class="faint">Store date</span><span class="date num">${D(E.now, true)}</span><button class="chip-btn" data-act="adv" data-v="1">+1 day</button><button class="chip-btn" data-act="adv" data-v="7">+7 days</button><button class="chip-btn" data-act="adv" data-v="30">+30 days</button><button class="chip-btn" data-act="reset">Reset</button></div>
+  </div></header>
+  <main class="wrap">${ui.mode === 'store' ? storeView() : ui.mode === 'admin' ? adminView() : ui.mode === 'tests' ? testsView() : notesView()}</main>
+  ${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ''}`;
+  const sc2 = document.getElementById('screen'); if (sc2) sc2.scrollTop = keep;
+}
+let toastT;
+function toast(msg) { ui.toast = msg; clearTimeout(toastT); toastT = setTimeout(() => { ui.toast = null; const t = document.querySelector('.toast'); if (t) t.remove(); }, 3200); }
+const reqKey = () => 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+
+const ACT = {
+  mode: d => { ui.mode = d.v; if (d.v === 'tests') ui.tests = null; },
+  go: d => { go(d.v); return false; },
+  pdp: d => { ui.pid = d.v; ui.qty = 1; go('pdp'); return false; },
+  qty: d => { ui.qty = Math.max(1, Math.min(10, ui.qty + +d.v)); },
+  add: () => { const c = cartOf(); const l = c.lines.find(x => x.productId === ui.pid); if (l) l.qty += ui.qty; else c.lines.push({ productId: ui.pid, qty: ui.qty }); toast(`Added to cart · ${PMAP[ui.pid].title}`); },
+  cqty: d => { const c = cartOf(); const l = c.lines[+d.i]; l.qty += +d.v; if (l.qty <= 0) c.lines.splice(+d.i, 1); ui.cartConfirm = null; },
+  widget: () => { ui.widget = !ui.widget; if (ui.widget) E.track('loyalty_widget_opened'); },
+  redeem: d => { ui.sheet = { kind: 'redeem', rewardId: d.v, key: reqKey() }; E.track('reward_viewed', { reward: d.v }); },
+  closesheet: () => { ui.sheet = null; },
+  doredeem: d => {
+    const r = E.redeem(ui.cid, d.v, ui.sheet.key); // same key on double-tap → one debit
+    if (!r.ok) { ui.sheet.error = r.error; return; }
+    ui.sheet = { kind: 'done', redId: r.redemption.id };
+  },
+  use: d => { const c = cartOf(); c.rewardCode = d.v; ui.sheet = null; E.track('reward_applied', { code: d.v }); const v = c.lines.length ? E.validateRewardForCart(ui.cid, d.v, cartLines(), c.coupon) : { ok: true }; if (!v.ok) { c.rewardCode = null; toast(v.error); } go('cart'); return false; },
+  apply: d => { const c = cartOf(); const v = E.validateRewardForCart(ui.cid, d.v, cartLines(), c.coupon); if (v.ok) { c.rewardCode = d.v; E.track('cart_reward_applied', { code: d.v }); } else toast(v.error); },
+  unapply: () => { cartOf().rewardCode = null; },
+  cartconfirm: d => { ui.cartConfirm = d.v; ui.cartKey = reqKey(); },
+  cartcancel: () => { ui.cartConfirm = null; },
+  cartredeem: d => { const r = E.redeem(ui.cid, d.v, ui.cartKey); if (!r.ok) { toast(r.error); ui.cartConfirm = null; return; } cartOf().rewardCode = r.redemption.code; ui.cartConfirm = null; E.track('cart_reward_applied', { code: r.redemption.code }); toast(`${r.redemption.name} unlocked and applied`); },
+  checkout: () => {
+    const c = cartOf(); const r = E.checkout({ customerId: ui.cid || null, email: ui.cid ? null : ui.signup.email, lines: cartLines(), couponCode: c.coupon, rewardCode: c.rewardCode });
+    if (!r.ok) { toast(r.error); return; }
+    ui.carts[ui.cid || 'guest'] = { lines: [], coupon: null, rewardCode: null };
+    ui.lastOrder = r.orderId;
+    if (r.webhook === 'failed') toast('Order placed. The loyalty webhook failed and is queued for retry. See Admin → Orders.');
+    go('done'); return false;
+  },
+  copy: (d) => { navigator.clipboard && navigator.clipboard.writeText(d.v).then(() => toast('Code copied'), () => toast('Select the code to copy it')); return false; },
+  persona: d => { ui.cid = d.v || null; ui.sheet = null; ui.widget = false; ui.cartConfirm = null; if (ui.screen === 'done') ui.screen = 'rewards'; ui.scrollTop = true; },
+  admincust: d => { ui.mode = 'admin'; ui.a.tab = 'customers'; ui.a.cid = d.v; ui.a.adj = null; ui.a.msg = null; },
+  adv: d => { const out = E.advance(+d.v); ui.a.recon = null; toast(`Store date moved ${d.v} day${d.v > 1 ? 's' : ''}${out.length ? ': ' + out.slice(0, 3).join(' · ') + (out.length > 3 ? ` · +${out.length - 3} more` : '') : '. Nothing due.'}`); },
+  reset: () => { E = seedEngine(); ui.carts = {}; ui.sheet = null; ui.lastOrder = null; ui.a.recon = null; ui.a.adj = null; ui.a.msg = null; ui.tests = null; if (ui.screen === 'done') ui.screen = 'rewards'; toast('Demo data reset to 30 Sep 2026'); },
+  atab: d => { ui.a.tab = d.v; ui.a.msg = null; ui.a.ruleMsg = null; ui.a.rwMsg = null; },
+  acust: d => { ui.a.cid = d.v; ui.a.adj = null; ui.a.msg = null; },
+  adjopen: d => { ui.a.adj = { kind: d.v }; ui.a.msg = null; },
+  adjclose: () => { ui.a.adj = null; },
+  scrollledger: () => { const el = document.getElementById('ledger'); if (el) el.scrollIntoView({ behavior: 'smooth' }); return false; },
+  oact: d => { ui.a.orderAct = { id: d.v, kind: d.k }; },
+  oactclose: () => { ui.a.orderAct = null; },
+  ocancel: d => { const r = E.ingest({ id: 'evt_cx_' + reqKey(), topic: 'orders/cancelled', payload: { orderId: d.v } }); toast(r.status === 'processed' ? r.note : 'Webhook ' + r.status); },
+  odup: d => { const o = E.s.orders[d.v]; const evt = E.s.eventLog.slice().reverse().find(e => e.topic === 'orders/create' && e.ref === o.name && e.result === 'processed'); const r = E.ingest({ id: evt ? evt.id : 'evt_x', topic: 'orders/create', payload: { orderId: o.id, name: o.name, customerId: o.customerId, email: o.email, lines: o.lines, discount: o.discount, shipping: o.shipping, total: o.total } }); toast(`Duplicate delivery of ${o.name}: ${r.status}. No points added.`); },
+  retry: d => { const r = E.retryEvent(d.v); ui.a.recon = null; toast('Retry ' + r.status + (r.note ? ': ' + r.note : '')); },
+  failnext: () => { E.s.failNext = E.s.failNext ? 0 : 1; },
+  recon: () => { ui.a.recon = E.reconcile(); toast(ui.a.recon.issues.length ? `${ui.a.recon.issues.length} issue(s) found` : 'Reconciliation clean'); },
+  drift: () => { E.acctOf('priya').available += 250; ui.a.recon = E.reconcile(); toast('Added 250 to Priya\'s cached balance without a ledger entry'); },
+  rebuild: () => { E.rebuildCache(ADMIN); ui.a.recon = E.reconcile(); toast('Cached balances rebuilt from the ledger'); },
+  redit: d => { ui.a.rewardEdit = JSON.parse(JSON.stringify(E.s.rewards.find(r => r.id === d.v))); ui.a.rwMsg = null; },
+  rnew: () => { ui.a.rewardEdit = { id: 'rw' + Date.now().toString(36), name: 'Free shipping', type: 'fixed_discount', points: 300, value: 79, minCart: 299, maxUses: 1, eligibleCollections: [], excludedCollections: ['gift-cards'], expiryDays: 30, stackable: true, couponCompatible: true, eligibility: 'all', status: 'paused' }; ui.a.rwMsg = null; },
+  rclose: () => { ui.a.rewardEdit = null; ui.a.rwMsg = null; },
+  ntoggle: (d, el) => { E.cfg.notifications[d.v][d.k] = el.checked; E.audit(ADMIN, 'notification_changed:' + d.v + '.' + d.k, String(!el.checked), String(el.checked), 'Notification settings'); return 'keep'; },
+  runtests: () => { ui.tests = null; },
+};
+
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]'); if (!el) return;
+  if (el.classList.contains('scrim') && ev.target.closest('.sheet')) return;
+  const fn = ACT[el.dataset.act]; if (!fn) return;
+  if (el.tagName === 'A') ev.preventDefault();
+  const r = fn(el.dataset, el, ev);
+  if (r === 'keep') return;
+  if (r !== false) render();
+});
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (el.dataset.input === 'csearch') { ui.a.q = el.value; const pos = el.selectionStart; render(); const n = document.getElementById('csearch'); n.focus(); n.setSelectionRange(pos, pos); }
+  if (el.dataset.input === 'rulepreview') { const f = el.form; document.getElementById('rule-preview').innerHTML = rulePreview(f.spend.value, f.points.value, f.rounding.value); }
+});
+document.addEventListener('submit', ev => {
+  ev.preventDefault(); const f = ev.target; const kind = f.dataset.form; const fd = new FormData(f);
+  if (kind === 'coupon') { const c = cartOf(); if (c.coupon) c.coupon = null; else { const v = String(fd.get('coupon') || '').trim().toUpperCase(); if (COUPONS[v]) { c.coupon = v; if (c.rewardCode) { const ok = E.validateRewardForCart(ui.cid, c.rewardCode, cartLines(), v); if (!ok.ok) { c.rewardCode = null; toast(ok.error); } } } else toast('That coupon code isn\'t valid. Try GARDEN10.'); } }
+  if (kind === 'signup') { const r = E.createCustomer({ name: String(fd.get('name')).trim(), email: String(fd.get('email')).trim(), phone: '' }); ui.cid = r.customer.id; ui.signup.email = r.customer.email; toast(r.duplicate ? 'Welcome back — this email already has an account' : `Account created · ${P(r.account.pending)} points claimed`); ui.screen = 'rewards'; }
+  if (kind === 'adjust') {
+    const adj = ui.a.adj; const amt = Math.round(+fd.get('amt')); const delta = adj.kind === 'add' ? amt : -amt;
+    Object.assign(adj, { amt: fd.get('amt'), reason: fd.get('reason'), note: fd.get('note') });
+    const r = E.adjust(ui.a.cid, delta, String(fd.get('reason')), String(fd.get('note')), String(fd.get('admin')).trim());
+    if (!r.ok) adj.error = r.error; else { ui.a.adj = null; ui.a.msg = `${delta > 0 ? 'Added' : 'Deducted'} ${P(Math.abs(delta))} points. Ledger entry ${r.txn.id} and audit record created.`; }
+  }
+  if (kind === 'refund') {
+    const act = ui.a.orderAct; const r = E.ingest({ id: 'evt_rf_' + reqKey(), topic: 'refunds/create', payload: { orderId: act.id, refundId: 'rf_' + reqKey(), amount: +fd.get('amt'), kind: act.kind } });
+    ui.a.orderAct = null; ui.a.recon = null; toast(r.status === 'processed' ? r.note : 'Webhook ' + r.status + (r.status === 'failed' ? ' — queued for retry' : ''));
+  }
+  if (kind === 'rules') {
+    const n = JSON.parse(JSON.stringify(E.cfg));
+    n.earn.spend = +fd.get('spend'); n.earn.points = +fd.get('points'); n.earn.rounding = fd.get('rounding'); n.earn.basis = fd.get('basis');
+    n.earn.includeTax = !!fd.get('includeTax'); n.earn.includeShipping = !!fd.get('includeShipping'); n.earn.excludeGiftCards = !!fd.get('excludeGiftCards');
+    n.earn.excludedCollections = Object.keys(COLLECTIONS).filter(k => fd.get('exc_' + k));
+    n.redeem.points = +fd.get('rpoints'); n.redeem.value = +fd.get('rvalue');
+    n.holdingDays = fd.get('holding') === 'custom' ? +fd.get('holdingCustom') : +fd.get('holding');
+    n.expiryMonths = +fd.get('expiry'); n.shortfallPolicy = fd.get('shortfall');
+    n.returnPointsOnCodeExpiry = !!fd.get('returnOnExpiry'); n.restoreRewardOnFullRefund = !!fd.get('restore');
+    n.campaign.name = String(fd.get('cname')); n.campaign.multiplier = +fd.get('cmult'); n.campaign.maxBonus = +fd.get('cmax'); n.campaign.enabled = !!fd.get('cenabled');
+    if (n.campaign.enabled && !E.cfg.campaign.enabled) { n.campaign.start = E.now; n.campaign.end = E.now + Math.max(1, +fd.get('cdays')) * DAY; }
+    const r = E.updateConfig(n, ADMIN, String(fd.get('reason') || ''));
+    ui.a.ruleMsg = r.ok ? { ok: true, text: `Saved ${r.changed.length} change${r.changed.length > 1 ? 's' : ''}: ${r.changed.join(', ')}. New orders use the new rules; existing ledger entries keep the rule they were earned under.` } : { ok: false, errors: r.errors };
+  }
+  if (kind === 'reward') {
+    const ed = ui.a.rewardEdit;
+    const r = { ...ed, name: String(fd.get('name')).trim(), points: +fd.get('points'), value: +fd.get('value'), minCart: +fd.get('minCart'), maxUses: +fd.get('maxUses'), expiryDays: +fd.get('expiryDays'), eligibility: fd.get('eligibility'), status: fd.get('status'),
+      eligibleCollections: Object.keys(COLLECTIONS).filter(k => fd.get('inc_' + k)), excludedCollections: Object.keys(COLLECTIONS).filter(k => fd.get('exc_' + k)), stackable: !!fd.get('stackable'), couponCompatible: !!fd.get('couponCompatible') };
+    ui.a.rewardEdit = r; const res = E.saveReward(r, ADMIN, 'Catalogue edit');
+    ui.a.rwMsg = res.ok ? { ok: true, warn: res.warn } : { ok: false, errors: res.errors };
+  }
+  render();
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && (ui.sheet || ui.widget)) { ui.sheet = null; ui.widget = false; render(); } });
+E.track('loyalty_widget_viewed'); E.track('loyalty_page_viewed');
+render();
+
+</script>
+
+</body></html>
