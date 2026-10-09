@@ -211,7 +211,7 @@ describe('Ported M2 client tests', () => {
     assert.strictEqual(b.pending, 659);
     assert.strictEqual(b.available, 0);
   
-    const lot = await prisma.pointLot.findFirst({ where: { accountId: { not: "0" } } }); // find the only lot
+    const lot = await prisma.pointLot.findFirst({ where: { account: { shop: currentShop } } }); // this test's only lot
     assert.strictEqual(lot.status, 'pending');
     // 30 days from 2026-09-01 is 2026-10-01
     assert.strictEqual(lot.activatesAt.toISOString().slice(0, 10), '2026-10-01');
