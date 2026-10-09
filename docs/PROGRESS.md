@@ -67,20 +67,21 @@ Reference logic: test/vendor/engine.js (client's, unmodified).
     the ledger identity, not ported from client code.
   * Tests: `jobs.test.js` (all on the fake clock).
 
+- CHECKPOINT 1 PASSED (2026-10-09). Server: 46 files synced (sizes verified, no deletions), prisma generate (6.19.3,
+  client knows LoyaltyOrder.lines and WebhookEvent.payloadPurgedAt), migrations 4 to 6 applied test then dev through
+  `.tmp/run-db.mjs`, full suite twice on reward_points_dev_test: 297 / 297 / 0 failures both times. After restarting
+  reward-points-dev and reward-points-dev-worker: tick picked=9 processed=9 failed=0; all 13 events processed; pending
+  3225, available 0, debt 0; refunds -675 and -674 (#1019), -749 (#1021), none for #1020; invariants match; JobRun shows
+  process_events and purge_payloads.
+
 ## Next
-- CHECKPOINT 1 is WAITING FOR THE USER ("continue"): the RUN ON SERVER block (sync, `prisma generate`, migrations 4 to 6
-  test then dev, restart reward-points-dev and reward-points-dev-worker, read the worker log, pgAdmin SQL) was handed over.
-  Expected once the worker has processed the 9 stored events (3 orders/paid, 5 refunds, 1 cancel): pending across the
-  test shop's accounts 3225 = 2551 (#1015 to #1018 earlier: 600 + 674 + 674 + 603) + 0 (#1019: 1349 earned, 675 + 674
-  reversed) + 674 (#1020: R3 and R4 reverse 0) + 0 (#1021: 749 earned, 749 reversed by R5, cancel 0 more); available 0,
-  debt 0; reversal entries exactly 675 and 674 (#1019) and 749 (#1021), none for R3 and R4.
-- Then TASK 5 (adjustment service), TASK 6 (redemption wiring), TASK 7 (metafield sync and widget), CHECKPOINT 2.
+- A: compare Task 4 with the client's real engine (docs/reference/). B: Task 4b code expiry. C/Task 5: adjust().
+  Then Tasks 6 and 7 to CHECKPOINT 2.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is
   not used; the fake gateway returns {}), so a snapshot line is only ever excluded for `gift_card` today. The snapshot
   field `excludedReason` is where a collection exclusion will go.
-- `.tmp/run-db.mjs` (the database wrapper) does not exist on the machine this session runs on, and `.env` points
-  at the remote RDS, which standing rules say may only be reached through that wrapper. Pure tests run locally;
-  tests that need a database are verified by CI (Postgres 17 service) until the wrapper is available here.
-  Consequence: migrations 4 onward have NOT yet been applied to the test or dev database (CHECKPOINT 1 needs this).
+- Remote access: ssh with the PEM given in the brief, DEV_DIR=/home/ubuntu/reward-points-dev (not a git repo; sync by
+  `git archive HEAD -- <files> | tar -x`), node 22 via nvm, database only through `$DEV_DIR/.tmp/run-db.mjs <dev|test> ...`.
+  This Mac has no wrapper; local tests are the pure ones, database tests run in CI or on the server.
