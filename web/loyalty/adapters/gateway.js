@@ -149,6 +149,34 @@ export class ShopifyGateway {
   }
 
   /**
+   * Deletes a reward discount (used when a code is voided to cover a return). Returns true when
+   * the discount is gone afterwards, including when it did not exist any more.
+   * Throws on a network error or any other userError, so the caller retries.
+   *
+   * @param {string} discountId  the discount node id (gid://shopify/DiscountCodeNode/...)
+   * @returns {Promise<boolean>}
+   */
+  async deleteRewardDiscount(discountId) {
+    const client = await this.getGraphqlClient();
+    const response = await client.request(
+      `mutation discountCodeDelete($id: ID!) {
+        discountCodeDelete(id: $id) {
+          deletedCodeDiscountId
+          userErrors { field message code }
+        }
+      }`,
+      { variables: { id: discountId }, retries: 2 }
+    );
+    const result = response.data?.discountCodeDelete;
+    const errors = result?.userErrors || [];
+    if (errors.length > 0) {
+      if (errors.every((e) => /not found|does not exist|invalid/i.test(`${e.code || ''} ${e.message || ''}`))) return true;
+      throw new Error('Shopify refused to delete the discount: ' + errors.map((e) => e.message).join('; '));
+    }
+    return Boolean(result?.deletedCodeDiscountId);
+  }
+
+  /**
    * Fetches collections for a list of products.
    * Placeholder for Phase 3.
    */

@@ -56,12 +56,16 @@ export function refundEntries(payload) {
   return [...byLine].map(([shopifyLineItemId, quantity]) => ({ shopifyLineItemId, quantity }));
 }
 
-/** Sums the line quantities of earlier refunds (LoyaltyRefund.lines) into a Map of line id -> units. */
-export function priorQuantities(refundLineArrays) {
+/**
+ * Sums the line quantities of earlier refunds (LoyaltyRefund.lines) into a Map of line id -> units.
+ * By default only COUNTED lines (the ones that reverse points). With includeUncounted, gift-card and
+ * unknown lines are included too: that is what "was the whole order refunded?" needs.
+ */
+export function priorQuantities(refundLineArrays, { includeUncounted = false } = {}) {
   const sum = new Map();
   for (const lines of refundLineArrays) {
     for (const l of Array.isArray(lines) ? lines : []) {
-      if (l.counted === false) continue; // missing from the snapshot or excluded: never used units
+      if (l.counted === false && !includeUncounted) continue; // missing from the snapshot or excluded: never used units
       sum.set(l.shopifyLineItemId, (sum.get(l.shopifyLineItemId) || 0) + l.quantity);
     }
   }
@@ -142,4 +146,14 @@ export function computeLineReversal({ lines, entries, prior, pointsEarned, eligi
   });
 
   return { pointsToReverse, totalRefundedPaise: after.totalRefundedPaise, deltaRefundedPaise, lineRecords };
+}
+
+/**
+ * True when EVERY line of the order (gift cards included) has been refunded in full, given the units
+ * refunded per line id so far (priorQuantities(..., { includeUncounted: true }) plus this refund's entries).
+ * An order with no lines, or a line without an id, is never "fully refunded": we cannot tell.
+ */
+export function allLinesRefunded(lines, unitsByLine) {
+  if (!Array.isArray(lines) || lines.length === 0) return false;
+  return lines.every((l) => l.shopifyLineItemId !== null && (unitsByLine.get(l.shopifyLineItemId) || 0) >= l.quantity);
 }

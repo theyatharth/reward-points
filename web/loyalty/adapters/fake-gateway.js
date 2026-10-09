@@ -52,6 +52,16 @@ export class FakeShopifyGateway {
     return { id: discount.id };
   }
 
+  /** Deletes a discount by its node id. Returns true even if it was already gone. */
+  async deleteRewardDiscount(discountId) {
+    this._checkFailure();
+    for (const [code, d] of this.discounts) {
+      if (d.id === discountId) this.discounts.delete(code);
+    }
+    this.deletedDiscountIds = [...(this.deletedDiscountIds || []), discountId];
+    return true;
+  }
+
   async findDiscountByCode(code) {
     this._checkFailure();
     const d = this.discounts.get(code);

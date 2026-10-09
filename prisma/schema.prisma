@@ -437,11 +437,21 @@ model Reward {
   usedAt    DateTime?
   returnedAt DateTime?
 
+  // The Shopify order that used the code (set when orders/paid carries it), so a cancelled or
+  // fully refunded order can return the reward.
+  usedOrderId String?
+
+  // Set when the code was VOIDED to cover a return (D4): the Shopify discount must be deleted
+  // after commit; the worker does it and stamps shopifyDeletedAt.
+  needsShopifyDelete Boolean   @default(false)
+  shopifyDeletedAt   DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([accountId])
   @@index([shop, status])
+  @@index([shop, discountCode])
 }
 
 // Raw webhook event store. Every incoming webhook is stored here BEFORE

@@ -100,3 +100,17 @@ test('lines without an id in the snapshot can never be matched', () => {
   const r = computeLineReversal({ ...order, entries: [{ shopifyLineItemId: '1', quantity: 1 }], prior: new Map(), alreadyReversed: 0 });
   assert.strictEqual(r.pointsToReverse, 0);
 });
+
+test('allLinesRefunded: every line in full, gift cards included; unknown ids and empty orders never count', async () => {
+  const { allLinesRefunded } = await import('../../web/loyalty/rules/refund-lines.js');
+  const lines = [line('A', 2, 1000), line('G', 1, 0, true)];
+  assert.strictEqual(allLinesRefunded(lines, new Map([['A', 2], ['G', 1]])), true);
+  assert.strictEqual(allLinesRefunded(lines, new Map([['A', 2]])), false, 'the gift card line is not refunded');
+  assert.strictEqual(allLinesRefunded(lines, new Map([['A', 1], ['G', 1]])), false);
+  assert.strictEqual(allLinesRefunded([], new Map()), false);
+  assert.strictEqual(allLinesRefunded([{ shopifyLineItemId: null, quantity: 1, eligiblePaise: 1, excluded: false }], new Map()), false);
+  // priorQuantities with includeUncounted keeps the gift-card units
+  const recs = [{ shopifyLineItemId: 'G', quantity: 1, counted: false, reason: 'gift_card' }];
+  assert.strictEqual(priorQuantities([recs]).get('G'), undefined);
+  assert.strictEqual(priorQuantities([recs], { includeUncounted: true }).get('G'), 1);
+});

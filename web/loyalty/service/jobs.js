@@ -9,6 +9,7 @@
 //                       through the gateway; new points repay the owed balance first)
 //   expireUnusedCodes   reward codes past their expiry that were never used become 'expired';
 //                       their points come back only if the shop's returnPointsOnCodeExpiry is on
+//   deleteVoidedCodes   codes voided to cover a return (D4) are deleted in Shopify
 //   purgeOldPayloads    processed events older than 90 days lose their payload, nothing else
 //
 // Reconciliation and the cache rebuild are in reconcile.js. createWorkerWork() ties them
@@ -17,7 +18,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { now } from '../adapters/clock.js';
 import { retryPlan } from './webhook.js';
-import { activatePendingLot, lockAccount, returnPoints } from './ledger.js';
+import { activatePendingLot, lockAccount, returnPoints, gatewayFactory } from './ledger.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { recordJob, ranWithin } from './jobrun.js';
 import { runNightlyReconciliation } from './reconcile.js';
@@ -181,6 +182,39 @@ export async function expireUnusedCodes({ shop } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Deleting voided codes in Shopify (the second half of D4's "void an unused code")
+// ---------------------------------------------------------------------------
+
+/**
+ * takeBackPoints voids an unused code inside the refund's transaction (Reward 'returned',
+ * needsShopifyDelete = true); the Shopify call cannot be made there. This job makes it afterwards:
+ * the discount is deleted so the customer can no longer use a code whose points were taken back.
+ * A failure leaves the flag set and is retried on the next run. A code with no Shopify id is just cleared.
+ *
+ * @returns {Promise<{ due: number, deleted: number, failed: Array<{ rewardId: string, reason: string }> }>}
+ */
+export async function deleteVoidedCodes({ shop } = {}) {
+  const due = await prisma.reward.findMany({
+    where: { needsShopifyDelete: true, ...(shop ? { shop } : {}) },
+    select: { id: true, shop: true, discountCodeId: true },
+    orderBy: { returnedAt: 'asc' },
+    take: LOT_BATCH,
+  });
+  let deleted = 0;
+  const failed = [];
+  for (const reward of due) {
+    try {
+      if (reward.discountCodeId) await gatewayFactory(reward.shop).deleteRewardDiscount(reward.discountCodeId);
+      await prisma.reward.update({ where: { id: reward.id }, data: { needsShopifyDelete: false, shopifyDeletedAt: now() } });
+      deleted++;
+    } catch (err) {
+      failed.push({ rewardId: reward.id, reason: err.message });
+    }
+  }
+  return { due: due.length, deleted, failed };
+}
+
+// ---------------------------------------------------------------------------
 // (d) 90-day purge of processed event payloads
 // ---------------------------------------------------------------------------
 
@@ -259,6 +293,8 @@ export function createJobsWork({ shop, activationEveryMs = ACTIVATION_EVERY_MS }
     }
 
     summary.codes = await runJob('expire_codes', () => expireUnusedCodes({ shop }), { didSomething: (r) => r.expired > 0, shop });
+
+    summary.voided = await runJob('delete_voided_codes', () => deleteVoidedCodes({ shop }), { didSomething: (r) => r.due > 0, shop });
 
     if (!(await ranWithin('purge_payloads', 23 * HOUR_MS, shop ?? null))) {
       summary.purge = await runJob('purge_payloads', () => purgeOldPayloads({ shop }), { always: true, shop });

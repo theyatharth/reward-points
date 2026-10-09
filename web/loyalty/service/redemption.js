@@ -64,7 +64,7 @@ function refusal(reason, message, extra = {}) {
  * @returns {Promise<
  *   { ok: true, status: 'active'|'creating', replayed: boolean, redemptionId: string,
  *     code: string|null, pointsUsed: number, valuePaise: number, expiresAt: Date|null, available: number }
- *   | { ok: false, reason: 'INVALID_KEY'|'OWED'|'SHORT'|'RECOVERING'|'DISCOUNT_FAILED'|'REWARD_VOIDED'|'REWARD_EXPIRED', message: string }
+ *   | { ok: false, reason: 'INVALID_KEY'|'OWED'|'SHORT'|'RECOVERING'|'DISCOUNT_FAILED'|'REWARD_VOIDED'|'REWARD_EXPIRED'|'REWARD_USED'|'REWARD_RETURNED', message: string }
  * >}
  */
 export async function redeem({ shop, shopifyCustomerId, idempotencyKey }) {
@@ -317,6 +317,10 @@ function findRedemption(accountId, idempotencyKey) {
 async function replayResult(redemption, replayed = true) {
   if (redemption.status === 'failed') {
     return refusal('DISCOUNT_FAILED', 'We could not create your reward code. No points were used.');
+  }
+  if (redemption.status === 'used' || redemption.status === 'returned') {
+    return refusal(redemption.status === 'used' ? 'REWARD_USED' : 'REWARD_RETURNED',
+      redemption.status === 'used' ? 'This reward code has already been used.' : 'This reward was returned to your balance.');
   }
   if (redemption.status === 'expired') {
     return refusal('REWARD_EXPIRED', 'This reward code has expired.');

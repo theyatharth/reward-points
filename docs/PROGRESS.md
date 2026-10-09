@@ -91,8 +91,42 @@ Reference logic: test/vendor/engine.js (client's, unmodified).
   first (tag 'adjust'). Customer by Shopify id only (D5). `consumeLots` moved to ledger.js; `returnPoints` takes a
   ledger type. Tests: `adjustment.test.js`.
 
+- TASK 6 DONE (migration 7: `Reward.usedOrderId`, `needsShopifyDelete`, `shopifyDeletedAt`, index on (shop, discountCode)).
+  * `/api/proxy/redeem` and `/history` rewritten over the new ledger (`routes/proxy.routes.js`, `lib/app-proxy.js`,
+    `loyalty/service/storefront.js`): signature verified, customer = the signed `logged_in_customer_id` only (a body
+    field is ignored), idempotency key from the `Idempotency-Key` header or the body, rate limit kept, responses built
+    field by field (D6): no internal ids, no notes, no admin names. Redeem answers `{success, status, code, pointsUsed,
+    value, currency, expiresAt, balance}`; refusals `{success:false, reason, message, needed?|owed?}` with 400/409/410/502.
+    History answers `{balance{available,pending,owed}, rule, pending[{points,availableOn}], rewards[{code,value,expiresAt}],
+    history[{date,kind,points,label}]}`. The old metafield/CustomerPoint code is no longer used by these routes.
+  * The real gateway already creates the code (customer-bound, single use, `endsAt` = redemption expiry from
+    `rewardExpiryDays`, value from `rewardValue`); new `deleteRewardDiscount` (discountCodeDelete) + fake.
+  * orders/paid with a reward code (`recordRewardUse`): Reward and Redemption -> 'used', order remembered; runs even if
+    the order earns 0; wrong customer, second use, use after expiry/void are logged to AuditLog
+    (`reward_used_by_other_customer`, `reward_used_twice`, `reward_used_after_<status>`), no automatic claw-back.
+  * Cancel, or a refund that completes EVERY line (gift cards included), returns the reward when
+    `restoreRewardOnFullRefund` (`restoreRewardForOrder`: reward_return entry + fresh active lot, debt repaid first,
+    once per reward). Replaying a used / returned / expired / voided redemption never shows the code.
+  * D4 void -> `needsShopifyDelete`; worker job `delete_voided_codes` deletes the code in Shopify, retried on failure.
+  * Tests: `reward-wiring.test.js` (ledger side, fake gateway), `proxy-routes.test.js` (HTTP, signed requests).
+    `scripts/live-redeem-test.mjs`: ONE real redeem on the dev store from EC2 through the wrapper (needs available points).
+  * NOT built: minimum cart value and per-reward limits (the engine's reward catalogue; our rule is one points/value pair).
+
+### Race edge (asked about; NOT changed)
+Redeem first, the refund of the source order lands while the redemption is still `creating`: the refund finds no
+Reward row to void, so it takes what it can and the rest becomes DEBT; then `completeRedemption` creates the code.
+What the customer experiences: the redeem succeeds, they get a working code (50.00 off) and see balance 0 with an
+owed balance (the refunded order's points); further redemption is paused until new points repay the debt. They hold
+a discount and owe the points for it. Should a code issued while debt > 0 be voided in Shopify right after creation?
+Recommendation: YES. It is the same situation D4 already handles (an unused code is voided before a customer owes),
+the window is a few hundred milliseconds so it is rare, and otherwise the shop pays out a reward for points whose
+order was refunded. Implementation if wanted: in `completeRedemption`, under the account lock, if `debt > 0` after
+the Reward is created: mark Reward 'returned' and Redemption 'voided', `returnPoints` (which repays the debt first),
+set `needsShopifyDelete`. The customer then sees "this reward could not be issued because an order was just returned"
+and the code never works. The cost is a code that appears and is withdrawn seconds later, in a rare race.
+
 ## Next
-- Task 6 (redemption wiring), Task 7 (metafield sync and widget), CHECKPOINT 2.
+- Task 7 (metafield sync and widget fixes), then CHECKPOINT 2.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is

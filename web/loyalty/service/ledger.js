@@ -7,7 +7,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { computeEarningFromOrder } from '../rules/earning.js';
 import { computeCancellation } from '../rules/reversal.js';
-import { refundEntries, priorQuantities, computeLineReversal, RefundDataError } from '../rules/refund-lines.js';
+import { refundEntries, priorQuantities, computeLineReversal, allLinesRefunded, RefundDataError } from '../rules/refund-lines.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { now } from '../adapters/clock.js';
 import { normalizeTopic } from './topics.js';
@@ -45,6 +45,7 @@ export async function processEvent(event) {
   }
 
   if (topic === 'orders/paid') {
+    await recordRewardUse(event);
     return writeEarning(event, config);
   } else if (topic === 'refunds/create') {
     return writeRefund(event, config);
@@ -342,7 +343,7 @@ export async function takeBackPoints(tx, { accountId, ownLotId, points, emptiesO
       surplusReturned += surplus;
       voidedRewards.push(reward.id);
 
-      await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now() } });
+      await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now(), needsShopifyDelete: true } });
       const redemption = await tx.redemption.findFirst({ where: { accountId, discountCode: reward.discountCode } });
       if (redemption) await tx.redemption.update({ where: { id: redemption.id }, data: { status: 'voided' } });
 
@@ -388,6 +389,87 @@ export async function takeBackPoints(tx, { accountId, ownLotId, points, emptiesO
   return { fromLots: fromPending + fromAvailable, fromRewards, toDebt: left, voidedRewards };
 }
 
+// ---------------------------------------------------------------------------
+// Reward codes on orders: marking a code used, and restoring it (J2)
+// ---------------------------------------------------------------------------
+
+/**
+ * orders/paid carries the discount codes used on the order. A code that is one of OUR reward codes
+ * (matched by shop and code, case-insensitively, and bound to the order's own customer) becomes
+ * 'used' and remembers the order, so a cancel or full refund can return it. Runs for every paid
+ * order, including one that earns no points (a 100% discounted order still used its code).
+ *
+ * A code that is no longer 'active' is still marked used (it WAS used) and an AuditLog row records
+ * the anomaly: a code voided or expired a moment before its order's webhook arrived. Points that
+ * were already returned for it are NOT clawed back automatically (documented risk, see PROGRESS).
+ * Idempotent: a redelivered or retried event changes nothing.
+ */
+export async function recordRewardUse(event) {
+  const order = event.payload;
+  const codes = (Array.isArray(order.discount_codes) ? order.discount_codes : [])
+    .map((d) => (d && typeof d.code === 'string' ? d.code.trim() : ''))
+    .filter(Boolean);
+  if (codes.length === 0 || !order.customer?.id) return;
+
+  const shopifyOrderId = String(order.id);
+  const customerId = String(order.customer.id);
+  for (const code of codes) {
+    const reward = await prisma.reward.findFirst({
+      where: { shop: event.shop, discountCode: { equals: code, mode: 'insensitive' } },
+      include: { account: { select: { shopifyCustomerId: true } } },
+    });
+    if (!reward) continue; // an ordinary coupon, not ours
+
+    await prisma.$transaction(async (tx) => {
+      await lockAccount(tx, reward.accountId, 'reward-use');
+      const fresh = await tx.reward.findUnique({ where: { id: reward.id } });
+      if (fresh.status === 'used') {
+        if (fresh.usedOrderId !== shopifyOrderId) {
+          await tx.auditLog.create({ data: { shop: event.shop, adminId: null, action: 'reward_used_twice', detail: { rewardId: fresh.id, firstOrder: fresh.usedOrderId, secondOrder: shopifyOrderId } } });
+        }
+        return;
+      }
+      if (reward.account.shopifyCustomerId !== customerId) {
+        await tx.auditLog.create({ data: { shop: event.shop, adminId: null, action: 'reward_used_by_other_customer', detail: { rewardId: fresh.id, order: shopifyOrderId } } });
+        return;
+      }
+      await tx.reward.update({ where: { id: fresh.id }, data: { status: 'used', usedAt: now(), usedOrderId: shopifyOrderId } });
+      await tx.redemption.updateMany({ where: { accountId: fresh.accountId, discountCode: fresh.discountCode, status: { in: ['active', 'expired', 'voided'] } }, data: { status: 'used' } });
+      if (fresh.status !== 'active') {
+        await tx.auditLog.create({ data: { shop: event.shop, adminId: null, action: 'reward_used_after_' + fresh.status, detail: { rewardId: fresh.id, order: shopifyOrderId, note: 'points already returned for this code were not taken back' } } });
+      }
+    }, TX_OPTIONS);
+  }
+}
+
+/**
+ * Returns the reward an order used when the order is cancelled or fully refunded and the shop has
+ * restoreRewardOnFullRefund on: Reward and Redemption become 'returned', and the points come back as a
+ * fresh active lot (debt repaid first) with a 'reward_return' entry. A reward is returned at most once
+ * (the ledger dedupe key is the redemption). Call inside a transaction with the account locked.
+ */
+export async function restoreRewardForOrder(tx, { shop, accountId, shopifyOrderId, orderId, config, why }) {
+  if (config.restoreRewardOnFullRefund === false) return null;
+  const reward = await tx.reward.findFirst({ where: { shop, accountId, usedOrderId: shopifyOrderId, status: 'used' } });
+  if (!reward) return null;
+  const redemption = await tx.redemption.findFirst({ where: { accountId, discountCode: reward.discountCode } });
+  const key = redemption?.id ?? reward.id;
+  if (await tx.ledgerEntry.findFirst({ where: { dedupeKey: `reward_return:${key}` }, select: { id: true } })) return null;
+
+  await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now() } });
+  if (redemption) await tx.redemption.update({ where: { id: redemption.id }, data: { status: 'returned' } });
+  return returnPoints(tx, {
+    accountId,
+    points: reward.pointsUsed,
+    lotTag: `reward:${key}`,
+    dedupeKey: `reward_return:${key}`,
+    note: `${why} — points from the reward used on it returned`,
+    redemptionId: redemption?.id,
+    rewardId: reward.id,
+    orderId,
+  });
+}
+
 const sumOf = (rows, key) => rows.reduce((t, r) => t + (r[key] || 0), 0);
 const reversalNote = ({ voidedRewards, toDebt }) =>
   (voidedRewards.length > 0 ? ` (${voidedRewards.length} unused reward code${voidedRewards.length === 1 ? '' : 's'} voided)` : '') +
@@ -430,10 +512,11 @@ export async function writeRefund(event, config) {
         where: { loyaltyOrderId: order.id },
         select: { pointsReversed: true, lines: true },
       });
+      const priorLines = earlier.map((r) => r.lines);
       const { pointsToReverse, deltaRefundedPaise, lineRecords } = computeLineReversal({
         lines,
         entries,
-        prior: priorQuantities(earlier.map((r) => r.lines)),
+        prior: priorQuantities(priorLines),
         pointsEarned: order.pointsEarned,
         eligibleAmountPaise: order.eligibleAmountPaise,
         alreadyReversed: sumOf(earlier, 'pointsReversed'),
@@ -470,6 +553,12 @@ export async function writeRefund(event, config) {
           },
         });
         ledgerEntryId = entry.id;
+      }
+
+      // A refund that completes the whole order returns the reward the order used (J2).
+      const units = priorQuantities([...priorLines, lineRecords], { includeUncounted: true });
+      if (allLinesRefunded(lines, units)) {
+        await restoreRewardForOrder(tx, { shop: event.shop, accountId: order.accountId, shopifyOrderId, orderId: order.id, config, why: 'Order fully refunded' });
       }
 
       await tx.webhookEvent.update({
@@ -549,6 +638,8 @@ export async function writeCancel(event, config) {
         });
         ledgerEntryId = entry.id;
       }
+
+      await restoreRewardForOrder(tx, { shop: event.shop, accountId: order.accountId, shopifyOrderId, orderId: order.id, config, why: 'Order cancelled' });
 
       await tx.webhookEvent.update({
         where: { id: event.id },
