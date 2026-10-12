@@ -5,6 +5,7 @@ import { overviewPage } from './overview.js';
 import { customersPage } from './customers.js';
 import { ordersPage } from './orders.js';
 import { auditPage } from './audit.js';
+import { reconciliationPage } from './reconciliation.js';
 
 const soon = (title) => unavailable({ title, lede: 'This page is being ported from the design.', needs: 'It arrives in the next step of the build.' });
 
@@ -21,7 +22,7 @@ export const PAGES = [
       needs: 'This version has ONE redemption rule per shop (points per reward and reward value, see Earning & redemption). A catalogue needs a reward table, per-reward codes and cart validation in the storefront and the checkout discount.',
     }),
   },
-  { key: 'recon', label: 'Reconciliation', page: soon('Reconciliation') },
+  { key: 'recon', label: 'Reconciliation', page: reconciliationPage },
   {
     key: 'notify', label: 'Notifications',
     page: unavailable({

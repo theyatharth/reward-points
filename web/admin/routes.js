@@ -5,6 +5,7 @@
 // every query is scoped to the logged-in admin's shop.
 
 import { overview } from './data/overview.js';
+import { lastReconciliation, runNow } from './data/reconciliation.js';
 import { listAudit } from './data/audit.js';
 import { listOrders, listEvents, retryEvent } from './data/orders.js';
 import { searchCustomers, customerDetail, adjustCustomer, adjustMeta } from './data/customers.js';
@@ -36,4 +37,10 @@ export function registerDataRoutes(api) {
   }));
 
   api.get('/audit', route(async (req, res) => res.json({ ok: true, ...(await listAudit(req.admin.shop, { action: req.query.action, cursor: req.query.cursor, limit: req.query.limit })) })));
+
+  api.get('/reconciliation', route(async (req, res) => res.json({ ok: true, ...(await lastReconciliation(req.admin.shop)) })));
+  api.post('/reconciliation/run', route(async (req, res) => {
+    const { status, body } = await runNow(req.admin.shop);
+    return res.status(status).json(body);
+  }));
 }
