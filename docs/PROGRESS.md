@@ -147,14 +147,36 @@ and the code never works. The cost is a code that appears and is withdrawn secon
     was never run). If it is not, the first paint shows "Checking your rewards..." and the live numbers appear as
     soon as `/history` answers, so nothing breaks.
 
-## Next
-- CHECKPOINT 2 is WAITING FOR THE USER ("continue"). Prepared on the server by me: 29 files synced (sizes verified), prisma generate,
-  migrations 7 and 8 applied test then dev, full suite twice on reward_points_dev_test: 381 / 381 / 0 failures both times.
-  Handed over: RUN ON MAC (git pull, `app info`, `app deploy`, theme editor steps) and RUN ON SERVER (restart the two
-  dev processes, reset-metafields dry run then live, resync-metafields, create the dev admin, ONE live redeem with
-  --grant 100). Dev rule: 100 points = 10.00, hold 30 days, code valid 90 days; test customer 10156980011205 has
-  0 available and 3225 pending (earliest lot activates 2026-11-07).
-- Then Task 8 (minimal admin), Task 9, Checkpoints 3 and 4.
+- TASK 8 (re-scoped) DONE: admin console, static HTML/CSS/ES modules under `/admin` (`web/admin/`), outside the Shopify iframe,
+  before the Shopify session validator; the client's design tokens, fonts and markup (`public/admin.css` is copied from the
+  prototype). Nothing of Task 8 existed before (the premise "keep what Task 8 built" was wrong): login, sessions, CSRF, rate
+  limit and forced password change were BUILT here (migration 9: `AdminLoginAttempt`).
+  * Auth: argon2 (scrypt fallback), httpOnly Secure SameSite=Strict cookie scoped to `<base>/admin`, session token stored as
+    SHA-256, idle 60 min / absolute 8 h, CSRF token derived from the session token + Origin check on every write, JSON-only
+    writes, failed-login counters per account (5/15 min) and per IP (30/15 min) in Postgres, one-time password forces a change
+    (everything else 403 until then; other sessions are revoked), login/logout/failed login/password change in the audit log,
+    strict CSP (no inline script or style), `X-Frame-Options: DENY`, no-store.
+  * One JSON endpoint per view, whitelisted fields only, scoped to the admin's shop: `overview`, `customers` (+ `/:id`,
+    `/:id/adjust`), `orders`, `events` (+ `/:id/retry`), `audit`, `reconciliation` (+ `/run`), `rules` (read only), `meta`.
+  * Pages in the design's order, one commit each: Overview, Customers (ledger + adjust), Orders & webhooks (filter, retry),
+    Audit log, Reconciliation, Rules. Catalogue, Notifications and Analytics say "Not available in this version".
+  * `esc.js`: every value goes through `esc()` via the `h` tagged template; `test/loyalty/admin-esc.test.js` scans every console
+    script and FAILS on an HTML template that is not `h`, an unquoted or URL-valued interpolated attribute, an inline handler,
+    HTML in a string literal, or innerHTML outside esc.js; the scanner is itself tested against unsafe sources.
+  * `docs/UI-MAP.md`: every screen -> data -> endpoint -> exists / partial / missing.
+  * Admin URL: `<application_url>/admin/` = https://integrations.platinuminfo.tech/reward-points-dev/admin/ (assumes nginx
+    strips the base path like it does for `/api/proxy`; not yet seen in a browser). The console serves `ADMIN_SHOP`, or the
+    only shop with a loyalty config (dev has one).
+  * Tests: 463 in CI and on the persistent test database (twice). One old test (worker JobRun order) tied on a fixed clock and
+    was fixed.
+- CHECKPOINT 3 is WAITING FOR THE USER ("continue"): files synced (39, sizes verified), migration 9 applied test then dev.
+
+## Next (after "continue", per the re-scope)
+- 5. Restyle the widget (collapsed and expanded) and the Rewards page to the prototype's widgetView and rewardsScreen, one
+  reward card for the single rule, still reading the signed proxy API.
+- 6. In this order: the race fix (void a code issued while debt > 0), delete the old code in Shopify on reward restore,
+  `block` rounding as in the client's engine, the reconcile "incorrect reversal" check.
+- Then Task 9 (on-site notifications, docs/DEMO.md, docs/cutover-preflight.md) and Checkpoint 4 (the 43 client tests).
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is
