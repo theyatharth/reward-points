@@ -161,8 +161,9 @@ describe('Worker', () => {
     assert.strictEqual((await eventRow(event.id)).status, 'processed');
 
     const rows = await jobs();
-    assert.deepStrictEqual(rows.map((r) => r.status), ['failed', 'completed']);
-    assert.match(rows[0].error, /boom in the middle of a tick/);
+    // The test clock is fixed, so both rows carry the same startedAt: their order is not observable, only their statuses.
+    assert.deepStrictEqual(rows.map((r) => r.status).sort(), ['completed', 'failed']);
+    assert.match(rows.find((r) => r.status === 'failed').error, /boom in the middle of a tick/);
   });
 
   test('stop() waits for the tick in flight and starts no further tick', async () => {
