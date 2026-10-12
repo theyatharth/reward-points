@@ -35,7 +35,7 @@ Legend: **exists** (built and tested) · **partial** · **missing** (not in this
 | Earning & redemption: points expiry (months) | lot expiry | none | **missing** (lot expiry stays off) |
 | Reward catalogue | several rewards, each with points, value, minimum cart, usage limit, collections, validity | none | **missing**: one redemption rule per shop, no catalogue, no minimum cart |
 | Reconciliation: run, last run, issues, per-member table | JobRun `reconcile` result | `GET /admin/api/reconciliation`, `POST /admin/api/reconciliation/run` | exists (issues and counts; "simulate drift" and "rebuild" buttons are not exposed: rebuilds run from the script and are audited) |
-| Notifications: 7 message types x on-site / e-mail / WhatsApp, outbox | notification settings, outbox | none | **missing** (Task 9 plans on-site notifications only) |
+| Notifications: 7 message types x on-site / e-mail / WhatsApp, outbox | notification settings, outbox | `GET /admin/api/notifications` | **partial**: a read-only log of the 3 on-site notifications this build writes (points earned, points activated, reward redeemed). The per-channel switches, e-mail, WhatsApp, the other 4 message types and the outbox are "not available" (D8: on-site only) |
 | Audit log | AuditLog: when, admin, action, previous, new, reason | `GET /admin/api/audit?cursor=` | exists (previous / new / reason derived per action type; raw detail is never sent) |
 | Analytics events | event counts and stream | none | **missing**: no event pipeline |
 | Test suite view, Build notes view | the prototype's own tests | none | not part of the product (our tests run in CI; `docs/` holds the notes) |
@@ -61,5 +61,6 @@ Restyled to the prototype's `widgetView` and `rewardsScreen`. Styles: `extension
 | Rewards page: ways to earn | earn rate | `history` (`rule.earnPoints`, `rule.earnSpend`) | exists (text says gift cards do not earn; collection exclusions are not shown because they are not applied) |
 | Rewards page: activity timeline (grouped by day, signed points, icons) | ledger | `history` (`history`) | exists (no per-row status pill) |
 | Rewards page: new-member card, guest sign-up form | accounts by e-mail | none | new-member card exists; **sign-up form missing by decision D5** (logged-out visitors get a log-in link) |
+| Notifications (on-site): points earned, points activated, reward redeemed | `Notification` rows written in the ledger transaction | `history` (`notifications`), `POST notifications/read` | exists: a dot on the widget pill and the newest unread lines in the panel; a "Notifications" section on the Rewards page (unread marked "New", marked read after the page has drawn them). The other message types in the design do not exist |
 | Shop, product page, cart (reward code validation, minimum cart, stacking), checkout | the prototype's demo store | none | **missing**: the real store is Shopify; a reward code is customer-bound and single use |
 | Account tab (orders, redemption history) | orders, redemptions | none | **missing** (not part of the theme blocks) |

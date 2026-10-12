@@ -9,6 +9,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { redeem } from './redemption.js';
+import { listForAccount, markAllRead } from './notifications.js';
 
 const decimal = (paise) => `${Math.floor(paise / 100)}.${String(paise % 100).padStart(2, '0')}`;
 const iso = (d) => (d ? d.toISOString() : null);
@@ -85,6 +86,7 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
     pending: [],
     rewards: [],
     history: [],
+    notifications: { unread: 0, items: [] },
   };
   if (!account) return view;
 
@@ -96,6 +98,7 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
     prisma.ledgerEntry.findMany({ where: { accountId: account.id, points: { not: 0 } }, orderBy: { createdAt: 'desc' }, take: limit }),
   ]);
 
+  view.notifications = await listForAccount(account.id, config);
   view.pending = lots.map((l) => ({ points: l.remaining, availableOn: iso(l.activatesAt) }));
   view.rewards = rewards.map((r) => ({ code: r.discountCode, value: decimal(r.valueInPaise), expiresAt: iso(r.expiresAt) }));
   view.history = entries.map((e) => {
@@ -105,4 +108,12 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
     return { date: iso(e.createdAt), kind: k.kind, points: e.points, label: order ? `${k.label} on order ${order}` : k.label };
   });
   return view;
+}
+
+/** Marks the calling customer's notifications read. Returns how many changed. */
+export async function markNotificationsRead({ shop, shopifyCustomerId }) {
+  const account = await prisma.loyaltyAccount.findUnique({
+    where: { shop_shopifyCustomerId: { shop, shopifyCustomerId: String(shopifyCustomerId) } }, select: { id: true },
+  });
+  return account ? markAllRead(account.id) : 0;
 }

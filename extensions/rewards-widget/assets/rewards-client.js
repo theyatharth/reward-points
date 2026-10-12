@@ -260,6 +260,21 @@
     return card;
   }
 
+  var NOTE_ICON = { points_earned: 'bag', points_activated: 'check', reward_redeemed: 'gift' };
+  function notesList(items) {
+    return el('div', 'notes', null, items.map(function (n) {
+      return el('div', 'earnline' + (n.read ? ' plain' : ''), null, [icon(NOTE_ICON[n.type] || 'check'), el('span', null, null, [el('b', null, n.read ? '' : 'New \u00B7 '), root.document.createTextNode(n.text)])]);
+    }));
+  }
+  function notificationsSection(view) {
+    var items = view.notifications && view.notifications.items;
+    if (!items || !items.length) return null;
+    return el('section', 'grid', null, [el('div', 'sec-h', null, [el('h3', null, 'Notifications')]), notesList(items.slice(0, 5))]);
+  }
+  function unreadCount(view) {
+    return view && view.notifications ? Number(view.notifications.unread) || 0 : 0;
+  }
+
   function codesSection(view, handlers) {
     var rewards = view.rewards || [];
     if (!rewards.length) return null;
@@ -362,7 +377,7 @@
   function renderRewardsPage(container, view, handlers) {
     clear(container);
     var parts = hasActivity(view)
-      ? [balanceCard(view), owedCard(view), pendingCard(view), codesSection(view, handlers), rewardCard(view, handlers), goalCard(view), waysToEarn(view), activitySection(view)]
+      ? [balanceCard(view), owedCard(view), pendingCard(view), notificationsSection(view), codesSection(view, handlers), rewardCard(view, handlers), goalCard(view), waysToEarn(view), activitySection(view)]
       : [zeroState(view, handlers), waysToEarn(view)];
     parts.forEach(function (n) { if (n) container.appendChild(n); });
   }
@@ -411,6 +426,8 @@
       add(bar);
     }
     if (b.pending > 0) add(el('p', 'muted num', P(b.pending) + ' more on the way'));
+    var fresh = ((view.notifications && view.notifications.items) || []).filter(function (n) { return !n.read; }).slice(0, 2);
+    if (fresh.length) add(notesList(fresh));
     var link = h('a', 'btn small', 'View Rewards');
     link.setAttribute('href', handlers.pageUrl || '/pages/rewards');
     add(link);
@@ -428,7 +445,15 @@
       clear(o.message);
       if (text) o.message.appendChild(h('div', cls, text));
     }
-    function draw() { renderRewardsPage(o.body, state.latest, handlers); }
+    function draw() {
+      renderRewardsPage(o.body, state.latest, handlers);
+      if (!state.markedRead && unreadCount(state.latest) > 0) {
+        state.markedRead = true; // shown as "New" this time; read from now on
+        request(o.fetchImpl || root.fetch.bind(root), proxyPath + '/notifications/read', {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        }).catch(function () { state.markedRead = false; });
+      }
+    }
     function refresh() {
       return loadView(proxyPath, o.fetchImpl).then(function (res) {
         if (res.ok && res.body && res.body.success) { state.latest = res.body; draw(); return true; }
@@ -480,6 +505,7 @@
     function draw() {
       renderWidgetPanel(o.panel, o.loggedIn ? state.latest : null, handlers);
       if (state.latest) o.label.textContent = widgetLabel(state.latest);
+      if (o.dot && state.latest) o.dot.hidden = !(unreadCount(state.latest) > 0 && !state.open);
     }
     function refresh() {
       if (!o.loggedIn) return Promise.resolve(false);
@@ -490,6 +516,7 @@
     }
     function setOpen(open) {
       state.open = open;
+      if (o.dot && open) o.dot.hidden = true;
       o.panel.hidden = !open;
       o.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (open) { if (state.latest || !o.loggedIn) draw(); refresh(); }
@@ -521,6 +548,7 @@
     renderRewardsPage: renderRewardsPage,
     renderWidgetPanel: renderWidgetPanel,
     safePath: safePath,
+    unreadCount: unreadCount,
     initPage: initPage,
     initWidget: initWidget,
   };

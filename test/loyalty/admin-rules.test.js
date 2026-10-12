@@ -92,12 +92,12 @@ describe('Admin rules and navigation', () => {
   test('the navigation follows the design; the pages the design has and this build lacks say so', async () => {
     assert.deepStrictEqual(PAGES.map((p) => p.key), ['overview', 'customers', 'orders', 'rules', 'rewards', 'recon', 'notify', 'audit', 'analytics']);
     assert.deepStrictEqual(PAGES.map((p) => p.label), ['Overview', 'Customers', 'Orders & webhooks', 'Earning & redemption', 'Reward catalogue', 'Reconciliation', 'Notifications', 'Audit log', 'Analytics events']);
-    for (const key of ['rewards', 'notify', 'analytics']) {
+    for (const key of ['rewards', 'analytics']) {
       const html = String(await PAGES.find((p) => p.key === key).page.render({}));
       assert.match(html, /Not available in this version/, key);
       assert.match(html, /UI-MAP\.md/, key);
     }
-    for (const key of ['overview', 'customers', 'orders', 'rules', 'recon', 'audit']) {
+    for (const key of ['overview', 'customers', 'orders', 'rules', 'recon', 'audit', 'notify']) {
       assert.strictEqual(typeof PAGES.find((p) => p.key === key).page.render, 'function');
       assert.ok(!/Not available in this version/.test(String(PAGES.find((p) => p.key === key).page.render.toString())), `${key} is a real page`);
     }

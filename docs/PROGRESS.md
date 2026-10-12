@@ -188,9 +188,14 @@ and the code never works. The cost is a code that appears and is withdrawn secon
      extract had the opposite reading; the differential test compares `block` with the real engine (10,000 inputs, 0 unexplained).
   4. Reconciliation: `reversal_mismatch` (ledger refund/cancel entries per order vs the reversals recorded on the order).
 
+- TASK 9 (part): ON-SITE NOTIFICATIONS DONE (migration 10: `Notification`). Written inside the ledger transaction for points
+  earned (order name), points activated (what became usable after debt repayment) and reward redeemed (not for a code voided as
+  it is issued); dedupe keys make a redelivery write nothing twice. `/history` returns `notifications {unread, items[{type, text,
+  date, read}]}`, `POST /apps/<proxy>/notifications/read` marks the caller's read; widget dot + panel lines, Rewards page
+  section; admin Notifications page is a read-only log (e-mail/WhatsApp/switches/outbox: not available, D8).
+
 ## Next
-- Then Task 9 (on-site notifications, docs/DEMO.md, docs/cutover-preflight.md) and Checkpoint 4 (the 43 client tests).
-- Open items from COMPARISON.md: retry policy (5th failure final?), reward catalogue, collection exclusion at earn.
+- Task 9 docs: docs/DEMO.md, docs/cutover-preflight.md (do NOT run the cutover); then Checkpoint 4: the 43 client tests table.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is

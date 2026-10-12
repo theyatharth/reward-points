@@ -21,6 +21,7 @@ import { prisma } from '../../lib/prisma.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { formatPaise } from '../rules/money.js';
 import { now } from '../adapters/clock.js';
+import { notify } from './notifications.js';
 import { gatewayFactory, lockAccount, checkLotJ3, activateLotInTx, returnPoints, consumeLots } from './ledger.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -295,6 +296,8 @@ async function completeRedemption(redemptionId, discountCodeId, replayed) {
         redemptionId: r.id,
         rewardId: reward.id,
       });
+    } else {
+      await notify(tx, { accountId: r.accountId, shop: r.shop, type: 'reward_redeemed', dedupeKey: `reward_redeemed:${r.id}`, data: { pointsUsed: r.pointsUsed, valuePaise: r.rewardValuePaise } });
     }
   }, TX_OPTIONS);
   return replayResult(await prisma.redemption.findUnique({ where: { id: redemptionId } }), replayed);

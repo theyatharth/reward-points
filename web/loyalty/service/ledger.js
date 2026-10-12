@@ -12,6 +12,7 @@ import { DEFAULT_CONFIG } from '../rules/config.js';
 import { now } from '../adapters/clock.js';
 import { normalizeTopic } from './topics.js';
 import { PermanentError } from './errors.js';
+import { notify } from './notifications.js';
 import { ShopifyGateway } from '../adapters/gateway.js';
 import { FakeShopifyGateway } from '../adapters/fake-gateway.js';
 
@@ -157,6 +158,10 @@ export async function writeEarning(event, config) {
       await tx.loyaltyAccount.update({
         where: { id: account.id },
         data: { pending: { increment: points } },
+      });
+      await notify(tx, {
+        accountId: account.id, shop: event.shop, type: 'points_earned', dedupeKey: `points_earned:${shopifyOrderId}`,
+        data: { points, orderRef: order.name || (order.order_number ? `#${order.order_number}` : null) },
       });
 
       // 6. Mark webhook processed
@@ -837,6 +842,9 @@ export async function activateLotInTx(tx, lotId, loyaltyOrderId) {
       ...(repaid > 0 ? { debt: { decrement: repaid } } : {}),
     },
   });
+  if (usable > 0) {
+    await notify(tx, { accountId: lot.accountId, shop: (await tx.loyaltyAccount.findUnique({ where: { id: lot.accountId }, select: { shop: true } })).shop, type: 'points_activated', dedupeKey: `points_activated:${lot.id}`, data: { points: usable } });
+  }
   return usable;
 }
 

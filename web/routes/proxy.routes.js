@@ -2,7 +2,8 @@
 //
 // Storefront App Proxy routes (/apps/<subpath>/... on the shop, forwarded here and signed by Shopify):
 //   POST /api/proxy/redeem    redeem the calling customer's points for one reward code
-//   GET  /api/proxy/history   the calling customer's balances, rewards and history
+//   GET  /api/proxy/history   the calling customer's balances, rewards, history and notifications
+//   POST /api/proxy/notifications/read   mark the calling customer's notifications read
 //
 // Every request is HMAC-verified (web/lib/app-proxy.js); the customer is the signed
 // `logged_in_customer_id`, never a body field; responses are whitelists (storefront.js, decision D6).
@@ -13,7 +14,7 @@ import express from 'express';
 import { prisma } from '../lib/prisma.js';
 import { Prisma } from '../../prisma/generated/client/index.js';
 import { verifyAppProxySignature, requireLoggedInCustomer } from '../lib/app-proxy.js';
-import { redeemForCustomer, customerView, shopIsConfigured } from '../loyalty/service/storefront.js';
+import { redeemForCustomer, customerView, shopIsConfigured, markNotificationsRead } from '../loyalty/service/storefront.js';
 
 const router = express.Router();
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -82,6 +83,16 @@ router.post(
     }
   }
 );
+
+router.post('/notifications/read', express.json({ limit: '1kb' }), verifyAppProxySignature, requireLoggedInCustomer, requireConfiguredShop, async (_req, res) => {
+  try {
+    await markNotificationsRead({ shop: res.locals.shop, shopifyCustomerId: res.locals.customerId });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Mark-read error:', err.message);
+    return res.status(500).json({ success: false, message: 'Could not update notifications.' });
+  }
+});
 
 router.get('/history', verifyAppProxySignature, requireLoggedInCustomer, requireConfiguredShop, async (_req, res) => {
   try {

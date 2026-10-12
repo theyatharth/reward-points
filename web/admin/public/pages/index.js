@@ -7,6 +7,7 @@ import { ordersPage } from './orders.js';
 import { auditPage } from './audit.js';
 import { reconciliationPage } from './reconciliation.js';
 import { rulesPage } from './rules.js';
+import { notificationsPage } from './notifications.js';
 
 export const PAGES = [
   { key: 'overview', label: 'Overview', page: overviewPage },
@@ -22,14 +23,7 @@ export const PAGES = [
     }),
   },
   { key: 'recon', label: 'Reconciliation', page: reconciliationPage },
-  {
-    key: 'notify', label: 'Notifications',
-    page: unavailable({
-      title: 'Notifications',
-      lede: 'The design switches seven message types on or off for on-site, e-mail and WhatsApp, and lists an outbox.',
-      needs: 'Nothing sends notifications yet. On-site notifications for points earned, activated and reward redeemed are planned (Task 9); e-mail and WhatsApp need a provider and are out of scope.',
-    }),
-  },
+  { key: 'notify', label: 'Notifications', page: notificationsPage },
   { key: 'audit', label: 'Audit log', page: auditPage },
   {
     key: 'analytics', label: 'Analytics events',

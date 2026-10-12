@@ -66,6 +66,9 @@ const layout = `
 .ecr .center{text-align:center}
 .ecr .grid{display:grid;gap:10px}
 .ecr .wpanel .bar{margin-top:2px}
+.ecr .wbtn{position:relative}
+.ecr .wbtn .dot{position:absolute;top:5px;right:7px;width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 2px var(--umber)}
+.ecr .notes{display:grid;gap:6px}
 `;
 writeFileSync(OUT, header + base + kept.join('\n') + '\n' + layout);
 console.log(`wrote ${OUT}: ${kept.length} rules`);

@@ -368,6 +368,86 @@ describe('initPage', () => {
   });
 });
 
+describe('notifications in the storefront', () => {
+  const note = (type, text, read = false) => ({ type, text, date: '2026-10-12T09:00:00.000Z', read });
+  const withNotes = (items, unread) => view({
+    balance: { available: 10, pending: 0, owed: 0 },
+    history: [{ date: '2026-10-08T12:00:00.000Z', kind: 'earned', points: 10, label: 'x' }],
+    notifications: { unread, items },
+  });
+
+  test('the Rewards page lists them after pending, unread ones marked "New", read ones plain; text stays text', () => {
+    const E = load();
+    const body = new Node('div');
+    const evil = '<img src=x onerror=alert(1)>';
+    E.renderRewardsPage(body, withNotes([note('points_earned', evil), note('points_activated', '674 points are now available to use', true)], 1), { onRedeem() {}, onCopy() {} });
+    const lines = byClass(body, 'earnline');
+    assert.equal(lines.length, 2);
+    assert.match(text(lines[0]), /New ·/);
+    assert.match(text(lines[0]), /<img src=x onerror=alert\(1\)>/);
+    assert.ok(!String(lines[0].className).includes('plain'));
+    assert.ok(String(lines[1].className).includes('plain'));
+    assert.doesNotMatch(text(lines[1]), /New/);
+    assert.equal(all(body, (x) => x.tagName === 'img').length, 0);
+    const order = body.children.map((c) => text(c).match(/Notifications|Activity|Ways to earn/)?.[0]).filter(Boolean);
+    assert.deepEqual(order, ['Notifications', 'Ways to earn', 'Activity'], 'notifications sit above ways to earn and the timeline');
+  });
+
+  test('no notifications: no section', () => {
+    const E = load();
+    const body = new Node('div');
+    E.renderRewardsPage(body, withNotes([], 0), { onRedeem() {}, onCopy() {} });
+    assert.doesNotMatch(text(body), /Notifications/);
+  });
+
+  test('the widget panel shows at most the two newest unread', () => {
+    const E = load();
+    const panel = new Node('div');
+    E.renderWidgetPanel(panel, withNotes([note('points_earned', 'one'), note('points_activated', 'two'), note('reward_redeemed', 'three'), note('points_earned', 'old', true)], 3), {});
+    const t = byClass(panel, 'earnline').map((n) => text(n));
+    assert.equal(t.length, 2);
+    assert.match(t[0], /one/);
+    assert.match(t[1], /two/);
+  });
+
+  test('initPage marks them read ONCE, after the first draw, and only if there were unread ones', async () => {
+    const posts = [];
+    const mk = (unread) => (url, opts = {}) => {
+      if (url.endsWith('/notifications/read')) { posts.push({ url, method: opts.method, body: opts.body }); return answer(200, { success: true }); }
+      return answer(200, withNotes([note('points_earned', 'a')], unread));
+    };
+    const fetchImpl = mk(1);
+    const E = load({ fetchImpl });
+    const [body, message] = [new Node('div'), new Node('div')];
+    const page = await E.initPage({ body, message, proxyPath: '/apps/rewards-dev', fetchImpl });
+    await settle();
+    await page.refresh();
+    await settle();
+    assert.deepEqual(posts, [{ url: '/apps/rewards-dev/notifications/read', method: 'POST', body: '{}' }]);
+    assert.match(text(body), /New ·/, 'the first draw still shows them as new');
+
+    posts.length = 0;
+    const f2 = mk(0);
+    const E2 = load({ fetchImpl: f2 });
+    await E2.initPage({ body: new Node('div'), message: new Node('div'), proxyPath: '/apps/rewards', fetchImpl: f2 });
+    await settle();
+    assert.equal(posts.length, 0);
+  });
+
+  test('the widget dot shows while there are unread notifications and the panel is closed', async () => {
+    const fetchImpl = () => answer(200, withNotes([note('points_earned', 'a')], 2));
+    const E = load({ fetchImpl });
+    const [toggle, label, panel, dot] = [new Node('button'), new Node('span'), new Node('div'), new Node('span')];
+    dot.hidden = true;
+    const w = E.initWidget({ toggle, label, panel, dot, proxyPath: '/apps/rewards', loggedIn: true });
+    await w.ready;
+    assert.equal(dot.hidden, false);
+    toggle.click();
+    assert.equal(dot.hidden, true, 'opening the panel clears it');
+    assert.match(text(panel), /a/);
+  });
+});
+
 describe('the generated stylesheet', () => {
   test('every rule is scoped under .ecr, so it cannot leak into the theme; the prototype\'s tokens and fonts are there', () => {
     const selectors = [...CSS.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/^([^{}@\n][^{}]*)\{/gm)].map((m) => m[1].trim());

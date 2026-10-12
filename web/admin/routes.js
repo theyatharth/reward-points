@@ -5,6 +5,7 @@
 // every query is scoped to the logged-in admin's shop.
 
 import { overview } from './data/overview.js';
+import { listNotifications } from './data/notifications.js';
 import { rules } from './data/rules.js';
 import { lastReconciliation, runNow } from './data/reconciliation.js';
 import { listAudit } from './data/audit.js';
@@ -46,4 +47,6 @@ export function registerDataRoutes(api) {
   }));
 
   api.get('/rules', route(async (req, res) => res.json({ ok: true, ...(await rules(req.admin.shop)) })));
+
+  api.get('/notifications', route(async (req, res) => res.json({ ok: true, ...(await listNotifications(req.admin.shop, { cursor: req.query.cursor, limit: req.query.limit })) })));
 }

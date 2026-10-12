@@ -242,6 +242,7 @@ model LoyaltyAccount {
   refunds  LoyaltyRefund[]
   redemptions Redemption[]
   rewards  Reward[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -596,4 +597,23 @@ model AdminLoginAttempt {
   count       Int      @default(1)
   windowStart DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// On-site notifications (migration 10): points earned, points activated, reward redeemed. Written in the same
+// transaction as the ledger entry they describe (dedupeKey makes a redelivery write nothing twice); shown in the
+// storefront widget and Rewards page, and read-only in the admin console. `data` holds only numbers and an order name;
+// the wording is built when it is read, from the shop's rule. E-mail and WhatsApp are not part of this build (D8).
+model Notification {
+  id        String   @id @default(uuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id])
+  shop      String
+  type      String   // "points_earned" | "points_activated" | "reward_redeemed"
+  data      Json
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  @@index([accountId, createdAt])
+  @@index([shop, createdAt])
 }

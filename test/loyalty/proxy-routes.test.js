@@ -230,7 +230,7 @@ describe('App proxy storefront routes', () => {
     const res = await fetch(signed('/history'));
     const body = await res.json();
     assert.strictEqual(res.status, 200);
-    assert.deepStrictEqual(Object.keys(body).sort(), ['balance', 'history', 'pending', 'rewards', 'rule', 'success']);
+    assert.deepStrictEqual(Object.keys(body).sort(), ['balance', 'history', 'notifications', 'pending', 'rewards', 'rule', 'success']);
     assert.deepStrictEqual(body.balance, { available: 0, pending: 120, owed: 0 });
     assert.deepStrictEqual(body.pending, [{ points: 120, availableOn: '2026-10-01T09:00:00.000Z' }]);
     assert.deepStrictEqual(body.rewards.map((r) => Object.keys(r).sort()), [['code', 'expiresAt', 'value']]);
