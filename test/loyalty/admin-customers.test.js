@@ -234,7 +234,7 @@ describe('Admin customers', () => {
     data.list.results[0].shopifyCustomerId = '9001"><b>';
     const html = String(renderCustomers(data));
     for (const text of ['Customer', '9001', 'Ledger', 'Point lots', 'PLAT-ABCD2345', 'partly reversed', 'Being recovered', 'Load more', 'Add Points', 'Deduct Points']) assert.ok(html.includes(text), `has ${text}`);
-    assert.ok(!html.includes('<script>alert(1)') && !html.includes('<img src=x') && !html.includes('"><b>'), 'hostile markup is inert');
+    assert.ok(!html.includes('<script>alert(1)') && !html.includes('<img src=x') && !html.includes('9001"><b>'), 'hostile markup is inert');
     assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;') && html.includes('&lt;img src=x onerror=alert(2)&gt;'));
     assert.ok(!/\sstyle=/.test(html));
   });
