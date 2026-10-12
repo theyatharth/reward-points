@@ -77,6 +77,7 @@ describe('Admin overview', () => {
     assert.strictEqual((await redeem({ shop, shopifyCustomerId: A, idempotencyKey: crypto.randomUUID() })).ok, true);
     await storeWebhook({ shop, topic: 'refunds/create', shopifyWebhookId: crypto.randomUUID(), payload: { id: uniqueId(), order_id: orderC, refund_line_items: [{ line_item_id: 1, quantity: 1 }] } });
     await processPendingWebhooks({ shop });
+    restoreClock(); // the admin's session lives on the same clock: the API is called in real time
     void orderA;
   }
 
