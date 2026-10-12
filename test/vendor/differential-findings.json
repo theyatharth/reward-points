@@ -6,6 +6,7 @@
     "unexplained": 0
   },
   "intendedDifferences": [
+    "Rounding 'block': the 59-line vendor extract awards nothing unless the result is exact; the client's real engine (docs/reference/engine.js pointsFor) awards whole spend blocks (149 -> 100). 'block' is compared with the real engine; the extract's meaning was wrong.",
     "Gift card + explicit discount_allocations: our engine uses Shopify allocations (559 pts); client engine uses proportional share (619 pts). Both tested explicitly in earning.test.js.",
     "Refund: client engine rounds per-refund independently; our engine uses cumulative target. Difference ≤ N points for N partial refunds."
   ],

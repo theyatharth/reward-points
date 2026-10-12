@@ -72,3 +72,11 @@ Missing points; deduct: Order issue correction, Duplicate points, Points recover
 working / partial / not-built table is for CHECKPOINT 4. Known now: the Admin group (adjust, rule validation, reward validation),
 `Expired reward code returns its points` (Task 4b), `Cancelling an order that used a reward` (Task 6), the Lifecycle expiry tests (lot expiry is off),
 the Customers duplicate and guest tests, and the campaign test are not built or are deliberate gaps.
+
+## Status after the first review (2026-10-12)
+
+Resolved (code changed, tests added): the `block` rounding mode now awards whole spend blocks as the real engine does
+(`multiplyPoints`; the differential test compares `block` with `docs/reference/engine.js`); the reconciliation now has the
+engine's "Incorrect reversal" check (`reversal_mismatch`); a code issued while the customer owes points is voided at once
+(the race edge); a restored reward's old code is deleted in Shopify. Still open: the retry policy (the engine stops after the
+5th failure; ours allows a 6th attempt, one constant), the reward catalogue, and collection exclusion at earn time.

@@ -444,9 +444,9 @@ export async function recordRewardUse(event) {
 
 /**
  * Returns the reward an order used when the order is cancelled or fully refunded and the shop has
- * restoreRewardOnFullRefund on: Reward and Redemption become 'returned', and the points come back as a
- * fresh active lot (debt repaid first) with a 'reward_return' entry. A reward is returned at most once
- * (the ledger dedupe key is the redemption). Call inside a transaction with the account locked.
+ * restoreRewardOnFullRefund on: Reward and Redemption become 'returned', the points come back as a
+ * fresh active lot (debt repaid first) with a 'reward_return' entry, and the old code is queued for deletion in
+ * Shopify (needsShopifyDelete). A reward is returned at most once (the ledger dedupe key is the redemption). Call inside a transaction with the account locked.
  */
 export async function restoreRewardForOrder(tx, { shop, accountId, shopifyOrderId, orderId, config, why }) {
   if (config.restoreRewardOnFullRefund === false) return null;
@@ -456,7 +456,9 @@ export async function restoreRewardForOrder(tx, { shop, accountId, shopifyOrderI
   const key = redemption?.id ?? reward.id;
   if (await tx.ledgerEntry.findFirst({ where: { dedupeKey: `reward_return:${key}` }, select: { id: true } })) return null;
 
-  await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now() } });
+  // The points are coming back, so the OLD code must stop working: when an order is cancelled or refunded Shopify gives the
+  // discount's usage back, and the customer would otherwise hold both the code and the points. The worker deletes it.
+  await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now(), needsShopifyDelete: true } });
   if (redemption) await tx.redemption.update({ where: { id: redemption.id }, data: { status: 'returned' } });
   return returnPoints(tx, {
     accountId,

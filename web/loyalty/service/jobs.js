@@ -11,7 +11,7 @@
 //                       their points come back only if the shop's returnPointsOnCodeExpiry is on
 //   syncStorefront      dirty accounts' metafields and the redeem-rule metafield are pushed to Shopify
 //                       (metafield-sync.js)
-//   deleteVoidedCodes   codes voided to cover a return (D4) are deleted in Shopify
+//   deleteVoidedCodes   codes voided to cover a return (D4), issued while owing, or restored after a cancel, are deleted in Shopify
 //   purgeOldPayloads    processed events older than 90 days lose their payload, nothing else
 //
 // Reconciliation and the cache rebuild are in reconcile.js. createWorkerWork() ties them

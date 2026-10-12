@@ -127,23 +127,28 @@ describe('Ledger concurrency: refund versus redeem on one account', () => {
         `run ${i}: entitlement is 0 after a full refund (available ${account.available}, active rewards ${activeRewardPoints}, debt ${account.debt})`);
       assert.strictEqual(account.pending, 0);
 
-      if (redeemResult.ok === false) {
-        assert.strictEqual(redeemResult.reason, 'SHORT', `run ${i}: the only valid refusal is SHORT`);
-        assert.deepStrictEqual([rewards.length, account.available, account.debt], [0, 0, 0]);
-        outcomes['refund won: redeem refused']++;
-      } else if (rewards.some((r) => r.status === 'returned')) {
+      if (rewards.some((r) => r.status === 'returned')) {
+        // The reward existed and was voided: by the refund, or at completion if the refund landed while it was being created
+        // (in that case the redeem itself answers REWARD_VOIDED).
+        assert.ok(redeemResult.ok === true || redeemResult.reason === 'REWARD_VOIDED', `run ${i}: unexpected redeem answer ${JSON.stringify(redeemResult)}`);
         assert.deepStrictEqual([account.available, account.debt], [0, 0]);
         outcomes['redeem won, reward voided']++;
+      } else if (redeemResult.ok === false) {
+        assert.strictEqual(redeemResult.reason, 'SHORT', `run ${i}: the only valid refusal without a reward is SHORT`);
+        assert.deepStrictEqual([rewards.length, account.available, account.debt], [0, 0, 0]);
+        outcomes['refund won: redeem refused']++;
       } else {
-        assert.deepStrictEqual([account.available, account.debt, activeRewardPoints], [0, 500, 500]);
-        outcomes['redeem won, reward active and 500 owed']++;
+        // The race fix: a code completed while the customer owes points is voided at once, so a reward that is
+        // active while 500 is owed can no longer happen. Reaching this branch is a failure.
+        assert.fail(`run ${i}: a reward is active while the customer owes points (available ${account.available}, debt ${account.debt}, active rewards ${activeRewardPoints})`);
       }
     }
 
     console.log('[concurrency] outcomes over', RUNS, 'runs:', JSON.stringify(outcomes));
     assert.strictEqual(Object.values(outcomes).reduce((t, n) => t + n, 0), RUNS);
     assert.ok(outcomes['refund won: redeem refused'] > 0, 'the refund-first interleaving was exercised');
-    assert.ok(outcomes['redeem won, reward voided'] + outcomes['redeem won, reward active and 500 owed'] > 0, 'the redeem-first interleaving was exercised');
+    assert.ok(outcomes['redeem won, reward voided'] > 0, 'the redeem-first interleaving was exercised');
+    assert.strictEqual(outcomes['redeem won, reward active and 500 owed'], 0, 'the race edge no longer leaves an active code with debt');
   });
 
   test('two refunds of the same order at the same moment (barrier-forced) are applied once each, never twice', async () => {

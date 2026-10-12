@@ -186,6 +186,12 @@ describe('Reward codes on orders and in Shopify', () => {
     assert.strictEqual((await redemption()).status, 'returned');
     assert.deepStrictEqual(await ledgerTypes(), ['cancel:-100', 'earn:100', 'earn:500', 'redemption:-500', 'reward_return:500']);
 
+    // The old code must stop working: it is queued for deletion in Shopify, and the worker job deletes it.
+    assert.strictEqual((await reward()).needsShopifyDelete, true);
+    assert.ok(gw.discounts.has(code), 'still in Shopify until the job runs');
+    assert.deepStrictEqual(await deleteVoidedCodes({ shop }), { due: 1, deleted: 1, failed: [] });
+    assert.ok(!gw.discounts.has(code), 'the used code no longer exists in Shopify');
+
     const again = await send('orders/cancelled', { id: orderId });
     assert.strictEqual(again.status, 'skipped');
     assert.strictEqual((await acct()).available, 500, 'returned once');
@@ -200,6 +206,7 @@ describe('Reward codes on orders and in Shopify', () => {
 
     await refundOf(orderId, 11, 1);
     assert.strictEqual((await reward()).status, 'returned', 'the whole order is refunded now');
+    assert.strictEqual((await reward()).needsShopifyDelete, true, 'the old code is queued for deletion too');
     const a = await assertLedgerBalances(prisma, (await acct()).id);
     assert.deepStrictEqual([a.available, a.pending, a.debt], [500, 0, 0]);
   });
@@ -231,6 +238,7 @@ describe('Reward codes on orders and in Shopify', () => {
     await send('orders/cancelled', { id: orderId });
     assert.strictEqual((await reward()).status, 'used');
     assert.strictEqual((await acct()).available, 0);
+    assert.strictEqual((await reward()).needsShopifyDelete, false, 'nothing returned, nothing deleted');
   });
 
   test('a cancelled order that used no reward returns nothing', async () => {

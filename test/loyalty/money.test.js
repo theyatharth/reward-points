@@ -90,12 +90,21 @@ test('multiplyPoints round: 150 paise → 2 pts (half-up)', () => {
   assert.strictEqual(multiplyPoints(150, 1, 100, 'round'), 2);
 });
 
-test('multiplyPoints block: 150 paise → 0 pts (not exact)', () => {
-  assert.strictEqual(multiplyPoints(150, 1, 100, 'block'), 0);
+test('multiplyPoints block: whole spend blocks only (the client\'s engine): 150 paise at 1 per 100 -> 1 pt', () => {
+  assert.strictEqual(multiplyPoints(150, 1, 100, 'block'), 1);
 });
 
-test('multiplyPoints block: 200 paise → 2 pts (exact)', () => {
+test('multiplyPoints block: 200 paise -> 2 pts; 99 paise -> 0 (not a full block)', () => {
   assert.strictEqual(multiplyPoints(200, 1, 100, 'block'), 2);
+  assert.strictEqual(multiplyPoints(99, 1, 100, 'block'), 0);
+});
+
+test('multiplyPoints block: the client\'s test case, 100 points per 10000 paise: 14900 paise -> 100, 99900 -> 900, floor gives 149 and 999', () => {
+  assert.strictEqual(multiplyPoints(14900, 100, 10000, 'block'), 100);
+  assert.strictEqual(multiplyPoints(99900, 100, 10000, 'block'), 900);
+  assert.strictEqual(multiplyPoints(14900, 100, 10000, 'floor'), 149);
+  assert.strictEqual(multiplyPoints(99900, 100, 10000, 'floor'), 999);
+  assert.strictEqual(multiplyPoints(14950, 100, 10000, 'round'), 150);
 });
 
 test('multiplyPoints: 0 paise → 0 pts', () => {

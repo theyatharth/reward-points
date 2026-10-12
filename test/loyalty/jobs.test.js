@@ -379,6 +379,26 @@ describe('Worker jobs', () => {
     assert.ok(codes.includes('earn_entry_mismatch'));
   });
 
+  test('(e) the engine\'s "incorrect reversal" check: ledger refund and cancel entries must equal the reversals recorded on the order', async () => {
+    const orderId = await earn(500);
+    await refundUnits(orderId, 1); // a real full refund: 500 reversed in the ledger and on the order
+    const a0 = await account();
+    assert.deepStrictEqual(await reconcileAccount(a0.id), [], 'a real reversal reconciles clean');
+
+    const refund = await prisma.loyaltyRefund.findFirst({ where: { shop } });
+    await prisma.loyaltyRefund.update({ where: { id: refund.id }, data: { pointsReversed: 400 } }); // the order says 400, the ledger says 500
+    const found = await reconcileAccount(a0.id);
+    const mismatch = found.find((d) => d.code === 'reversal_mismatch');
+    assert.deepStrictEqual([mismatch.expected, mismatch.found], [400, 500]);
+    assert.match(mismatch.detail, /the ledger reversed 500 points, the order records 400/);
+
+    // and the other way: a reversal recorded on the order that never reached the ledger
+    await prisma.loyaltyRefund.update({ where: { id: refund.id }, data: { pointsReversed: 500 } });
+    await prisma.loyaltyRefund.create({ data: { accountId: a0.id, shopifyRefundId: String(uniqueId()), shopifyOrderId: refund.shopifyOrderId, shop, pointsReversed: 25, refundAmountPaise: 0, loyaltyOrderId: refund.loyaltyOrderId, lines: [] } });
+    const second = (await reconcileAccount(a0.id)).find((d) => d.code === 'reversal_mismatch');
+    assert.deepStrictEqual([second.expected, second.found], [525, 500]);
+  });
+
   test('(e) nightly: due from the set hour, once a day, not before, and every shop run leaves a JobRun', async () => {
     await earn(300);
     const nightly = (extra = {}) => runNightlyReconciliation({ shops: [shop], ...extra });

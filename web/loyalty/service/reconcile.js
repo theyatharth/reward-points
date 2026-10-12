@@ -68,8 +68,15 @@ export async function reconcileAccount(accountId) {
 
   const reversedByOrder = new Map();
   for (const r of refunds) reversedByOrder.set(r.loyaltyOrderId, (reversedByOrder.get(r.loyaltyOrderId) || 0) + r.pointsReversed);
+  const ledgerReversedByOrder = new Map(); // what the immutable ledger says was taken back for each order
+  for (const e of entries) {
+    if ((e.type === 'refund' || e.type === 'cancel') && e.orderId) ledgerReversedByOrder.set(e.orderId, (ledgerReversedByOrder.get(e.orderId) || 0) - e.points);
+  }
   for (const o of orders) {
     const reversed = reversedByOrder.get(o.id) || 0;
+    // The client engine's "Incorrect reversal" check: the ledger's refund and cancel entries must equal the reversals recorded on the order.
+    const inLedger = ledgerReversedByOrder.get(o.id) || 0;
+    if (inLedger !== reversed) flag('reversal_mismatch', `order ${o.shopifyOrderId}: the ledger reversed ${inLedger} points, the order records ${reversed}`, reversed, inLedger);
     if (reversed > o.pointsEarned) flag('order_over_reversed', `order ${o.shopifyOrderId} has more points reversed than it earned`, o.pointsEarned, reversed);
     const earnEntry = entries.find((e) => e.type === 'earn' && e.orderId === o.id);
     if (!earnEntry) flag('order_without_earn_entry', `order ${o.shopifyOrderId} has no earn ledger entry`);

@@ -178,10 +178,19 @@ and the code never works. The cost is a code that appears and is withdrawn secon
   `earnPoints` and `earnSpend`. Tests: `storefront-render.test.js` (fake DOM + fake fetch). Needs `app deploy` and a theme
   check on the Mac to be seen: not yet viewed in a browser.
 
+- STEP 6 DONE (the four agreed fixes, in order):
+  1. Race fix: `completeRedemption` (now under the account lock) voids the code when the customer owes points: Reward
+     `returned` + `needsShopifyDelete`, Redemption `voided`, `returnPoints` (repays the debt first), the customer gets
+     REWARD_VOIDED and never sees the code. The 20-run race test no longer accepts "reward active with debt".
+  2. A reward restored after a cancel or full refund now also queues its OLD code for deletion in Shopify (Shopify gives a
+     cancelled order's discount usage back); the same worker job deletes it.
+  3. `block` rounding = whole spend blocks (`floor(paise / spend) x points`), as `engine.js pointsFor`. The 59-line vendor
+     extract had the opposite reading; the differential test compares `block` with the real engine (10,000 inputs, 0 unexplained).
+  4. Reconciliation: `reversal_mismatch` (ledger refund/cancel entries per order vs the reversals recorded on the order).
+
 ## Next
-- 6. In this order: the race fix (void a code issued while debt > 0), delete the old code in Shopify on reward restore,
-  `block` rounding as in the client's engine, the reconcile "incorrect reversal" check.
 - Then Task 9 (on-site notifications, docs/DEMO.md, docs/cutover-preflight.md) and Checkpoint 4 (the 43 client tests).
+- Open items from COMPARISON.md: retry policy (5th failure final?), reward catalogue, collection exclusion at earn.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is

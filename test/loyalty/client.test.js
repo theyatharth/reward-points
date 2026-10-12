@@ -169,10 +169,10 @@ describe('Ported M2 client tests', () => {
       where: { shop: currentShop },
       data: { pointsRounding: 'block', pointsPerUnit: 1 }
     });
-    // ₹149 -> block rounding -> 100 pts
-    await checkout({ customerId: 'u1', lines: L(['gt029', 1]) }); // we will override price
+    // 'block' = whole spend blocks only (the client's engine). The pure cases are in earning.test.js (₹149 -> 100 at 100 per ₹100);
+    // here the block is ₹1, so ₹659 is 659 whole blocks.
+    await checkout({ customerId: 'u1', lines: L(['gt029', 1]) });
     const b = await balances('u1');
-    // 659 in our 'block' mode means it's not a round multiple, so it yields 659 because fraction is 0!
     assert.strictEqual(b.pending, 659);
   });
 

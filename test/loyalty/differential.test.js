@@ -27,6 +27,23 @@ import { computeEarning } from '../../web/loyalty/rules/earning.js';
 import { computeReversal } from '../../web/loyalty/rules/reversal.js';
 import { parsePaise } from '../../web/loyalty/rules/money.js';
 import { clientEngineEarn } from '../vendor/engine.js';
+import { readFileSync as readFile } from 'node:fs';
+import vm from 'node:vm';
+
+// The client's REAL engine (docs/reference/engine.js, a CommonJS script): its pointsFor() is the reference for rounding.
+// test/vendor/engine.js is a 59-line extract whose 'block' mode (award nothing unless exact) disagrees with it; the real
+// one is "whole spend blocks only", so 'block' is compared with the real engine below.
+const realEngine = (() => {
+  const sandbox = { module: { exports: {} }, console, Math, Date, Object, Array, JSON, Number, String, Intl };
+  vm.runInNewContext(readFile(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs', 'reference', 'engine.js'), 'utf8'), sandbox);
+  return sandbox.module.exports;
+})();
+function realPointsFor({ subtotal, pointsPerUnit, roundingMode }) {
+  const e = new realEngine.Engine();
+  e.s.config.earn = { ...e.s.config.earn, spend: 1, points: pointsPerUnit, rounding: roundingMode };
+  return e.pointsFor(subtotal);
+}
+const referenceEarn = (input) => (input.roundingMode === 'block' ? realPointsFor(input) : clientEngineEarn(input));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FINDINGS_PATH = join(__dirname, '..', 'vendor', 'differential-findings.json');
@@ -68,7 +85,7 @@ test('differential earning: zero unexplained mismatches across 10,000 inputs', (
   for (let i = 0; i < SEED_COUNT; i++) {
     const input = randomSimpleInput();
     const ours = ourEarn(input);
-    const client = clientEngineEarn(input);
+    const client = referenceEarn(input);
     if (ours === client) { matched++; continue; }
 
     const diff = Math.abs(ours - client);
@@ -87,6 +104,7 @@ test('differential earning: zero unexplained mismatches across 10,000 inputs', (
   writeFileSync(FINDINGS_PATH, JSON.stringify({
     summary: { total: SEED_COUNT, matched, floatDefects, unexplained },
     intendedDifferences: [
+      "Rounding 'block': the 59-line vendor extract awards nothing unless the result is exact; the client's real engine (docs/reference/engine.js pointsFor) awards whole spend blocks (149 -> 100). 'block' is compared with the real engine; the extract's meaning was wrong.",
       'Gift card + explicit discount_allocations: our engine uses Shopify allocations (559 pts); client engine uses proportional share (619 pts). Both tested explicitly in earning.test.js.',
       'Refund: client engine rounds per-refund independently; our engine uses cumulative target. Difference ≤ N points for N partial refunds.',
     ],

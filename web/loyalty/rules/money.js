@@ -73,7 +73,8 @@ export function formatPaise(paise, currency = 'INR') {
  * Rounding modes (match the client's prototype engine):
  *   "floor"  — always round down   (conservative, never over-awards)
  *   "round"  — round half-up       (standard financial rounding)
- *   "block"  — award nothing unless the result is exact (no partial points)
+ *   "block"  — whole spend blocks only: floor(paise / denominator) x numerator
+ *              (the client's engine: spend 100 earns 100 points per full block, so 149 earns 100)
  *
  * @param {number} paise       - value in integer paise
  * @param {number} numerator   - e.g. pointsPerUnit
@@ -105,8 +106,9 @@ export function multiplyPoints(paise, numerator, denominator, mode) {
       return fraction >= 50 ? whole + 1 : whole;
 
     case 'block':
-      // Only award if the result is exact (no fractional points)
-      return fraction === 0 ? whole : 0;
+      // Whole spend blocks only, as the client's engine.pointsFor does: Math.floor(value / spend) * points.
+      // (An earlier reading, "nothing unless exact", was wrong: it gave 0 for 149 where the engine gives 100.)
+      return Math.floor(paise / denominator) * numerator;
 
     default:
       throw new Error(`[money] Unknown rounding mode: "${mode}".`);

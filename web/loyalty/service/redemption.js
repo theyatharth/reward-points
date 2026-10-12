@@ -257,13 +257,15 @@ export async function resolveRedemption(redemptionId) {
 
 async function completeRedemption(redemptionId, discountCodeId, replayed) {
   await prisma.$transaction(async (tx) => {
+    const found = await tx.redemption.findUnique({ where: { id: redemptionId } });
+    await lockAccount(tx, found.accountId, 'complete');
     const moved = await tx.redemption.updateMany({
       where: { id: redemptionId, status: 'creating' },
       data: { status: 'active', discountCodeId },
     });
     if (moved.count === 0) return; // someone else settled it
     const r = await tx.redemption.findUnique({ where: { id: redemptionId } });
-    await tx.reward.create({
+    const reward = await tx.reward.create({
       data: {
         accountId: r.accountId,
         shop: r.shop,
@@ -275,6 +277,25 @@ async function completeRedemption(redemptionId, discountCodeId, replayed) {
         expiresAt: r.expiresAt,
       },
     });
+
+    // The race: a refund landed while this redemption was still 'creating'. It could not void a code that did not
+    // exist yet, so the customer's points were taken as DEBT. Issuing the code now would hand out a reward for points
+    // whose order was returned, so it is voided at once (the same rule as D4's "void an unused code before anyone
+    // owes"): the points come back (repaying the debt first), and the worker deletes the code in Shopify.
+    const account = await tx.loyaltyAccount.findUnique({ where: { id: r.accountId }, select: { debt: true } });
+    if (account.debt > 0) {
+      await tx.reward.update({ where: { id: reward.id }, data: { status: 'returned', returnedAt: now(), needsShopifyDelete: true } });
+      await tx.redemption.update({ where: { id: r.id }, data: { status: 'voided' } });
+      await returnPoints(tx, {
+        accountId: r.accountId,
+        points: r.pointsUsed,
+        lotTag: `reward:${r.id}`,
+        dedupeKey: `reward_return:${r.id}`,
+        note: 'Reward voided as it was issued: an order was returned while it was being created',
+        redemptionId: r.id,
+        rewardId: reward.id,
+      });
+    }
   }, TX_OPTIONS);
   return replayResult(await prisma.redemption.findUnique({ where: { id: redemptionId } }), replayed);
 }

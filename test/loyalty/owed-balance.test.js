@@ -15,6 +15,7 @@ import crypto from 'node:crypto';
 import { prisma } from '../../web/lib/prisma.js';
 import { storeWebhook, processPendingWebhooks } from '../../web/loyalty/service/webhook.js';
 import { redeem, resolveRedemption } from '../../web/loyalty/service/redemption.js';
+import { deleteVoidedCodes } from '../../web/loyalty/service/jobs.js';
 import * as ledgerService from '../../web/loyalty/service/ledger.js';
 import { setFixedTime, restoreClock, now } from '../../web/loyalty/adapters/clock.js';
 import { FakeShopifyGateway } from '../../web/loyalty/adapters/fake-gateway.js';
@@ -230,6 +231,75 @@ describe('Owed balance (D4)', () => {
     assert.deepStrictEqual([a.available, a.debt], [0, 200]);
     const firstLot = await prisma.pointLot.findFirst({ where: { shopifyOrderId: String(first) } });
     assert.deepStrictEqual([firstLot.remaining, firstLot.status], [0, 'exhausted']);
+  });
+
+  // ---- the race: a refund lands while the redemption is still 'creating' ----
+
+  /** Makes the next redeem end 'creating' with the code ALREADY in Shopify: the create response is lost, and the first lookup fails. */
+  function creatingWithCodeInShopify() {
+    gw.loseNextCreateResponseOnce();
+    const lookup = gw.findDiscountByCode.bind(gw);
+    let first = true;
+    gw.findDiscountByCode = async (code) => {
+      if (first) { first = false; throw new Error('timeout looking the code up'); }
+      return lookup(code);
+    };
+  }
+
+  test('a code that is created while the customer owes points is voided at once: points back, debt repaid, Shopify code deleted', async () => {
+    const orderId = await earnActive(500);
+    creatingWithCodeInShopify();
+    const r = await doRedeem();
+    assert.strictEqual(r.status, 'creating');
+    const redemption = await prisma.redemption.findFirst({ where: { shop } });
+    assert.strictEqual(gw.discounts.size, 1, 'the code exists in Shopify');
+
+    await refundUnits(orderId, 1); // no Reward row to void yet: the customer owes 500
+    let a = await check('refund while creating');
+    assert.deepStrictEqual([a.available, a.debt], [0, 500]);
+
+    const settled = await resolveRedemption(redemption.id); // the lookup now finds the code: completing it must void it
+    assert.strictEqual(settled.ok, false);
+    assert.strictEqual(settled.reason, 'REWARD_VOIDED');
+    assert.strictEqual(settled.code, undefined, 'the customer is never shown the code');
+
+    a = await check('after completion');
+    assert.deepStrictEqual([a.available, a.pending, a.debt], [0, 0, 0], 'the 500 returned repaid the 500 owed');
+    const reward = await prisma.reward.findFirst({ where: { shop } });
+    assert.deepStrictEqual([reward.status, reward.needsShopifyDelete], ['returned', true]);
+    assert.strictEqual((await prisma.redemption.findFirst({ where: { shop } })).status, 'voided');
+    assert.deepStrictEqual(await types(), ['earn:500', 'redemption:-500', 'refund:-500', 'reward_return:500']);
+    const returned = (await entries('reward_return'))[0];
+    assert.match(returned.note, /repay the owed balance/);
+
+    assert.strictEqual((await deleteVoidedCodes({ shop })).deleted, 1);
+    assert.strictEqual(gw.discounts.size, 0, 'the code was deleted in Shopify');
+    assert.strictEqual((await redeem({ shop, shopifyCustomerId: 'c1', idempotencyKey: redemption.idempotencyKey })).reason, 'REWARD_VOIDED', 'a replay says the same');
+  });
+
+  test('the same race with a bigger code: only what is owed is repaid, the rest is spendable', async () => {
+    const orderId = await earnActive(1000, 2);
+    creatingWithCodeInShopify();
+    const r = await doRedeem(); // both chunks: one code of 1000 points
+    assert.strictEqual(r.status, 'creating');
+    const redemption = await prisma.redemption.findFirst({ where: { shop } });
+    await refundUnits(orderId, 1); // 500 reversed, nothing left to take it from: owed
+    assert.strictEqual((await acct()).debt, 500);
+
+    assert.strictEqual((await resolveRedemption(redemption.id)).reason, 'REWARD_VOIDED');
+    const a = await check('after completion');
+    assert.deepStrictEqual([a.available, a.debt], [500, 0], '1000 returned: 500 repaid the debt, 500 are the customer\'s');
+    assert.deepStrictEqual(await types(), ['earn:1000', 'redemption:-1000', 'refund:-500', 'reward_return:1000']);
+  });
+
+  test('without the race nothing changes: a code created when nobody owes anything stays active', async () => {
+    await earnActive(500);
+    const r = await doRedeem();
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.status, 'active');
+    const reward = await prisma.reward.findFirst({ where: { shop } });
+    assert.deepStrictEqual([reward.status, reward.needsShopifyDelete], ['active', false]);
+    await check('after redeem');
   });
 
   // ---- repaying and refusing ----

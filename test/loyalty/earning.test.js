@@ -67,14 +67,22 @@ test('round rounding: ₹1.50 earns 2 pts (half-up)', () => {
   assert.strictEqual(computeEarning(input).points, 2);
 });
 
-test('block rounding: ₹1.50 earns 0 pts (not exact)', () => {
+test('block rounding: ₹1.50 earns 1 pt (one full ₹1 block; the client engine\'s meaning)', () => {
   const input = makeInput([{ price: '1.50', quantity: 1 }], { pointsRounding: 'block' });
-  assert.strictEqual(computeEarning(input).points, 0);
+  assert.strictEqual(computeEarning(input).points, 1);
 });
 
-test('block rounding: ₹2.00 earns 2 pts (exact)', () => {
-  const input = makeInput([{ price: '2.00', quantity: 1 }], { pointsRounding: 'block' });
-  assert.strictEqual(computeEarning(input).points, 2);
+test('block rounding: ₹2.00 earns 2 pts; ₹0.99 earns 0', () => {
+  assert.strictEqual(computeEarning(makeInput([{ price: '2.00', quantity: 1 }], { pointsRounding: 'block' })).points, 2);
+  assert.strictEqual(computeEarning(makeInput([{ price: '0.99', quantity: 1 }], { pointsRounding: 'block' })).points, 0);
+});
+
+test('client test "Rounding": at 100 points per ₹100, ₹149 earns 149 (floor), 100 (block, per full ₹100) and ₹149.50 earns 150 (round)', () => {
+  const rule = { spendAmountPaise: 10000, pointsPerUnit: 100 };
+  const earn = (price, mode) => computeEarning(makeInput([{ price, quantity: 1 }], { ...rule, pointsRounding: mode })).points;
+  assert.strictEqual(earn('149.00', 'floor'), 149);
+  assert.strictEqual(earn('149.00', 'block'), 100);
+  assert.strictEqual(earn('149.50', 'round'), 150);
 });
 
 // ---------------------------------------------------------------------------
