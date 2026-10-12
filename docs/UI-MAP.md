@@ -16,7 +16,7 @@ Legend: **exists** (built and tested) · **partial** · **missing** (not in this
 | Screen (design) | Data shown | Endpoint | Status |
 |---|---|---|---|
 | Sign in, forced password change | login, one-time password, new password | `POST /admin/api/login`, `GET /admin/api/session`, `POST /admin/api/change-password`, `POST /admin/api/logout` | exists (argon2, httpOnly Secure SameSite=Strict cookie, hashed session token, CSRF token + Origin check, login rate limit, idle 60 min / absolute 8 h) |
-| Overview: Members (total, active 90 d, new 30 d, returning buyers) | accounts, ledger activity, orders per account | `GET /admin/api/overview` | exists |
+| Overview: Members (total, active 90 d, new 30 d, returning buyers) | accounts, ledger activity, orders per account | `GET /admin/api/overview` | exists (built, `admin-overview.test.js`) |
 | Overview: Points (issued, pending, available, redeemed, expired, reversed) + "where issued points are now" bar | ledger sums, lots | `GET /admin/api/overview` | exists (expired = codes expired without return; lot expiry is off) |
 | Overview: liability table (available, unlocked-not-used codes, pending, redeemed, expired, being recovered) | balances x rule value per point, rewards | `GET /admin/api/overview` | exists |
 | Overview: Rewards (unlocked, used, open codes, redemption rate) | Reward / Redemption rows | `GET /admin/api/overview` | exists |

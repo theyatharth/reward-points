@@ -1,11 +1,12 @@
 // The console's pages, in the design's order. Pages that exist are real; the rest say what they would need.
 
 import { unavailable } from './unavailable.js';
+import { overviewPage } from './overview.js';
 
 const soon = (title) => unavailable({ title, lede: 'This page is being ported from the design.', needs: 'It arrives in the next step of the build.' });
 
 export const PAGES = [
-  { key: 'overview', label: 'Overview', page: soon('Rewards overview') },
+  { key: 'overview', label: 'Overview', page: overviewPage },
   { key: 'customers', label: 'Customers', page: soon('Customers') },
   { key: 'orders', label: 'Orders & webhooks', page: soon('Orders & webhooks') },
   { key: 'rules', label: 'Earning & redemption', page: soon('Earning & redemption rules') },
