@@ -8,12 +8,12 @@ import http from 'node:http';
 import express from 'express';
 import { prisma } from '../../web/lib/prisma.js';
 import { hashPassword } from '../../web/lib/passwords.js';
-import { createAdminRouter } from '../../web/admin/router.js';
+import { mountAdminConsole } from '../../web/admin/router.js';
 
 export async function startConsole() {
   const app = express();
   app.set('trust proxy', true);
-  app.use('/admin', createAdminRouter({ basePath: '/reward-points-dev' }));
+  mountAdminConsole(app, { basePath: '/reward-points-dev' });
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}/admin`;

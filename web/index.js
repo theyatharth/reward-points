@@ -8,7 +8,7 @@ import shopify from './shopify.js';
 import { webhookHandlers } from './routes/webhook.routes.js';
 import proxyRouter from './routes/proxy.routes.js';
 import settingsRouter from './routes/settings.routes.js';
-import { createAdminRouter } from './admin/router.js';
+import { mountAdminConsole } from './admin/router.js';
 
 const PORT = parseInt(process.env.BACKEND_PORT || process.env.PORT || '3000', 10);
 
@@ -59,10 +59,10 @@ app.use('/api/proxy', proxyRouter);
 // ---------------------------------------------------------------------------
 // 3b. ADMIN CONSOLE — /admin (static pages + JSON API under /admin/api). Outside the Shopify iframe, with its
 //     own login (web/admin/auth.js), so it also runs before the Shopify session validator below.
-//     "/admin" redirects (relative) to "/admin/" so the console's relative asset URLs resolve under the base path.
+//     "/admin" redirects to "<base>/admin/"; "/admin/" serves the console; unknown paths under it are a 404.
+//     Mounted at /admin (nginx strips the base path) and at <base>/admin (in case it ever does not).
 // ---------------------------------------------------------------------------
-app.get('/admin', (_req, res) => res.redirect(308, 'admin/'));
-app.use('/admin', createAdminRouter({ basePath: BASE_PATH }));
+mountAdminConsole(app, { basePath: BASE_PATH });
 
 // ---------------------------------------------------------------------------
 // 4. AUTHENTICATED ADMIN ROUTES — All routes below require a valid Shopify

@@ -65,7 +65,15 @@ export function createAdminRouter({ basePath = '' } = {}) {
   const router = express.Router();
   router.use(securityHeaders);
 
-  router.get('/', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html'), { cacheControl: false }));
+  // "/admin" and "/admin/" both reach this route (Express routing is not strict), so tell them apart by the URL the
+  // request came in on. Without the slash, the console's relative asset URLs (static/app.js, api/...) would resolve
+  // one level too high, so redirect to the slash form. The target is an ABSOLUTE path on the public base path, so
+  // it is right whether nginx strips that prefix or not, and "/admin/" itself never redirects.
+  router.get('/', (req, res) => {
+    const [urlPath, query] = req.originalUrl.split('?');
+    if (!urlPath.endsWith('/')) return res.redirect(308, `${basePath}/admin/${query ? `?${query}` : ''}`);
+    return res.sendFile(path.join(PUBLIC_DIR, 'index.html'), { cacheControl: false });
+  });
   router.use('/static', express.static(PUBLIC_DIR, { index: false, dotfiles: 'deny', cacheControl: false, etag: true }));
 
   const api = express.Router();
@@ -89,5 +97,22 @@ export function createAdminRouter({ basePath = '' } = {}) {
   });
 
   router.use('/api', api);
+
+  // Anything else under /admin is a plain 404 here, never the Shopify catch-all ("No shop provided").
+  router.use((req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ ok: false, error: 'NOT_FOUND' });
+    return res.status(404).type('text/plain').send('Not found');
+  });
   return router;
+}
+
+/**
+ * Mounts the console on `app` at /admin and at <basePath>/admin. nginx strips the base path, so /admin is what
+ * normally arrives; the second mount keeps the console working if the prefix ever reaches Express.
+ * Must be called BEFORE the Shopify session validator and catch-all.
+ */
+export function mountAdminConsole(app, { basePath = '' } = {}) {
+  const base = basePath.replace(/\/$/, '');
+  const paths = base ? [`${base}/admin`, '/admin'] : ['/admin'];
+  app.use(paths, createAdminRouter({ basePath: base }));
 }
