@@ -5,6 +5,7 @@
 // every query is scoped to the logged-in admin's shop.
 
 import { overview } from './data/overview.js';
+import { rules } from './data/rules.js';
 import { lastReconciliation, runNow } from './data/reconciliation.js';
 import { listAudit } from './data/audit.js';
 import { listOrders, listEvents, retryEvent } from './data/orders.js';
@@ -43,4 +44,6 @@ export function registerDataRoutes(api) {
     const { status, body } = await runNow(req.admin.shop);
     return res.status(status).json(body);
   }));
+
+  api.get('/rules', route(async (req, res) => res.json({ ok: true, ...(await rules(req.admin.shop)) })));
 }

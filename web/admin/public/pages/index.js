@@ -6,14 +6,13 @@ import { customersPage } from './customers.js';
 import { ordersPage } from './orders.js';
 import { auditPage } from './audit.js';
 import { reconciliationPage } from './reconciliation.js';
-
-const soon = (title) => unavailable({ title, lede: 'This page is being ported from the design.', needs: 'It arrives in the next step of the build.' });
+import { rulesPage } from './rules.js';
 
 export const PAGES = [
   { key: 'overview', label: 'Overview', page: overviewPage },
   { key: 'customers', label: 'Customers', page: customersPage },
   { key: 'orders', label: 'Orders & webhooks', page: ordersPage },
-  { key: 'rules', label: 'Earning & redemption', page: soon('Earning & redemption rules') },
+  { key: 'rules', label: 'Earning & redemption', page: rulesPage },
   {
     key: 'rewards', label: 'Reward catalogue',
     page: unavailable({
