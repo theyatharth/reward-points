@@ -198,6 +198,13 @@ and the code never works. The cost is a code that appears and is withdrawn secon
   was NOT run and production was not touched), `docs/CLIENT-TESTS.md` (the 43 client tests: working / partial / not built) and
   `test/loyalty/client-43.test.js` (one test per client test; the not-built ones are `test.skip`).
 
+- BUG FIX (admin console did not open): `app.get('/admin')` also matched `/admin/` (Express is not strict), so `/admin/`
+  redirected to the relative `admin/` = `/admin/admin/` and fell into the Shopify catch-all ("No shop provided"). Now
+  `mountAdminConsole()` (web/admin/router.js): `/admin` -> 308 to the ABSOLUTE `<APP_BASE_PATH>/admin/`, `/admin/` serves the
+  console, any other path under it is a 404, and the console is mounted at `/admin` AND `<base>/admin` (works if nginx stops
+  stripping). `admin-routing.test.js` covers it over real HTTP in three ways (through a prefix-stripping proxy, direct, direct
+  with prefix). The old behaviour fails 10 of its 19 tests.
+
 ## Next
 - Checkpoint 4: sync to the server, apply migration 10 (test, then dev), run the suite twice, report the 43-test table.
 
