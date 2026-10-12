@@ -8,6 +8,7 @@ import shopify from './shopify.js';
 import { webhookHandlers } from './routes/webhook.routes.js';
 import proxyRouter from './routes/proxy.routes.js';
 import settingsRouter from './routes/settings.routes.js';
+import { createAdminRouter } from './admin/router.js';
 
 const PORT = parseInt(process.env.BACKEND_PORT || process.env.PORT || '3000', 10);
 
@@ -25,6 +26,10 @@ const STATIC_PATH =
     : `${process.cwd()}/frontend/`;
 
 const app = express();
+
+// nginx is the only thing in front of this process: trust one proxy hop so req.ip is the real client
+// (the admin login rate limit counts failures per IP).
+app.set('trust proxy', 1);
 
 // ---------------------------------------------------------------------------
 // 1. AUTH — Shopify OAuth flow
@@ -50,6 +55,14 @@ app.post(
 //    These run before the session validator so the storefront can call them.
 // ---------------------------------------------------------------------------
 app.use('/api/proxy', proxyRouter);
+
+// ---------------------------------------------------------------------------
+// 3b. ADMIN CONSOLE — /admin (static pages + JSON API under /admin/api). Outside the Shopify iframe, with its
+//     own login (web/admin/auth.js), so it also runs before the Shopify session validator below.
+//     "/admin" redirects (relative) to "/admin/" so the console's relative asset URLs resolve under the base path.
+// ---------------------------------------------------------------------------
+app.get('/admin', (_req, res) => res.redirect(308, 'admin/'));
+app.use('/admin', createAdminRouter({ basePath: BASE_PATH }));
 
 // ---------------------------------------------------------------------------
 // 4. AUTHENTICATED ADMIN ROUTES — All routes below require a valid Shopify

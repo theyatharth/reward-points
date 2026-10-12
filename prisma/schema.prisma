@@ -588,3 +588,12 @@ model JobRun {
   @@index([jobType, status])
   @@index([startedAt])
 }
+// Failed-login counters for the admin console (migration 9). One row per key: "ip:<address>" or
+// "acct:<shop>:<email>" (never the password). The window is reset once it is older than 15 minutes.
+model AdminLoginAttempt {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  count       Int      @default(1)
+  windowStart DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
