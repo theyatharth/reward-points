@@ -194,8 +194,12 @@ and the code never works. The cost is a code that appears and is withdrawn secon
   date, read}]}`, `POST /apps/<proxy>/notifications/read` marks the caller's read; widget dot + panel lines, Rewards page
   section; admin Notifications page is a read-only log (e-mail/WhatsApp/switches/outbox: not available, D8).
 
+- TASK 9 DOCS DONE: `docs/DEMO.md` (steps with expected numbers), `docs/cutover-preflight.md` (checklist only; the cutover
+  was NOT run and production was not touched), `docs/CLIENT-TESTS.md` (the 43 client tests: working / partial / not built) and
+  `test/loyalty/client-43.test.js` (one test per client test; the not-built ones are `test.skip`).
+
 ## Next
-- Task 9 docs: docs/DEMO.md, docs/cutover-preflight.md (do NOT run the cutover); then Checkpoint 4: the 43 client tests table.
+- Checkpoint 4: sync to the server, apply migration 10 (test, then dev), run the suite twice, report the 43-test table.
 
 ## Blockers / notes
 - Excluded-COLLECTION lines are not applied at earn time (`writeEarning` looks the collections up but the result is
