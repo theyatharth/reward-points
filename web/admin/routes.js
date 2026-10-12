@@ -5,6 +5,7 @@
 // every query is scoped to the logged-in admin's shop.
 
 import { overview } from './data/overview.js';
+import { listOrders, listEvents, retryEvent } from './data/orders.js';
 import { searchCustomers, customerDetail, adjustCustomer, adjustMeta } from './data/customers.js';
 
 /** Wraps an async handler so a thrown error reaches the router's error handler. */
@@ -23,6 +24,13 @@ export function registerDataRoutes(api) {
   api.post('/customers/:id/adjust', route(async (req, res) => {
     if (!/^\d{1,20}$/.test(req.params.id)) return res.status(404).json({ ok: false, error: 'NOT_FOUND' });
     const { status, body } = await adjustCustomer({ shop: req.admin.shop, adminId: req.admin.id, shopifyCustomerId: req.params.id, body: req.body });
+    return res.status(status).json(body);
+  }));
+
+  api.get('/orders', route(async (req, res) => res.json({ ok: true, ...(await listOrders(req.admin.shop, { cursor: req.query.cursor, limit: req.query.limit })) })));
+  api.get('/events', route(async (req, res) => res.json({ ok: true, ...(await listEvents(req.admin.shop, { status: req.query.status, topic: req.query.topic, cursor: req.query.cursor, limit: req.query.limit })) })));
+  api.post('/events/:id/retry', route(async (req, res) => {
+    const { status, body } = await retryEvent({ shop: req.admin.shop, adminId: req.admin.id, eventId: req.params.id });
     return res.status(status).json(body);
   }));
 }
