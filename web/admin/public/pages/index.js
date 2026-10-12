@@ -4,6 +4,7 @@ import { unavailable } from './unavailable.js';
 import { overviewPage } from './overview.js';
 import { customersPage } from './customers.js';
 import { ordersPage } from './orders.js';
+import { auditPage } from './audit.js';
 
 const soon = (title) => unavailable({ title, lede: 'This page is being ported from the design.', needs: 'It arrives in the next step of the build.' });
 
@@ -29,7 +30,7 @@ export const PAGES = [
       needs: 'Nothing sends notifications yet. On-site notifications for points earned, activated and reward redeemed are planned (Task 9); e-mail and WhatsApp need a provider and are out of scope.',
     }),
   },
-  { key: 'audit', label: 'Audit log', page: soon('Audit log') },
+  { key: 'audit', label: 'Audit log', page: auditPage },
   {
     key: 'analytics', label: 'Analytics events',
     page: unavailable({
