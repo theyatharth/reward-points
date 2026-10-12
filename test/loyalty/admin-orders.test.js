@@ -127,7 +127,7 @@ describe('Admin orders and webhooks', () => {
   });
 
   test('events are paged newest first with every event once; another shop\'s events never appear', async () => {
-    for (let i = 0; i < 5; i++) await rawEvent({ payload: { id: 9000 + i } });
+    for (let i = 0; i < 5; i++) await rawEvent({ payload: { id: 9000 + i }, createdAt: new Date(Date.now() - (5 - i) * 1000) }); // spaced: ties would be ordered by id
     const other = `ord-other-${Date.now()}.myshopify.com`;
     await prisma.webhookEvent.create({ data: { shop: other, topic: 'orders/paid', payload: { id: 1 }, status: 'failed' } });
     const refs = [];
