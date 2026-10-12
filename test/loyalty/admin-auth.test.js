@@ -65,7 +65,7 @@ describe('Admin console: login, sessions, CSRF', () => {
     b.req = async (method, path, { body, headers = {}, raw } = {}) => {
       const res = await fetch(`${url}${path}`, {
         method,
-        headers: { 'X-Forwarded-For': ip, ...(b.cookie ? { Cookie: b.cookie } : {}), ...(method !== 'GET' && !raw ? { 'Content-Type': 'application/json' } : {}), ...headers },
+        headers: { 'X-Forwarded-For': ip, ...(b.cookie ? { Cookie: b.cookie } : {}), ...(method !== 'GET' ? { 'Content-Type': 'application/json' } : {}), ...headers },
         body: method === 'GET' ? undefined : raw ?? JSON.stringify(body ?? {}),
       });
       const set = res.headers.getSetCookie?.() ?? [];
