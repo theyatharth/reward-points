@@ -23,6 +23,12 @@
     return /^\/apps\/[a-z0-9-]{1,60}$/.test(v) ? v : DEFAULT_PROXY;
   }
 
+  /** A same-site path from a theme setting or Liquid URL ("/pages/rewards"), else the fallback. Never a scheme or a host. */
+  function safePath(value, fallback) {
+    var v = typeof value === 'string' ? value.trim() : '';
+    return /^\/(?!\/)[A-Za-z0-9\-_\/.?=&%]{0,200}$/.test(v) ? v : fallback || null;
+  }
+
   function currencySymbol(code) {
     if (code === 'INR') return '₹';
     if (code === 'USD') return '$';
@@ -151,6 +157,349 @@
     else fail();
   }
 
+  // ---- the design (docs/reference prototype: widgetView, rewardsScreen): icons and sections, DOM-built ----
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var ICONS = {
+    gift: [['path', 'M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Z'], ['path', 'M3 7h18v4H3z'], ['path', 'M12 7v14'], ['path', 'M12 7c-1.5-3-5-3.5-5-1.2C7 7 9.5 7 12 7Zm0 0c1.5-3 5-3.5 5-1.2C17 7 14.5 7 12 7Z']],
+    clock: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', 'M12 7v5l3 2']],
+    bag: [['path', 'M5 8h14l-1 12H6L5 8Z'], ['path', 'M9 8V6a3 3 0 0 1 6 0v2']],
+    spark: [['path', 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6']],
+    ret: [['path', 'M9 14 4 9l5-5'], ['path', 'M4 9h11a5 5 0 0 1 0 10h-3']],
+    tag: [['path', 'M3 12V4h8l10 10-8 8L3 12Z'], ['circle', { cx: 7.5, cy: 8.5, r: 1.3 }]],
+    check: [['path', 'm5 12 5 5 9-10']],
+    plus: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', 'M12 8v8M8 12h8']],
+    minus: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', 'M8 12h8']],
+  };
+  function icon(name) {
+    var svg = root.document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.8');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    (ICONS[name] || ICONS.gift).forEach(function (shape) {
+      var node = root.document.createElementNS(SVGNS, shape[0]);
+      if (typeof shape[1] === 'string') node.setAttribute('d', shape[1]);
+      else Object.keys(shape[1]).forEach(function (k) { node.setAttribute(k, String(shape[1][k])); });
+      svg.appendChild(node);
+    });
+    return svg;
+  }
+
+  function P(n) { return (Math.round(Number(n) || 0)).toLocaleString('en-IN'); }
+  function money(value, currency) {
+    var n = Number(value);
+    if (!isFinite(n)) return '';
+    var text = n.toLocaleString('en-IN', { minimumFractionDigits: n % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
+    return currencySymbol(currency) + text;
+  }
+  function el(tag, className, text, children) {
+    var n = h(tag, className, text);
+    (children || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+  function button(className, text, onClick) {
+    var b = h('button', className, text);
+    b.type = 'button';
+    if (onClick) b.addEventListener('click', onClick);
+    return b;
+  }
+
+  /** What the points are worth under the shop's single rule, from a /history view. */
+  function pointsValue(view, points) {
+    var rule = view && view.rule;
+    if (!rule || !(rule.pointsPerReward > 0)) return null;
+    return (Number(rule.rewardValue) * points) / rule.pointsPerReward;
+  }
+  /** How many whole rewards the available points buy (one redeem turns all of them into ONE code). */
+  function rewardsAffordable(view) {
+    var p = progress(view);
+    return p.known ? Math.floor(view.balance.available / view.rule.pointsPerReward) : 0;
+  }
+  function hasActivity(view) {
+    return !!(view && ((view.history && view.history.length) || (view.balance && (view.balance.available || view.balance.pending || view.balance.owed))));
+  }
+
+  function balanceCard(view) {
+    var b = view.balance;
+    var value = pointsValue(view, b.available);
+    var big = el('div', 'big num', P(b.available), [el('small', null, 'points')]);
+    return el('section', 'bal', null, [
+      el('div', 'lbl', 'Available to use'),
+      big,
+      value === null ? null : el('span', 'val num', money(value.toFixed(2), view.rule.currency) + ' reward value'),
+    ]);
+  }
+  function owedCard(view) {
+    if (!(view.balance.owed > 0)) return null;
+    var c = el('div', 'owed', null, [el('b', null, P(view.balance.owed) + ' points are being recovered'),
+      root.document.createTextNode('A returned order reversed points you had already used on a reward. New points go toward this first, then your balance grows again. Rewards unlock once it\'s cleared.')]);
+    c.setAttribute('role', 'status');
+    return c;
+  }
+  function pendingCard(view) {
+    var b = view.balance;
+    if (!(b.pending > 0)) return null;
+    var lots = view.pending || [];
+    var first = lots[0];
+    var value = pointsValue(view, b.pending);
+    var rows = lots.map(function (l) { return el('div', 'row num', null, [el('span', null, P(l.points) + ' pts'), el('b', null, 'Available on ' + formatDate(l.availableOn))]); });
+    var card = el('section', 'pend', null, [
+      el('div', 'pend-top', null, [icon('clock'), el('div', null, null, [
+        el('h4', 'num', P(b.pending) + ' points are on the way'),
+        el('p', null, 'Earned from your recent purchases. They become available after the holding period' + (view.rule && view.rule.holdPeriodDays ? ' (' + view.rule.holdPeriodDays + ' days)' : '') + '.')])]),
+      el('div', 'row-between', null, [
+        value === null ? el('span') : el('b', 'num', money(value.toFixed(2), view.rule.currency) + ' future reward value'),
+        first ? el('span', 'num', 'Next: ' + formatDate(first.availableOn)) : null]),
+      rows.length ? el('div', 'rows', null, rows) : null,
+    ]);
+    card.setAttribute('aria-label', 'Pending points');
+    return card;
+  }
+
+  function codesSection(view, handlers) {
+    var rewards = view.rewards || [];
+    if (!rewards.length) return null;
+    var list = rewards.map(function (r) {
+      var copy = button('btn small', 'Copy', function () { handlers.onCopy(r.code, copy); });
+      return el('div', 'ritem ready', null, [
+        el('div', 'rv', money(r.value, view.rule.currency) + ' off'),
+        el('div', 'rm', null, [el('b', 'mono', r.code), root.document.createTextNode('Use at checkout' + (r.expiresAt ? ' until ' + formatDate(r.expiresAt) : ''))]),
+        copy]);
+    });
+    return el('section', 'grid', null, [el('div', 'sec-h', null, [el('h3', null, 'Ready to use')]), el('div', 'rlist', null, list)]);
+  }
+
+  /** The ONE reward card for our single rule: N whole rewards become one code worth N x the reward value. */
+  function rewardCard(view, handlers) {
+    var n = rewardsAffordable(view);
+    if (n < 1 || view.balance.owed > 0) return null;
+    var rule = view.rule;
+    var total = Number(rule.rewardValue) * n;
+    var btn = button('btn small', 'Redeem', function () { handlers.onRedeem(btn); });
+    btn.id = 'ecrRedeem';
+    var detail = n === 1 ? P(rule.pointsPerReward) + ' points' : P(n * rule.pointsPerReward) + ' points for ' + n + ' rewards in one code';
+    return el('section', 'grid', null, [el('div', 'sec-h', null, [el('h3', null, 'Rewards you can use')]),
+      el('div', 'rlist', null, [el('div', 'ritem', null, [el('div', 'rv', money(total.toFixed(2), rule.currency) + ' off'), el('div', 'rm', null, [el('b', null, detail), root.document.createTextNode('Becomes a one-time code for your account')]), btn])])]);
+  }
+
+  function goalCard(view) {
+    var p = progress(view);
+    if (!p.known || p.ready || view.balance.owed > 0) return null;
+    var rule = view.rule;
+    var bar = el('div', 'bar', null, [el('i')]);
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', String(rule.pointsPerReward));
+    bar.setAttribute('aria-valuenow', String(view.balance.available));
+    bar.setAttribute('aria-label', 'Progress to your next reward');
+    bar.firstChild.style.width = Math.max(2, p.pct) + '%';
+    var onTheWay = view.balance.pending >= p.needed && view.balance.pending > 0;
+    var card = el('section', 'card goal', null, [
+      el('span', 'eyebrow', 'Your next reward'),
+      el('div', 'row-between', null, [el('span', 'gname', money(rule.rewardValue, rule.currency) + ' off'), el('span', 'faint num', P(rule.pointsPerReward) + ' points')]),
+      bar,
+      el('div', 'row-between', null, [el('span', 'muted num', 'You have ' + P(view.balance.available) + ' points'), el('span', 'togo num', P(p.needed) + ' points to go')]),
+      onTheWay ? el('p', 'muted', 'Your ' + P(view.balance.pending) + ' points on the way will get you there once they\'re available.') : null,
+    ]);
+    card.setAttribute('aria-label', 'Your next reward');
+    return card;
+  }
+
+  function waysToEarn(view) {
+    var r = view.rule || {};
+    var shop = r.earnPoints && r.earnSpend
+      ? 'Earn ' + P(r.earnPoints) + ' points for every ' + money(r.earnSpend, r.currency) + ' spent on eligible products (after discounts). Gift cards don\'t earn.'
+      : 'Earn points automatically on every eligible paid order. Gift cards don\'t earn.';
+    return el('section', 'grid', null, [el('div', 'sec-h', null, [el('h3', null, 'Ways to earn')]), el('div', 'earn', null, [
+      el('div', 'e', null, [icon('bag'), el('div', null, null, [el('b', null, 'Shop'), el('p', null, shop)])]),
+      el('div', 'e', null, [icon('spark'), el('div', null, null, [el('b', null, 'Special bonuses'), el('p', null, 'Receive bonus points from selected Ecofynd promotions.')])]),
+    ])]);
+  }
+
+  var KIND_ICON = { earned: 'bag', reversed: 'ret', redeemed: 'tag', returned: 'gift', bonus: 'spark', adjusted: 'plus', other: 'check' };
+  function dayKey(iso) {
+    try { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); } catch (e) { return ''; }
+  }
+  function activitySection(view) {
+    var items = view.history || [];
+    if (!items.length) return null;
+    var groups = [];
+    items.forEach(function (e) {
+      var k = dayKey(e.date);
+      var g = groups[groups.length - 1];
+      if (!g || g.k !== k) { g = { k: k, date: e.date, items: [] }; groups.push(g); }
+      g.items.push(e);
+    });
+    var today = dayKey(new Date().toISOString());
+    return el('section', 'grid', null, [el('div', 'sec-h', null, [el('h3', null, 'Activity')]), el('div', 'tl', null, groups.map(function (g) {
+      return el('div', 'tl-day', null, [el('span', 'eyebrow', g.k === today ? 'Today' : formatDate(g.date))].concat(g.items.map(function (e) {
+        var pts = Number(e.points) || 0;
+        var ic = e.kind === 'adjusted' && pts < 0 ? 'minus' : KIND_ICON[e.kind] || 'check';
+        return el('div', 'tl-item', null, [
+          el('span', 'tl-ic', null, [icon(ic)]),
+          el('div', 'tl-t', null, [el('b', null, e.label)]),
+          el('div', 'tl-p', null, [el('b', 'num ' + (pts > 0 ? 'plus' : 'minus'), (pts > 0 ? '+' : '−') + P(Math.abs(pts)) + ' pts')]),
+        ]);
+      })));
+    }))]);
+  }
+
+  function zeroState(view, handlers) {
+    var r = view.rule || {};
+    var text = r.earnPoints && r.earnSpend
+      ? 'Earn points with eligible purchases and special bonuses. Every ' + money(r.earnSpend, r.currency) + ' you spend earns ' + P(r.earnPoints) + ' points, and ' + P(r.pointsPerReward) + ' points are worth ' + money(r.rewardValue, r.currency) + '.'
+      : 'Earn points with eligible purchases and special bonuses.';
+    return el('section', 'zero', null, [el('h2', null, 'Start earning Ecofynd Rewards'), el('p', 'muted', text),
+      r.pointsPerReward ? el('div', 'ladder', null, [el('div', null, null, [el('b', null, money(r.rewardValue, r.currency) + ' off'), el('span', 'muted num', P(r.pointsPerReward) + ' points')])]) : null,
+      handlers.shopUrl ? (function () { var a = h('a', 'btn', 'Start Shopping'); a.setAttribute('href', handlers.shopUrl); return a; })() : null]);
+  }
+
+  /** The Rewards page body, in the prototype's order. `handlers`: onRedeem(button), onCopy(code, button), shopUrl. */
+  function renderRewardsPage(container, view, handlers) {
+    clear(container);
+    var parts = hasActivity(view)
+      ? [balanceCard(view), owedCard(view), pendingCard(view), codesSection(view, handlers), rewardCard(view, handlers), goalCard(view), waysToEarn(view), activitySection(view)]
+      : [zeroState(view, handlers), waysToEarn(view)];
+    parts.forEach(function (n) { if (n) container.appendChild(n); });
+  }
+
+  /** The collapsed widget button label: "N pts", or "Rewards" while points are being recovered or unknown. */
+  function widgetLabel(view) {
+    if (!view || !view.balance || view.balance.owed > 0) return 'Rewards';
+    return P(view.balance.available) + ' pts';
+  }
+
+  /** The expanded widget panel (widgetView): balance, value, next reward bar, pending, View Rewards. */
+  function renderWidgetPanel(panel, view, handlers) {
+    clear(panel);
+    var add = function (n) { if (n) panel.appendChild(n); };
+    if (!view) { // logged out
+      add(el('h4', null, 'Join Ecofynd Rewards'));
+      add(el('p', 'muted', 'Join our rewards program and earn points with every purchase.'));
+      var login = h('a', 'btn small', 'Log In / Sign Up');
+      login.setAttribute('href', handlers.loginUrl || '/account/login');
+      add(login);
+      return;
+    }
+    if (!hasActivity(view)) {
+      var r = view.rule || {};
+      add(el('h4', null, 'Start earning Ecofynd Rewards'));
+      add(el('p', 'muted', r.earnPoints && r.earnSpend ? 'Earn ' + P(r.earnPoints) + ' points for every ' + money(r.earnSpend, r.currency) + ' on eligible purchases.' : 'Earn points on eligible purchases.'));
+      if (handlers.shopUrl) { var a = h('a', 'btn small', 'Start Shopping'); a.setAttribute('href', handlers.shopUrl); add(a); }
+      return;
+    }
+    var b = view.balance;
+    var value = pointsValue(view, b.available);
+    var p = progress(view);
+    add(el('h4', null, 'Your Ecofynd Rewards'));
+    add(el('div', 'wbig num', P(b.available), [el('span', null, ' points')]));
+    if (value !== null) add(el('span', 'pill st-Available', money(value.toFixed(2), view.rule.currency) + ' available'));
+    if (b.owed > 0) add(el('p', 'minus', P(b.owed) + ' points being recovered from a return'));
+    else if (p.known && p.ready) add(el('b', 'num', 'You can redeem ' + money((Number(view.rule.rewardValue) * rewardsAffordable(view)).toFixed(2), view.rule.currency) + ' now'));
+    else if (p.known) {
+      add(el('b', 'num', P(p.needed) + ' points to your next reward'));
+      var bar = el('div', 'bar', null, [el('i')]);
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-valuemin', '0');
+      bar.setAttribute('aria-valuemax', String(view.rule.pointsPerReward));
+      bar.setAttribute('aria-valuenow', String(b.available));
+      bar.firstChild.style.width = Math.max(2, p.pct) + '%';
+      add(bar);
+    }
+    if (b.pending > 0) add(el('p', 'muted num', P(b.pending) + ' more on the way'));
+    var link = h('a', 'btn small', 'View Rewards');
+    link.setAttribute('href', handlers.pageUrl || '/pages/rewards');
+    add(link);
+  }
+
+  /**
+   * Wires the Rewards page: loads /history, draws it, redeems, copies. Elements are passed in so this can be tested.
+   * @param {{ body: Element, message: Element, proxyPath: string, shopUrl?: string, fetchImpl?: Function }} o
+   */
+  function initPage(o) {
+    var proxyPath = safeProxyPath(o.proxyPath);
+    var redeemer = createRedeemer({ proxyPath: proxyPath, fetchImpl: o.fetchImpl });
+    var state = { latest: null, busy: false };
+    function say(text, cls) {
+      clear(o.message);
+      if (text) o.message.appendChild(h('div', cls, text));
+    }
+    function draw() { renderRewardsPage(o.body, state.latest, handlers); }
+    function refresh() {
+      return loadView(proxyPath, o.fetchImpl).then(function (res) {
+        if (res.ok && res.body && res.body.success) { state.latest = res.body; draw(); return true; }
+        throw new Error('bad answer');
+      }).catch(function () {
+        if (!state.latest) { clear(o.body); o.body.appendChild(h('p', 'muted', 'Your rewards could not be loaded right now. Please try again in a moment.')); }
+        return false;
+      });
+    }
+    var handlers = {
+      shopUrl: safePath(o.shopUrl, null),
+      onCopy: function (code, btn) {
+        copyText(code, function () {
+          btn.textContent = '✓ Copied!';
+          root.setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+        }, function () { say('Could not copy automatically. Your code: ' + code, 'err'); });
+      },
+      onRedeem: function (btn) {
+        if (state.busy) return;
+        state.busy = true;
+        btn.disabled = true;
+        btn.textContent = 'Generating code…';
+        redeemer.run().then(function (r) {
+          state.busy = false;
+          if (r.kind === 'success') { say('Your reward code is ready: ' + r.body.code, 'ok'); return refresh(); }
+          if (r.kind === 'creating') {
+            say('Your reward is being prepared. It will appear here in a moment.', 'ok');
+            root.setTimeout(refresh, 3000);
+            root.setTimeout(refresh, 9000);
+            return refresh();
+          }
+          say(r.kind === 'network' ? 'Network error. Please try again.' : (r.body && r.body.message) || 'Could not redeem right now.', 'err');
+          return state.latest ? draw() : refresh();
+        });
+      },
+    };
+    return refresh().then(function () { return { refresh: refresh, state: state }; });
+  }
+
+  /**
+   * Wires the floating widget: the button label, and the panel (drawn from /history when it opens).
+   * @param {{ toggle: Element, label: Element, panel: Element, proxyPath: string, loggedIn: boolean, shopUrl?: string,
+   *           pageUrl?: string, loginUrl?: string, fetchImpl?: Function }} o
+   */
+  function initWidget(o) {
+    var proxyPath = safeProxyPath(o.proxyPath);
+    var handlers = { shopUrl: safePath(o.shopUrl, null), pageUrl: safePath(o.pageUrl, '/pages/rewards'), loginUrl: safePath(o.loginUrl, '/account/login') };
+    var state = { open: false, latest: null };
+    function draw() {
+      renderWidgetPanel(o.panel, o.loggedIn ? state.latest : null, handlers);
+      if (state.latest) o.label.textContent = widgetLabel(state.latest);
+    }
+    function refresh() {
+      if (!o.loggedIn) return Promise.resolve(false);
+      return loadView(proxyPath, o.fetchImpl).then(function (res) {
+        if (res.ok && res.body && res.body.success) { state.latest = res.body; draw(); return true; }
+        return false;
+      }, function () { return false; });
+    }
+    function setOpen(open) {
+      state.open = open;
+      o.panel.hidden = !open;
+      o.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) { if (state.latest || !o.loggedIn) draw(); refresh(); }
+    }
+    o.toggle.addEventListener('click', function () { setOpen(!state.open); });
+    o.panel.hidden = true;
+    var ready = refresh();
+    return { setOpen: setOpen, refresh: refresh, state: state, ready: ready };
+  }
+
   var api = {
     DEFAULT_PROXY: DEFAULT_PROXY,
     safeProxyPath: safeProxyPath,
@@ -164,6 +513,16 @@
     clear: clear,
     renderHistory: renderHistory,
     copyText: copyText,
+    icon: icon,
+    pointsValue: pointsValue,
+    rewardsAffordable: rewardsAffordable,
+    hasActivity: hasActivity,
+    widgetLabel: widgetLabel,
+    renderRewardsPage: renderRewardsPage,
+    renderWidgetPanel: renderWidgetPanel,
+    safePath: safePath,
+    initPage: initPage,
+    initWidget: initWidget,
   };
   root.EcoRewards = api;
 })(typeof window !== 'undefined' ? window : globalThis);

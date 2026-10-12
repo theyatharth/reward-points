@@ -179,13 +179,13 @@ describe('theme blocks (static checks)', () => {
     }
   });
 
-  test('the redeem threshold and the hold period are not hardcoded', () => {
-    for (const [name, text] of Object.entries({ widget: WIDGET, page: PAGE })) {
-      assert.ok(!/redeem_threshold\s*=\s*\d/.test(text) && !/assign redeem_threshold = 100/.test(text), `${name}: no "redeem_threshold = 100"`);
+  test('the redeem threshold and the hold period are not hardcoded: they come from the rule in the /history view', () => {
+    for (const [name, text] of Object.entries({ widget: WIDGET, page: PAGE, client: CLIENT })) {
+      assert.ok(!/redeem_threshold\s*=\s*\d/.test(text), `${name}: no "redeem_threshold = N"`);
       assert.ok(!/30 days|30-day|30 Days/.test(text), `${name}: no hardcoded "30 days"`);
-      assert.ok(/app\.metafields\.rewards\.redeem_rule/.test(text), `${name}: reads the rule metafield for the first paint`);
     }
-    assert.match(PAGE, /view\.rule\.holdPeriodDays/, 'the page text uses the rule\'s hold period');
+    assert.match(CLIENT, /view\.rule\.holdPeriodDays/, 'the hold period comes from the rule');
+    assert.match(CLIENT, /rule\.pointsPerReward/, 'the threshold comes from the rule');
   });
 
   test('customer-controlled and server values are escaped in Liquid', () => {
@@ -207,12 +207,15 @@ describe('theme blocks (static checks)', () => {
   test('the proxy path is a block setting with the live default, validated by the client; no hardcoded /apps/rewards fetch', () => {
     for (const [name, text] of Object.entries({ widget: WIDGET, page: PAGE })) {
       assert.match(text, /data-proxy="\{\{ proxy_path \| escape \}\}"/, `${name}: path passed as an escaped data attribute`);
-      assert.match(text, /E\.safeProxyPath\(/, `${name}: validated before use`);
       assert.ok(!/fetch\(\s*['"]\/apps\//.test(text), `${name}: no fetch to a literal /apps/ path`);
       const schema = JSON.parse(text.match(/\{% schema %\}([\s\S]*?)\{% endschema %\}/)[1]);
       const setting = schema.settings.find((s) => s.id === 'proxy_path');
       assert.deepEqual([setting.type, setting.default], ['text', '/apps/rewards'], `${name}: schema setting`);
     }
+    // The client validates the path in every entry point that talks to the server.
+    assert.match(CLIENT, /function initPage[\s\S]*?safeProxyPath\(o\.proxyPath\)/);
+    assert.match(CLIENT, /function initWidget[\s\S]*?safeProxyPath\(o\.proxyPath\)/);
+    assert.match(CLIENT, /function createRedeemer[\s\S]*?safeProxyPath\(/);
   });
 
   test('each block\'s schema is ONE valid JSON object', () => {

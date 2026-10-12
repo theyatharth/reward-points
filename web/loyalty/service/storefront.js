@@ -78,7 +78,10 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
   const view = {
     success: true,
     balance: { available: 0, pending: 0, owed: 0 },
-    rule: { pointsPerReward: config.pointsPerReward, rewardValue: decimal(config.rewardValue), currency: config.currency, holdPeriodDays: config.holdPeriodDays },
+    rule: {
+      pointsPerReward: config.pointsPerReward, rewardValue: decimal(config.rewardValue), currency: config.currency, holdPeriodDays: config.holdPeriodDays,
+      earnPoints: config.pointsPerUnit, earnSpend: decimal(config.spendAmountPaise), // "Earn N points for every X spent"
+    },
     pending: [],
     rewards: [],
     history: [],

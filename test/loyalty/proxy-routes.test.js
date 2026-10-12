@@ -211,7 +211,7 @@ describe('App proxy storefront routes', () => {
     const body = await res.json();
     assert.strictEqual(res.status, 200);
     assert.deepStrictEqual(body.balance, { available: 0, pending: 0, owed: 0 });
-    assert.deepStrictEqual(body.rule, { pointsPerReward: 500, rewardValue: '50.00', currency: 'INR', holdPeriodDays: 30 });
+    assert.deepStrictEqual(body.rule, { pointsPerReward: 500, rewardValue: '50.00', currency: 'INR', holdPeriodDays: 30, earnPoints: 1, earnSpend: '1.00' });
     assert.deepStrictEqual([body.pending, body.rewards, body.history], [[], [], []]);
   });
 

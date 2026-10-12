@@ -171,9 +171,14 @@ and the code never works. The cost is a code that appears and is withdrawn secon
     was fixed.
 - CHECKPOINT 3 is WAITING FOR THE USER ("continue"): files synced (39, sizes verified), migration 9 applied test then dev.
 
-## Next (after "continue", per the re-scope)
-- 5. Restyle the widget (collapsed and expanded) and the Rewards page to the prototype's widgetView and rewardsScreen, one
-  reward card for the single rule, still reading the signed proxy API.
+- STEP 5 DONE (restyle of the widget and Rewards page to the prototype): generated scoped stylesheet
+  (`assets/rewards-theme.css`, `scripts/build-storefront-css.mjs`), shared renderers and `initPage` / `initWidget` in
+  `assets/rewards-client.js`, both blocks rewritten (widget: pill + panel, side and page-path settings; page: balance, owed,
+  pending, ready codes, ONE reward card, next-reward progress, ways to earn, activity). `/history` rule now carries
+  `earnPoints` and `earnSpend`. Tests: `storefront-render.test.js` (fake DOM + fake fetch). Needs `app deploy` and a theme
+  check on the Mac to be seen: not yet viewed in a browser.
+
+## Next
 - 6. In this order: the race fix (void a code issued while debt > 0), delete the old code in Shopify on reward restore,
   `block` rounding as in the client's engine, the reconcile "incorrect reversal" check.
 - Then Task 9 (on-site notifications, docs/DEMO.md, docs/cutover-preflight.md) and Checkpoint 4 (the 43 client tests).
