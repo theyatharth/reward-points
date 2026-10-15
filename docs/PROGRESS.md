@@ -205,6 +205,16 @@ and the code never works. The cost is a code that appears and is withdrawn secon
   stripping). `admin-routing.test.js` covers it over real HTTP in three ways (through a prefix-stripping proxy, direct, direct
   with prefix). The old behaviour fails 10 of its 19 tests.
 
+- CLIENT TEST READINESS, step 1 (status as of 2026-10-15):
+
+  | Item | Status | Commit |
+  |---|---|---|
+  | Race fix (void a code issued while debt > 0) | done | 017e3dd |
+  | Old-code deletion on reward restore | done | 017e3dd |
+  | `block` rounding (whole spend blocks) | done | 017e3dd |
+  | Reconcile reversal check (`reversal_mismatch`) | done | 017e3dd |
+  | Rules page editing | NOT done: read only (568f283); being built in step 3 | - |
+
 ## Next
 - Checkpoint 4: sync to the server, apply migration 10 (test, then dev), run the suite twice, report the 43-test table.
 
