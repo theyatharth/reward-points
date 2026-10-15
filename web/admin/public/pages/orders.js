@@ -51,6 +51,7 @@ async function fetchAll(ctx) {
   ]);
   st.orders = o.ok ? o.data.orders : [];
   st.ordersNext = o.ok ? o.data.nextCursor : null;
+  st.currency = o.ok ? o.data.currency : null;
   st.events = e.ok ? e.data.events : [];
   st.eventsNext = e.ok ? e.data.nextCursor : null;
   st.counts = e.ok ? e.data.counts : {};
@@ -62,7 +63,7 @@ export const ordersPage = {
   async render(ctx) {
     if (!st.keep) await fetchAll(ctx);
     st.keep = false;
-    return renderOrders({ orders: st.orders, events: st.events, attention: st.attention, counts: st.counts, status: st.status, ordersNext: st.ordersNext, eventsNext: st.eventsNext, currency: 'INR' });
+    return renderOrders({ orders: st.orders, events: st.events, attention: st.attention, counts: st.counts, status: st.status, ordersNext: st.ordersNext, eventsNext: st.eventsNext, currency: st.currency });
   },
   act: {
     filter: (el, ctx) => { st.status = el.dataset.v; return ctx.rerender(); },

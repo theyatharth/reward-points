@@ -18,7 +18,7 @@ export const PAGES = [
     key: 'rewards', label: 'Reward catalogue',
     page: unavailable({
       title: 'Reward catalogue',
-      lede: 'The design lets a shop define several rewards (₹10, ₹25, ₹50 ... each with its own points, minimum cart, usage limit, eligible collections and validity).',
+      lede: 'The design lets a shop define several rewards (for example a small, a medium and a large reward, each with its own points, minimum cart, usage limit, eligible collections and validity).',
       needs: 'This version has ONE redemption rule per shop (points per reward and reward value, see Earning & redemption). A catalogue needs a reward table, per-reward codes and cart validation in the storefront and the checkout discount.',
     }),
   },

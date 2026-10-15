@@ -179,7 +179,7 @@ export async function saveRules({ shop, adminId, ip, body }) {
         adminId,
         ip: typeof ip === 'string' ? ip.slice(0, 64) : null,
         action: 'rules_changed',
-        detail: { changes: plan.changes, warningsAcknowledged: plan.warnings.length > 0 },
+        detail: { currency: config.currency, changes: plan.changes, warningsAcknowledged: plan.warnings.length > 0 },
       },
     });
     return { status: 200, body: { ok: true, changed: plan.changes.length, changes: plan.changes, warnings: plan.warnings, notes: plan.notes } };

@@ -12,6 +12,8 @@
 //
 // No database, no Shopify, no clock — pure functions only.
 
+import { currencySymbol } from './currency.js';
+
 /**
  * Parse a Shopify decimal amount string (or number) into integer paise.
  *
@@ -50,20 +52,20 @@ export function parsePaise(value) {
 }
 
 /**
- * Format integer paise as a human-readable currency string.
+ * Format integer paise (minor units) with the shop's currency symbol, always two decimals.
+ * The symbol comes from the shop's configured code (rules/currency.js); a missing code gives a bare amount.
  *
- * @param {number} paise - integer paise
- * @param {string} [currency='INR']
- * @returns {string}  e.g. "₹629.95" or "USD 629.95"
+ * @param {number} paise - integer minor units
+ * @param {string} currency - the shop's ISO currency code
+ * @returns {string}  e.g. "₹629.95" (INR), "$629.95" (USD), "AED 629.95"
  */
-export function formatPaise(paise, currency = 'INR') {
+export function formatPaise(paise, currency) {
   const major = Math.floor(Math.abs(paise) / 100);
   const minor = Math.abs(paise) % 100;
   const sign = paise < 0 ? '-' : '';
   const formatted = `${major}.${String(minor).padStart(2, '0')}`;
 
-  if (currency === 'INR') return `${sign}₹${formatted}`;
-  return `${sign}${currency} ${formatted}`;
+  return `${sign}${currencySymbol(currency)}${formatted}`;
 }
 
 /**

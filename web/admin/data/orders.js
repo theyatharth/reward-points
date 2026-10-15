@@ -18,6 +18,7 @@ const ref = (v) => (typeof v === 'number' || (typeof v === 'string' && /^[\w-]{1
 
 export async function listOrders(shop, { cursor, limit } = {}) {
   const take = limitOf(limit, 25, 100);
+  const config = await prisma.loyaltyConfig.findUnique({ where: { shop }, select: { currency: true } });
   const rows = await prisma.loyaltyOrder.findMany({
     where: { shop },
     orderBy: [{ processedAt: 'desc' }, { id: 'desc' }],
@@ -48,6 +49,7 @@ export async function listOrders(shop, { cursor, limit } = {}) {
         rewardUsed: usedOn.has(o.shopifyOrderId),
       };
     }),
+    currency: config?.currency ?? null,
     nextCursor: rows.length > take ? rows[take].id : null,
   };
 }

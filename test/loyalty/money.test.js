@@ -59,8 +59,8 @@ test('formatPaise: 1000 INR → "₹10.00"', () => {
   assert.strictEqual(formatPaise(1000, 'INR'), '₹10.00');
 });
 
-test('formatPaise: 62995 USD → "USD 629.95"', () => {
-  assert.strictEqual(formatPaise(62995, 'USD'), 'USD 629.95');
+test('formatPaise: 62995 USD → "$629.95" (the symbol follows the shop\'s currency)', () => {
+  assert.strictEqual(formatPaise(62995, 'USD'), '$629.95');
 });
 
 test('formatPaise: negative → sign prefix', () => {

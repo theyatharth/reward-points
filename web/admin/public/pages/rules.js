@@ -3,7 +3,7 @@
 // stale form and writes an audit row with the previous and new value of every changed field.
 
 import { h } from '../esc.js';
-import { P, money, D } from '../format.js';
+import { P, money, D, currencySymbol } from '../format.js';
 
 const ROUNDING = { floor: 'Proportional, round down', round: 'Proportional, nearest', block: 'Whole spend blocks only (a part block earns nothing)' };
 const BASIS = { after_discount: 'Product value after discounts', before_discount: 'Product value before discounts' };
@@ -91,11 +91,11 @@ export function renderEdit(d, draft, error) {
   const cur = d.redeem.currency;
   const v = draft ?? currentValues(d);
   const L = d.limits;
-  return h`<div><h2>Edit rules</h2><p class="lede">Amounts are in ${cur}. You review every change before it is saved.</p></div>
+  return h`<div><h2>Edit rules</h2><p class="lede">Amounts are in ${currencySymbol(cur).trim() || cur} (${cur}). You review every change before it is saved.</p></div>
   <form data-form="rules-review" class="grid g16" novalidate>
     <div class="fs surface"><h3>Purchase earning</h3>
       <div class="form-grid">
-        ${amount('spend', `Spend (${cur})`, v.spend)}
+        ${amount('spend', `Spend (${currencySymbol(cur).trim() || cur})`, v.spend)}
         ${number('points', 'Points earned for that spend', v.points, L.points)}
         ${select('rounding', 'Rounding', ROUNDING, v.rounding)}
         ${select('basis', 'Calculated on', BASIS, v.basis)}
@@ -106,7 +106,7 @@ export function renderEdit(d, draft, error) {
     <div class="fs surface"><h3>Redemption &amp; lifecycle</h3>
       <div class="form-grid">
         ${number('pointsPerReward', 'Points for one reward', v.pointsPerReward, L.pointsPerReward)}
-        ${amount('rewardValue', `Reward value (${cur})`, v.rewardValue)}
+        ${amount('rewardValue', `Reward value (${currencySymbol(cur).trim() || cur})`, v.rewardValue)}
         ${number('holdPeriodDays', 'Holding period (days, 0 to 365)', v.holdPeriodDays, L.holdPeriodDays)}
         ${number('codeValidDays', 'Reward code valid for (days)', v.codeValidDays, L.codeValidDays)}
       </div>

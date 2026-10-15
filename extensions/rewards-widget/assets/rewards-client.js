@@ -29,10 +29,21 @@
     return /^\/(?!\/)[A-Za-z0-9\-_\/.?=&%]{0,200}$/.test(v) ? v : fallback || null;
   }
 
+  // The shop's currency symbol from its configured ISO code (same logic as web/loyalty/rules/currency.js; the theme
+  // cannot import server modules, and test/loyalty/currency.test.js proves the copies agree). No code, no symbol.
+  var symbolCache = {};
   function currencySymbol(code) {
-    if (code === 'INR') return '₹';
-    if (code === 'USD') return '$';
-    return code ? code + ' ' : '';
+    var c = typeof code === 'string' ? code.trim().toUpperCase() : '';
+    if (!/^[A-Z]{3}$/.test(c)) return '';
+    if (symbolCache[c] === undefined) {
+      var symbol = c;
+      try {
+        var parts = new Intl.NumberFormat('en-US', { style: 'currency', currency: c, currencyDisplay: 'symbol' }).formatToParts(0);
+        for (var i = 0; i < parts.length; i++) if (parts[i].type === 'currency') symbol = parts[i].value;
+      } catch (e) { /* shown as the code */ }
+      symbolCache[c] = /[A-Za-z]$/.test(symbol) ? symbol + ' ' : symbol;
+    }
+    return symbolCache[c];
   }
   function formatMoney(amount, currency) {
     return currencySymbol(currency) + String(amount).replace(/\.00$/, '');
@@ -193,8 +204,9 @@
   function money(value, currency) {
     var n = Number(value);
     if (!isFinite(n)) return '';
-    var text = n.toLocaleString('en-IN', { minimumFractionDigits: n % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
-    return currencySymbol(currency) + text;
+    var c = typeof currency === 'string' ? currency.trim().toUpperCase() : '';
+    var text = Math.abs(n).toLocaleString(c === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: n % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
+    return (n < 0 ? '-' : '') + currencySymbol(currency) + text;
   }
   function el(tag, className, text, children) {
     var n = h(tag, className, text);
@@ -531,6 +543,8 @@
     DEFAULT_PROXY: DEFAULT_PROXY,
     safeProxyPath: safeProxyPath,
     formatMoney: formatMoney,
+    currencySymbol: currencySymbol,
+    money: money,
     formatDate: formatDate,
     progress: progress,
     newKey: newKey,

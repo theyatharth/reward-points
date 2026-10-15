@@ -11,6 +11,7 @@
 // notificationText() builds the sentence when it is read, from the shop's rule (currency, reward value).
 
 import { prisma } from '../../lib/prisma.js';
+import { formatMoney } from '../rules/currency.js';
 
 export const NOTIFICATION_TYPES = ['points_earned', 'points_activated', 'reward_redeemed'];
 
@@ -20,16 +21,12 @@ export async function notify(tx, { accountId, shop, type, data, dedupeKey }) {
 }
 
 const P = (n) => Math.round(Number(n) || 0).toLocaleString('en-IN');
-const SYMBOL = { INR: '₹', USD: '$' };
-const money = (paise, currency) => {
-  const v = Number(paise) / 100;
-  return (SYMBOL[currency] ?? `${currency} `) + v.toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
-};
+const money = (paise, currency) => formatMoney(Number(paise) / 100, currency);
 
 /** The sentence for a notification. Unknown types and odd data give a neutral line, never an error. */
 export function notificationText({ type, data }, config) {
   const d = data && typeof data === 'object' ? data : {};
-  const currency = config?.currency ?? 'INR';
+  const currency = config?.currency;
   if (type === 'points_earned') return `You're earning ${P(d.points)} points${d.orderRef ? ` on order ${String(d.orderRef).slice(0, 30)}` : ''}`;
   if (type === 'points_activated') return `${P(d.points)} points are now available to use`;
   if (type === 'reward_redeemed') return `Your ${money(d.valuePaise, currency)} reward is ready to use (${P(d.pointsUsed)} points)`;

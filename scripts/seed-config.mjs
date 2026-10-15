@@ -26,6 +26,7 @@ import { assertNotProtected } from '../web/lib/db-guard.js';
 // prisma.js calls assertDbAllowed on import — no need to repeat here.
 import { prisma } from '../web/lib/prisma.js';
 import { DEFAULT_CONFIG, validateConfig } from '../web/loyalty/rules/config.js';
+import { formatPaise } from '../web/loyalty/rules/money.js';
 
 // M5 seed profile (plan section 9, "Config to seed"). Anything not listed here
 // comes from DEFAULT_CONFIG. 'inclusive' = strip the tax included in prices
@@ -137,7 +138,7 @@ async function main() {
   console.log(`  returnPointsOnCodeExpiry:  ${config.returnPointsOnCodeExpiry}`);
   console.log(`  pointsRounding:   ${config.pointsRounding}`);
   console.log(`  pointsPerReward:  ${config.pointsPerReward}`);
-  console.log(`  rewardValue:      ${config.rewardValue} paise (₹${(config.rewardValue / 100).toFixed(2)})`);
+  console.log(`  rewardValue:      ${config.rewardValue} paise (${formatPaise(config.rewardValue, config.currency)})`);
   console.log(`  holdPeriodDays:   ${config.holdPeriodDays}`);
   console.log(`  currency:         ${config.currency}`);
   console.log(`  ledgerStartAt:    ${config.ledgerStartAt ?? '(not set — run with --set-ledger-start before cutover)'}`);

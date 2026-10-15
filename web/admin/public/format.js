@@ -2,13 +2,26 @@
 
 export const P = (n) => Math.round(Number(n) || 0).toLocaleString('en-IN');
 
-const SYMBOL = { INR: '₹', USD: '$' };
-/** A decimal money string ("1349.91") with the shop's currency: "₹1,349.91". */
-export function money(decimal, currency = 'INR') {
+// The shop's currency symbol from its configured ISO code (same logic as web/loyalty/rules/currency.js; the console
+// cannot import server modules, and test/loyalty/currency.test.js proves the copies agree). No code, no symbol.
+const symbols = new Map();
+const isoCode = (code) => { const c = typeof code === 'string' ? code.trim().toUpperCase() : ''; return /^[A-Z]{3}$/.test(c) ? c : null; };
+export function currencySymbol(code) {
+  const c = isoCode(code);
+  if (!c) return '';
+  if (!symbols.has(c)) {
+    let symbol = c;
+    try { symbol = new Intl.NumberFormat('en-US', { style: 'currency', currency: c, currencyDisplay: 'symbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? c; } catch { /* shown as the code */ }
+    symbols.set(c, /[A-Za-z]$/.test(symbol) ? `${symbol} ` : symbol);
+  }
+  return symbols.get(c);
+}
+/** A decimal money string ("1349.91") with the shop's currency symbol: "₹1,349.91" (INR), "$1,349.91" (USD). */
+export function money(decimal, currency) {
   const n = Number(decimal);
   if (!Number.isFinite(n)) return '—';
-  const text = n.toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
-  return (SYMBOL[currency] ?? `${currency} `) + text;
+  const text = Math.abs(n).toLocaleString(isoCode(currency) === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+  return `${n < 0 ? '-' : ''}${currencySymbol(currency)}${text}`;
 }
 
 const TZ = 'Asia/Kolkata';

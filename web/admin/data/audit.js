@@ -6,6 +6,7 @@
 
 import { prisma } from '../../lib/prisma.js';
 import { iso, limitOf, cursorOf } from './util.js';
+import { currencySymbol } from '../../loyalty/rules/currency.js';
 
 const balance = (b) => (b && typeof b === 'object' ? `available ${b.available ?? '?'} · pending ${b.pending ?? '?'} · owed ${b.debt ?? '?'}` : '—');
 const str = (v, max = 200) => (typeof v === 'string' || typeof v === 'number' ? String(v).slice(0, max) : '');
@@ -37,7 +38,9 @@ export function describe(action, detail) {
   }
   if (action === 'rules_changed') {
     const changes = Array.isArray(d.changes) ? d.changes.slice(0, 20) : [];
-    const line = (key) => changes.map((c) => `${str(c.label, 60)}: ${str(typeof c[key] === 'boolean' ? (c[key] ? 'yes' : 'no') : c[key], 40)}`).join(' · ') || '—';
+    const sym = currencySymbol(typeof d.currency === 'string' ? d.currency : null);
+    const val = (c, key) => (typeof c[key] === 'boolean' ? (c[key] ? 'yes' : 'no') : `${c.field === 'spend' || c.field === 'rewardValue' ? sym : ''}${str(c[key], 40)}`);
+    const line = (key) => changes.map((c) => `${str(c.label, 60)}: ${val(c, key)}`).join(' · ') || '—';
     return { previous: line('previous'), next: line('next'), reason: `Rules changed (${changes.length} field${changes.length === 1 ? '' : 's'})${d.warningsAcknowledged ? ', warning acknowledged' : ''}`, subject: null };
   }
   if (action === 'admin_login') return { ...none, reason: 'Signed in' };
