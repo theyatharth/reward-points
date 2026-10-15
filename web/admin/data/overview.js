@@ -9,13 +9,31 @@ import { decimal, iso, pointsValuePaise, ruleOf } from './util.js';
 
 const n = (v) => Number(v ?? 0);
 
+/** The worker is "stale" when its last tick is older than this. */
+export const WORKER_STALE_SECONDS = 5 * 60;
+export const WORKER_HEARTBEAT = 'process_events';
+
+/** The worker's last tick as the Overview shows it. The error text is never sent: only whether the last tick failed. */
+export async function workerStatus(nowMs = Date.now()) {
+  const beatRow = await prisma.workerHeartbeat.findUnique({ where: { name: WORKER_HEARTBEAT } });
+  if (!beatRow) return { state: 'never', lastTickAt: null, ageSeconds: null, lastTickFailed: false, staleAfterSeconds: WORKER_STALE_SECONDS };
+  const ageSeconds = Math.max(0, Math.round((nowMs - beatRow.lastTickAt.getTime()) / 1000));
+  return {
+    state: ageSeconds > WORKER_STALE_SECONDS ? 'stale' : 'ok',
+    lastTickAt: iso(beatRow.lastTickAt),
+    ageSeconds,
+    lastTickFailed: beatRow.lastTickFailed,
+    staleAfterSeconds: WORKER_STALE_SECONDS,
+  };
+}
+
 export async function overview(shop) {
   const config = await prisma.loyaltyConfig.findUnique({ where: { shop } });
   if (!config) return { configured: false };
   const rule = ruleOf(config);
   const value = (points) => decimal(pointsValuePaise(points, rule));
 
-  const [sums, members, buyers, byType, expired, rewardRows, openRewards, eventCounts, recent] = await Promise.all([
+  const [sums, members, buyers, byType, expired, rewardRows, openRewards, eventCounts, recent, worker] = await Promise.all([
     prisma.loyaltyAccount.aggregate({ where: { shop }, _sum: { available: true, pending: true, debt: true }, _count: { _all: true } }),
     prisma.$queryRaw`
       SELECT (SELECT COUNT(DISTINCT e."accountId") FROM "LedgerEntry" e JOIN "LoyaltyAccount" a ON a.id = e."accountId"
@@ -35,6 +53,7 @@ export async function overview(shop) {
     prisma.reward.aggregate({ where: { shop, status: 'active', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, _count: { _all: true }, _sum: { valueInPaise: true } }),
     prisma.webhookEvent.groupBy({ by: ['status'], where: { shop }, _count: { _all: true } }),
     prisma.webhookEvent.findMany({ where: { shop }, orderBy: { createdAt: 'desc' }, take: 10, select: { topic: true, status: true, attempts: true, createdAt: true } }),
+    workerStatus(),
   ]);
 
   const t = Object.fromEntries(byType.map((r) => [r.type, { total: n(r.total), gained: n(r.gained) }]));
@@ -55,6 +74,7 @@ export async function overview(shop) {
   return {
     configured: true,
     asOf: new Date().toISOString(),
+    worker,
     rule: { pointsPerReward: rule.pointsPerReward, rewardValue: decimal(rule.rewardValue), currency: rule.currency, holdPeriodDays: rule.holdPeriodDays },
     members: { total: sums._count._all, active90: n(members[0].active), new30: n(members[0].fresh), buyers: n(buyers[0].buyers), returningBuyers: n(buyers[0].returning) },
     points: { issued, pending, available, redeemed, expired: expiredPoints, reversed, owed },

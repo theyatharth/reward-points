@@ -617,3 +617,13 @@ model Notification {
   @@index([accountId, createdAt])
   @@index([shop, createdAt])
 }
+
+// One row per worker loop (name = its jobType, "process_events" for the real worker), upserted at the end of EVERY tick
+// including quiet ones (migration 11). lastTickRan = false means another worker held the tick lock; lastTickFailed = the tick threw.
+// The admin Overview shows the age of lastTickAt and warns after 5 minutes.
+model WorkerHeartbeat {
+  name           String   @id
+  lastTickAt     DateTime
+  lastTickRan    Boolean  @default(false)
+  lastTickFailed Boolean  @default(false)
+}

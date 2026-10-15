@@ -10,7 +10,8 @@
 //     whether the tick finishes, throws, or the process dies (the connection
 //     drops), so a crashed tick can never leave the lock held.
 //   * A JobRun row is written only for ticks that processed an event, saw an
-//     event fail, or threw. Quiet ticks write nothing (no row every 30 s).
+//     event fail, or threw. Quiet ticks write no JobRun (no row every 30 s) but
+//     DO update the one WorkerHeartbeat row (the admin Overview's "last worker tick").
 
 import { prisma } from '../../lib/prisma.js';
 import { now } from '../adapters/clock.js';
@@ -52,6 +53,20 @@ export function createWorkerWork(options = {}) {
   };
 }
 
+/** Upserts this loop's heartbeat. Bookkeeping: a failure is logged and never fails the tick. */
+export async function beat(name, { ran, failed }) {
+  const lastTickAt = now();
+  try {
+    await prisma.workerHeartbeat.upsert({
+      where: { name },
+      create: { name, lastTickAt, lastTickRan: ran, lastTickFailed: failed },
+      update: { lastTickAt, lastTickRan: ran, lastTickFailed: failed },
+    });
+  } catch (err) {
+    console.error('[worker] could not write the heartbeat:', err.message);
+  }
+}
+
 /**
  * Runs one tick.
  * @param {Object} [options]
@@ -79,12 +94,14 @@ export async function runTick({ work = drainPendingEvents, jobType = 'process_ev
     outcome.error = err.message;
     console.error('[worker] tick failed:', err.message);
     await recordJob({ jobType, startedAt, status: 'failed', error: err.message, result: { processed: outcome.processed, failed: outcome.failed } });
+    await beat(jobType, { ran: outcome.ran, failed: true });
     return outcome;
   }
 
   if (outcome.ran && (outcome.processed > 0 || outcome.failed > 0)) {
     await recordJob({ jobType, startedAt, status: 'completed', result: { picked: outcome.picked, processed: outcome.processed, failed: outcome.failed } });
   }
+  await beat(jobType, { ran: outcome.ran, failed: false });
   return outcome;
 }
 

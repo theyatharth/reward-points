@@ -1,7 +1,7 @@
 // Overview: the design's aOverview, backed by GET /admin/api/overview. Everything is computed from the ledger.
 
 import { h } from '../esc.js';
-import { P, money, pct, DT } from '../format.js';
+import { P, money, pct, DT, ago } from '../format.js';
 
 const kpi = (k, v, s) => h`<div class="kpi"><span class="k">${k}</span><span class="v num">${v}</span>${s ? h`<span class="s">${s}</span>` : ''}</div>`;
 
@@ -21,6 +21,18 @@ function stackBar(points) {
     <div class="legend">${SEGMENTS.map(([label, k, cls]) => h`<span><i class="${cls}"></i>${label} <b class="num">${P(points[k])}</b></span>`)}</div>`;
 }
 
+/** The worker's last tick: green while recent, a warning colour after the server's threshold (5 minutes), red when it never ticked. */
+export function workerBanner(w) {
+  if (!w || w.state === 'never') {
+    return h`<div class="hb bad" role="alert"><b>Background worker: no tick recorded</b><span>It has never run against this database, or the heartbeat table is new. Until it runs, points do not activate and events are not processed.</span></div>`;
+  }
+  const where = `Last worker tick ${ago(w.ageSeconds)} (${DT(w.lastTickAt)})`;
+  if (w.state === 'stale') {
+    return h`<div class="hb warn" role="alert"><b>Background worker may be down</b><span>${where}. It ticks every 30 seconds; after ${P(w.staleAfterSeconds / 60)} minutes of silence nothing is activated or processed. Check the worker process.</span></div>`;
+  }
+  return h`<div class="hb ok"><b>Background worker running</b><span>${where}.${w.lastTickFailed ? ' The last tick failed: see Orders &amp; webhooks and the server log.' : ''}</span></div>`;
+}
+
 export function renderOverview(d) {
   if (!d.configured) {
     return h`<div><h2>Rewards overview</h2></div><div class="warnbox">This shop has no loyalty rule yet, so there is nothing to total.</div>`;
@@ -33,6 +45,7 @@ export function renderOverview(d) {
   const failing = (d.events.counts.failed || 0) + (d.events.counts.dead || 0);
   return h`<div><h2>Rewards overview</h2>
     <p class="lede">All figures come from the ledger. ${P(d.rule.pointsPerReward)} points are worth ${m(d.rule.rewardValue)}; points are held ${P(d.rule.holdPeriodDays)} days before they can be used. As of ${DT(d.asOf)}.</p></div>
+  ${workerBanner(d.worker)}
   ${failing ? h`<div class="issue"><b>Events need attention</b><span>${P(failing)} webhook event${failing === 1 ? '' : 's'} failed or dead. See Orders &amp; webhooks.</span></div>` : ''}
   <div class="kgroup"><span class="eyebrow">Members</span><div class="kpis">
     ${kpi('Total members', P(d.members.total))}${kpi('Active (90 days)', P(d.members.active90))}${kpi('New (30 days)', P(d.members.new30))}${kpi('Returning buyers', P(d.members.returningBuyers), `of ${P(d.members.buyers)} buyers`)}</div></div>
