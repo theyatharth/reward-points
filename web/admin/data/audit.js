@@ -46,6 +46,7 @@ export function describe(action, detail) {
   if (action === 'admin_login') return { ...none, reason: 'Signed in' };
   if (action === 'admin_logout') return { ...none, reason: 'Signed out' };
   if (action === 'admin_login_failed') return { ...none, reason: 'A sign-in attempt failed' };
+  if (action === 'admin_password_reset') return { ...none, reason: 'Password reset by an operator: one-time password issued, sessions ended' };
   if (action === 'admin_password_changed') return { ...none, reason: 'Password changed' };
   return none;
 }

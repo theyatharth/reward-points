@@ -7,7 +7,11 @@
 //             Creates an admin user. If --password is omitted, generates a
 //             random one-time password and prints it (must be changed on first login).
 //   delete  --shop <domain> --email <email>
-//             Removes an admin user.
+//             Removes an admin user who never did anything. An admin with audit log rows cannot be deleted (the
+//             log is append-only): use reset-password instead.
+//   reset-password  --shop <domain> --email <email>
+//             Sets a new random one-time password (must be changed at the next sign-in), ends the admin's sessions,
+//             writes an 'admin_password_reset' audit row, and prints the password ONCE to the terminal.
 //   list    --shop <domain>
 //             Lists all admin users for the shop.
 //
@@ -32,6 +36,7 @@ try {
 
 import { assertNotProtected } from '../web/lib/db-guard.js';
 import { prisma } from '../web/lib/prisma.js';
+import { resetAdminPassword, deleteAdmin, AdminUserError } from '../web/admin/user-admin.js';
 
 assertNotProtected(process.env.DATABASE_URL || '');
 
@@ -106,7 +111,7 @@ async function cmdCreate() {
 
   const existing = await prisma.adminUser.findUnique({ where: { shop_email: { shop: SHOP, email: EMAIL } } });
   if (existing) {
-    console.log(`[admin-user] User ${EMAIL} already exists for ${SHOP} (id: ${existing.id}). Use delete then create to reset.`);
+    console.log(`[admin-user] User ${EMAIL} already exists for ${SHOP} (id: ${existing.id}). Use reset-password to issue a new one-time password.`);
     return;
   }
 
@@ -136,13 +141,22 @@ async function cmdDelete() {
     console.error('Usage: node scripts/admin-user.mjs delete --shop <domain> --email <email>');
     process.exit(1);
   }
+  const { deleted } = await deleteAdmin({ shop: SHOP, email: EMAIL });
+  console.log(deleted === 0 ? `[admin-user] No user found for ${EMAIL} on ${SHOP}.` : `[admin-user] Deleted ${deleted} user(s) for ${EMAIL} on ${SHOP}.`);
+}
 
-  const deleted = await prisma.adminUser.deleteMany({ where: { shop: SHOP, email: EMAIL } });
-  if (deleted.count === 0) {
-    console.log(`[admin-user] No user found for ${EMAIL} on ${SHOP}.`);
-  } else {
-    console.log(`[admin-user] Deleted ${deleted.count} user(s) for ${EMAIL} on ${SHOP}.`);
+async function cmdResetPassword() {
+  if (!SHOP || !EMAIL) {
+    console.error('Usage: node scripts/admin-user.mjs reset-password --shop <domain> --email <email>');
+    process.exit(1);
   }
+  const r = await resetAdminPassword({ shop: SHOP, email: EMAIL });
+  if (!r.found) {
+    console.log(`[admin-user] No admin found for ${EMAIL} on ${SHOP}. Nothing changed.`);
+    return;
+  }
+  console.log(`[admin-user] Password reset for ${r.email} on ${SHOP}: ${r.sessionsEnded} session(s) ended, must change the password at the next sign-in.`);
+  console.log(`  one-time password (shown once): ${r.oneTimePassword}`);
 }
 
 async function cmdList() {
@@ -165,19 +179,20 @@ async function cmdList() {
 // ---------------------------------------------------------------------------
 // Dispatch
 // ---------------------------------------------------------------------------
-const COMMANDS = { create: cmdCreate, delete: cmdDelete, list: cmdList };
+const COMMANDS = { create: cmdCreate, delete: cmdDelete, list: cmdList, 'reset-password': cmdResetPassword };
 
 if (!subcommand || !COMMANDS[subcommand]) {
-  console.error('Usage: node scripts/admin-user.mjs <create|delete|list> [options]');
+  console.error('Usage: node scripts/admin-user.mjs <create|delete|list|reset-password> [options]');
   console.error('  create --shop <domain> --email <email> [--password <pw>]');
   console.error('  delete --shop <domain> --email <email>');
   console.error('  list   --shop <domain>');
+  console.error('  reset-password --shop <domain> --email <email>');
   process.exit(1);
 }
 
 COMMANDS[subcommand]()
   .catch((err) => {
-    console.error('[admin-user] Failed:', err.message);
+    console.error(err instanceof AdminUserError ? `[admin-user] ${err.message}` : `[admin-user] Failed: ${err.message}`);
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
