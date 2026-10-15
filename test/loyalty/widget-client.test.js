@@ -79,7 +79,8 @@ describe('rewards-client.js', () => {
     const E = load();
     assert.equal(E.formatMoney('50.00', 'INR'), '₹50');
     assert.equal(E.formatMoney('12.50', 'USD'), '$12.50');
-    assert.equal(E.formatMoney('5.00', 'EUR'), 'EUR 5');
+    assert.equal(E.formatMoney('5.00', 'EUR'), '€5');
+    assert.equal(E.formatMoney('5.00', 'AED'), 'AED 5');
   });
 
   test('redeem posts to <proxy>/redeem with an Idempotency-Key header and body key, and NO customer id', async () => {

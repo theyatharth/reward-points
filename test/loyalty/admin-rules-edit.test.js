@@ -305,7 +305,7 @@ describe('Admin rule editing', () => {
       const html = String(renderEdit(d(), null, null));
       for (const name of ['spend', 'points', 'rounding', 'basis', 'taxHandling', 'includeShipping', 'giftCardsEarn', 'pointsPerReward', 'rewardValue', 'holdPeriodDays', 'codeValidDays', 'restoreRewardOnFullRefund', 'returnPointsOnCodeExpiry']) assert.ok(html.includes(`name="${name}"`), name);
       assert.match(html, /name="holdPeriodDays"[^>]*min="0" max="365"|min="0" max="365"[^>]*name="holdPeriodDays"/);
-      assert.match(html, /Spend \(INR\)/);
+      assert.match(html, /Spend \(₹\)/);
       const hostile = { ...currentValues(d()), spend: '"><script>alert(1)</script>' };
       const bad = String(renderEdit(d(), hostile, '<img src=x onerror=alert(1)>'));
       assert.ok(!bad.includes('<script>alert(1)') && !bad.includes('<img src=x'));
