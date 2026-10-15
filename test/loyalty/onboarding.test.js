@@ -111,6 +111,8 @@ describe('onboarding a shop', () => {
       const a = await onboardShop({ shop, currency: 'INR', holdDays: 1, adminEmail: 'shared@example.test' });
       const b = await onboardShop({ shop: other, currency: 'USD', holdDays: 1, adminEmail: 'shared@example.test' });
       assert.notEqual(a.admin.oneTimePassword, b.admin.oneTimePassword);
+      assert.equal(a.emailAlsoAdminOfOtherShops, 0);
+      assert.equal(b.emailAlsoAdminOfOtherShops, 1, 'the second onboarding is warned that the e-mail is already an admin elsewhere');
     });
   });
 

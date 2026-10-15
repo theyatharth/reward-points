@@ -98,6 +98,7 @@ const LOGIN_ERRORS = {
   INVALID_CREDENTIALS: 'That email and password do not match.',
   TOO_MANY_ATTEMPTS: 'Too many failed attempts. Wait a few minutes and try again.',
   INVALID_REQUEST: 'Enter your email and password.',
+  AMBIGUOUS_ADMIN_EMAIL: 'This e-mail address is an admin of more than one shop, so it cannot sign in here. Ask for a different e-mail address for each shop.',
 };
 
 const CORE_SUBMIT = {

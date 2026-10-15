@@ -109,12 +109,17 @@ export async function configuredShop() {
   return shops.length === 1 ? shops[0].shop : null;
 }
 
-async function findAdmin(email, shopHint) {
+/** The admins an e-mail could be: the pinned shop's one, or every shop's (at most 5) when no shop is pinned. */
+async function findAdmins(email, shopHint) {
   const emailMatch = { equals: email, mode: 'insensitive' };
-  if (shopHint) return prisma.adminUser.findFirst({ where: { shop: shopHint, email: emailMatch } });
-  const found = await prisma.adminUser.findMany({ where: { email: emailMatch }, take: 2 });
-  return found.length === 1 ? found[0] : null;
+  if (shopHint) {
+    const one = await prisma.adminUser.findFirst({ where: { shop: shopHint, email: emailMatch } });
+    return one ? [one] : [];
+  }
+  return prisma.adminUser.findMany({ where: { email: emailMatch }, take: 5 });
 }
+
+export const AMBIGUOUS_EMAIL_MESSAGE = 'This e-mail address is an admin of more than one shop, so it cannot sign in here. Ask for a different e-mail address for each shop.';
 
 async function createSession(user, req) {
   const token = crypto.randomBytes(32).toString('base64url');
@@ -204,7 +209,15 @@ export function loginHandler({ basePath }) {
         }
       }
 
-      const user = await findAdmin(mail, shop);
+      const candidates = await findAdmins(mail, shop);
+      const user = candidates.length === 1 ? candidates[0] : null;
+      if (candidates.length > 1) {
+        // The same e-mail in several shops: never guess which one. Say so clearly, but only to someone who knows the
+        // password of at least one of them (a wrong password gets the usual answer, so this does not reveal who is an admin).
+        let knows = false;
+        for (const c of candidates) knows = (await verifyPassword(c.passwordHash, password)) || knows;
+        if (knows) return res.status(409).json({ ok: false, error: 'AMBIGUOUS_ADMIN_EMAIL', message: AMBIGUOUS_EMAIL_MESSAGE });
+      }
       const stored = user ? user.passwordHash : await DUMMY_HASH_PROMISE; // the same work whether or not the admin exists
       const good = await verifyPassword(stored, password);
       if (!user || !good) {

@@ -33,7 +33,7 @@ const summary = (c) => ({
  * @param {string} p.currency     ISO code, e.g. "INR"
  * @param {number} p.holdDays     0 to 365
  * @param {string} [p.adminEmail] also create this admin (one-time password, must change at first sign-in)
- * @returns {Promise<{ created: boolean, differences: string[], config: object, installed: boolean, admin: null | { created: boolean, email: string, oneTimePassword?: string } }>}
+ * @returns {Promise<{ created: boolean, differences: string[], config: object, installed: boolean, emailAlsoAdminOfOtherShops: number, admin: null | { created: boolean, email: string, oneTimePassword?: string } }>}
  */
 export async function onboardShop({ shop, currency, holdDays, adminEmail }) {
   if (typeof shop !== 'string' || !SHOP_DOMAIN.test(shop)) throw new OnboardingError('--shop must be the shop\'s myshopify.com domain, e.g. my-store.myshopify.com');
@@ -66,7 +66,9 @@ export async function onboardShop({ shop, currency, holdDays, adminEmail }) {
   }
 
   let admin = null;
+  let emailAlsoAdminOfOtherShops = 0;
   if (email !== null) {
+    emailAlsoAdminOfOtherShops = await prisma.adminUser.count({ where: { email: { equals: email, mode: 'insensitive' }, shop: { not: shop } } });
     const existing = await prisma.adminUser.findFirst({ where: { shop, email: { equals: email, mode: 'insensitive' } } });
     if (existing) {
       admin = { created: false, email: existing.email };
@@ -78,5 +80,5 @@ export async function onboardShop({ shop, currency, holdDays, adminEmail }) {
   }
 
   const installed = (await prisma.session.count({ where: { shop, isOnline: false } })) > 0;
-  return { created, differences, config: summary(config), installed, admin };
+  return { created, differences, config: summary(config), installed, admin, emailAlsoAdminOfOtherShops };
 }

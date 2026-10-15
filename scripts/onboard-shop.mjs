@@ -48,6 +48,7 @@ try {
   for (const d of r.differences) console.log(`  note: ${d}. Not changed here; change a rule in the admin console (Earning & redemption).`);
   for (const [k, v] of Object.entries(r.config)) console.log(`  ${k.padEnd(26)} ${v}`);
   if (!r.installed) console.log('  note: no offline session for this shop yet. Install the app on the shop first, or webhooks cannot be verified and nothing can be created in Shopify.');
+  if (r.emailAlsoAdminOfOtherShops > 0) console.log('  WARNING: this e-mail is already an admin of another shop. With ADMIN_SHOP unset, sign-in with it is refused. Use a different admin e-mail for each shop.');
   if (r.admin) {
     console.log(r.admin.created ? `[onboard-shop] CREATED admin ${r.admin.email} (must change the password at first sign-in)` : `[onboard-shop] admin ${r.admin.email} already exists: left unchanged`);
     if (r.admin.created) console.log(`  one-time password (shown once): ${r.admin.oneTimePassword}`);
