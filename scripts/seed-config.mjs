@@ -25,21 +25,8 @@ try {
 import { assertNotProtected } from '../web/lib/db-guard.js';
 // prisma.js calls assertDbAllowed on import — no need to repeat here.
 import { prisma } from '../web/lib/prisma.js';
-import { DEFAULT_CONFIG, validateConfig } from '../web/loyalty/rules/config.js';
+import { DEFAULT_CONFIG, SEED_PROFILE, validateConfig } from '../web/loyalty/rules/config.js';
 import { formatPaise } from '../web/loyalty/rules/money.js';
-
-// M5 seed profile (plan section 9, "Config to seed"). Anything not listed here
-// comes from DEFAULT_CONFIG. 'inclusive' = strip the tax included in prices
-// (₹419 with 5% GST included earns 399); spend ₹100 earns 100 points.
-const SEED_PROFILE = {
-  spendAmountPaise: 10000,
-  pointsPerUnit: 100,
-  earnBasis: 'after_discount',
-  excludeGiftCards: true,
-  taxHandling: 'inclusive',
-  restoreRewardOnFullRefund: true,
-  returnPointsOnCodeExpiry: false,
-};
 
 // ---------------------------------------------------------------------------
 // Parse CLI args

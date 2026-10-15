@@ -43,6 +43,21 @@ export const DEFAULT_CONFIG = {
   ledgerStartAt: null,            // set at M5 cutover
 };
 
+/**
+ * The M5 seed profile (plan section 9, "Config to seed"): what a new shop starts with. Anything not listed
+ * comes from DEFAULT_CONFIG. Used by scripts/seed-config.mjs and scripts/onboard-shop.mjs.
+ * 'inclusive' = strip the tax included in prices; spend 100.00 earns 100 points; 100 points = 10.00.
+ */
+export const SEED_PROFILE = {
+  spendAmountPaise: 10000,
+  pointsPerUnit: 100,
+  earnBasis: 'after_discount',
+  excludeGiftCards: true,
+  taxHandling: 'inclusive',
+  restoreRewardOnFullRefund: true,
+  returnPointsOnCodeExpiry: false,
+};
+
 // ---------------------------------------------------------------------------
 // Phase 1 restrictions: these fields cannot be changed even if supplied.
 // ---------------------------------------------------------------------------
