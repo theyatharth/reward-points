@@ -108,8 +108,9 @@ describe('onboarding a shop', () => {
 
     test('the same e-mail can be an admin of two shops, each with its own password', async () => {
       const other = `onb-other-${Date.now()}.myshopify.com`;
-      const a = await onboardShop({ shop, currency: 'INR', holdDays: 1, adminEmail: 'shared@example.test' });
-      const b = await onboardShop({ shop: other, currency: 'USD', holdDays: 1, adminEmail: 'shared@example.test' });
+      const shared = `shared-${crypto.randomUUID()}@example.test`; // unique per run: the test database persists between runs
+      const a = await onboardShop({ shop, currency: 'INR', holdDays: 1, adminEmail: shared });
+      const b = await onboardShop({ shop: other, currency: 'USD', holdDays: 1, adminEmail: shared });
       assert.notEqual(a.admin.oneTimePassword, b.admin.oneTimePassword);
       assert.equal(a.emailAlsoAdminOfOtherShops, 0);
       assert.equal(b.emailAlsoAdminOfOtherShops, 1, 'the second onboarding is warned that the e-mail is already an admin elsewhere');
