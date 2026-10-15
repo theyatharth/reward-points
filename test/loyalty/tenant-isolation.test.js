@@ -97,8 +97,10 @@ describe('three shops in one database', () => {
     }
     await activateDueLots({ shop });
 
-    // One failed event: a refund for an order the ledger has never seen.
-    const failed = await storeWebhook({ shop, topic: 'refunds/create', shopifyWebhookId: crypto.randomUUID(), payload: { id: uniqueId(), order_id: uniqueId(), refund_line_items: [{ line_item_id: 1, quantity: 1 }] } });
+    // One failed event: a refund for an order that exists in Shopify (after the ledger start) but the ledger has not seen yet.
+    const missingOrderId = uniqueId();
+    gw.addOrder({ id: missingOrderId, processed_at: new Date().toISOString(), refunds: [] });
+    const failed = await storeWebhook({ shop, topic: 'refunds/create', shopifyWebhookId: crypto.randomUUID(), payload: { id: uniqueId(), order_id: missingOrderId, refund_line_items: [{ line_item_id: 1, quantity: 1 }] } });
     await processPendingWebhooks({ shop });
     assert.equal((await prisma.webhookEvent.findUnique({ where: { id: failed.id } })).status, 'failed', 'the setup event failed as intended');
 
