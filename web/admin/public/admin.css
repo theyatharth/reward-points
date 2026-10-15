@@ -204,3 +204,54 @@ html,body{margin:0}
 select.inp{appearance:auto}
 .topbar-user{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink-2)}
 .toast-host{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60}
+
+/* ---------- Rules page: an organised settings list (cards, label left and value right) ---------- */
+.rp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px 20px;flex-wrap:wrap;margin-bottom:14px}
+.rp-head h2{font-family:var(--f-display)}
+.rp-head .lede{max-width:62ch}
+.rp-strip{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:10px 16px;margin:0 0 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);font-family:var(--f-head);font-weight:700;font-size:14px;color:var(--ink)}
+.rp-strip .sep{color:var(--ink-3)}
+.rp-card{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:4px 20px 8px;margin:0 0 16px;min-width:0}
+.rp-card>h3{font-family:var(--f-display);font-weight:600;font-size:19px;letter-spacing:-.005em;padding:14px 0 8px}
+.rp-list{margin:0;padding:0;display:grid}
+.rp-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:4px 28px;padding:12px 0;border-top:1px solid var(--line);align-items:baseline}
+.rp-row:first-child{border-top:0;padding-top:4px}
+.rp-label{margin:0;font-size:13px;font-weight:600;color:var(--ink-2)}
+.rp-label .rp-hint{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:2px}
+.rp-value{margin:0;font-size:15px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.rp-value.muted{font-weight:600;color:var(--ink-2)}
+.rp-row.locked .rp-label{color:var(--ink-3)}
+.rp-pill{display:inline-flex;align-items:center;padding:1px 10px;border-radius:999px;font-family:var(--f-head);font-weight:800;font-size:12px;line-height:1.6;white-space:nowrap}
+.rp-pill.yes{background:var(--olive-soft);color:var(--olive)}
+.rp-pill.no{background:var(--surface-2);color:var(--ink-2)}
+.rp-pill.lock{background:var(--umber-soft);color:var(--umber-strong);margin-left:6px}
+.rp-note{display:grid;gap:4px;font-size:13px;margin:4px 2px 0;max-width:80ch}
+.rp-prev{color:var(--ink-3);font-weight:600;text-decoration:line-through;text-decoration-color:var(--line-2)}
+.rp-arrow{color:var(--ink-3);padding:0 4px}
+.rp-notes{font-size:13px;margin:0 2px 10px}
+.rp-ack{margin:0 2px 10px}
+/* edit mode */
+.rp-form{display:grid;gap:0}
+.rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;padding:8px 0 14px}
+.rp-group{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;margin:0;padding:12px 16px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);min-width:0}
+.rp-group legend{padding:0 6px;font-family:var(--f-head);font-weight:800;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.rp-field{display:grid;gap:4px;align-content:start;min-width:0}
+.rp-field label{font-size:13px;font-weight:700;color:var(--ink-2)}
+.rp-input{display:flex;align-items:center;gap:8px}
+.rp-input .inp{flex:1;min-width:0}
+.rp-suffix{font-size:13px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.rp-field .rp-hint{margin:0;font-size:12.5px;font-weight:500;color:var(--ink-3)}
+.rp-error{margin:0;font-size:12.5px;font-weight:700;color:var(--danger)}
+.rp-field.has-error .inp{border-color:var(--danger);box-shadow:0 0 0 3px var(--danger-soft)}
+.rp-checks{display:grid;gap:10px;padding:14px 0 14px;border-top:1px solid var(--line)}
+.rp-summary{margin:0 0 14px}
+.rp-summary ul{margin:6px 0 0;padding-left:18px}
+.rp-summary p{margin:4px 0 0}
+.rp-summary .link{color:inherit;text-align:left}
+.rp-bar{position:sticky;bottom:0;z-index:20;display:flex;flex-wrap:wrap;gap:10px;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:4px;background:var(--bg);border-top:1px solid var(--line)}
+@media (max-width:720px){
+  .rp-row{grid-template-columns:minmax(0,1fr);gap:2px}
+  .rp-grid,.rp-group{grid-template-columns:minmax(0,1fr)}
+  .rp-card{padding-inline:14px}
+  .rp-head .btn{width:100%}
+}
