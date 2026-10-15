@@ -82,7 +82,7 @@ describe('Worker heartbeat', () => {
       const held = new Promise((r) => { release = r; });
       let locked;
       const holder = prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(${String(lockKey)}::bigint)`;
+        await tx.$queryRaw`SELECT 1 AS ok FROM (SELECT pg_advisory_xact_lock(${String(lockKey)}::bigint)) AS t`;
         locked();
         await held;
       }, { timeout: 30_000 });

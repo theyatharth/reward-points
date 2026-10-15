@@ -143,7 +143,7 @@ describe('Admin overview', () => {
     const keys = allKeys(r.json);
     for (const bad of ['id', 'shop', 'accountId', 'shopifyCustomerId', 'discountCode', 'payload', 'lastError', 'passwordHash', 'email']) assert.ok(!keys.has(bad), `no "${bad}"`);
     for (const secret of [shop, '1001', '1002', '1003']) assert.ok(!r.text.includes(`"${secret}"`), `"${secret}" is not in the response`);
-    assert.deepStrictEqual(Object.keys(r.json).sort(), ['asOf', 'business', 'configured', 'events', 'liability', 'members', 'ok', 'points', 'redemptionRate', 'rewards', 'rule', 'values']);
+    assert.deepStrictEqual(Object.keys(r.json).sort(), ['asOf', 'business', 'configured', 'events', 'liability', 'members', 'ok', 'points', 'redemptionRate', 'rewards', 'rule', 'values', 'worker']);
   });
 
   test('it needs a session, and the one-time password must have been changed', async () => {
