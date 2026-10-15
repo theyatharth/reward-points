@@ -25,7 +25,7 @@ export const currentValues = (d) => ({
 
 const MONEY_KEYS = new Set(['spend', 'rewardValue']);
 const INT_KEYS = ['points', 'pointsPerReward', 'holdPeriodDays', 'codeValidDays'];
-const BOOL_KEYS = ['includeShipping', 'excludeGiftCards', 'returnPointsOnCodeExpiry', 'restoreRewardOnFullRefund'];
+const BOOL_KEYS = ['includeShipping', 'returnPointsOnCodeExpiry', 'restoreRewardOnFullRefund'];
 
 /** What the form currently holds, typed like the API wants it. The gift-card box reads "gift cards earn", the API field is the inverse. */
 export function readForm(form) {

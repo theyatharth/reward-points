@@ -143,7 +143,7 @@ describe('Admin rule editing', () => {
       const before = await row();
       const r = await admin.post('rules/preview', { changes: { holdPeriodDays: 7, rounding: 'block' } });
       assert.strictEqual(r.status, 200, r.text);
-      assert.deepStrictEqual(r.json.changes.map((c) => [c.field, c.previous, c.next]), [['holdPeriodDays', 30, 7], ['rounding', 'floor', 'block']]);
+      assert.deepStrictEqual(r.json.changes.map((c) => [c.field, c.previous, c.next]), [['rounding', 'floor', 'block'], ['holdPeriodDays', 30, 7]]);
       assert.deepStrictEqual((await row()).updatedAt, before.updatedAt);
       assert.strictEqual((await row()).holdPeriodDays, 30);
       assert.strictEqual((await audits()).length, 0);

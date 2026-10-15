@@ -60,7 +60,7 @@ describe('Admin rules and navigation', () => {
       assert.strictEqual(w.status, 404, `${method} /rules`);
     }
     // a direct write of a column name is refused as an unknown field and changes nothing
-    const w = await admin.post('rules', { expected: r.json.program.updatedAt, changes: { pointsPerReward: 1 } });
+    const w = await admin.post('rules', { expected: r.json.program.updatedAt, changes: { spendAmountPaise: 1 } });
     assert.strictEqual(w.status, 400);
     assert.strictEqual((await prisma.loyaltyConfig.findUnique({ where: { shop } })).pointsPerReward, 100);
   });
