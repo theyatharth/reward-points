@@ -116,7 +116,7 @@ describe('onboarding a shop', () => {
 
   test('reports whether the app is installed on the shop (an offline session exists)', async () => {
     assert.equal((await onboardShop({ shop, currency: 'INR', holdDays: 1 })).installed, false);
-    await prisma.session.create({ data: { id: `offline_${shop}`, shop, state: 'x', isOnline: false } });
+    await prisma.session.create({ data: { id: `offline_${shop}`, shop, state: 'x', isOnline: false, accessToken: 'test-not-a-real-token' } });
     assert.equal((await onboardShop({ shop, currency: 'INR', holdDays: 1 })).installed, true);
   });
 
