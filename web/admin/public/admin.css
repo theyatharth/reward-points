@@ -79,6 +79,7 @@ p{margin:0}
 label.f{display:grid;gap:5px;font-size:13px;font-weight:700;color:var(--ink-2)}
 .inp{width:100%;border:1px solid var(--line-2);background:var(--bg);border-radius:10px;padding:9px 11px;min-height:40px;font-weight:500;color:var(--ink)}
 .inp:focus{border-color:var(--umber);outline:none;box-shadow:0 0 0 3px var(--umber-soft)}
+label.check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--ink)}label.check input{width:18px;height:18px;accent-color:var(--umber);flex:none}
 textarea.inp{min-height:70px;resize:vertical}
 .err{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
 .ok{background:var(--olive-soft);color:var(--olive);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}

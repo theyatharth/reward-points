@@ -1,6 +1,6 @@
 // test/loyalty/admin-rules.test.js
 //
-// Admin console, Rules (read only) and the navigation: the shop's rule field by field, the whitelist, and the
+// Admin console, Rules (view; editing is in admin-rules-edit.test.js) and the navigation: the shop's rule field by field, the whitelist, and the
 // "not available in this version" pages for what the design has and this build does not.
 
 import { test, describe, before, beforeEach, after } from 'node:test';
@@ -50,15 +50,18 @@ describe('Admin rules and navigation', () => {
     assert.deepStrictEqual([d.program.campaignEnabled, d.program.expiryEnabled, d.program.ledgerStartAt], [false, false, '2026-10-01T00:00:00.000Z']);
   });
 
-  test('a whitelist: no shop, no ids, no sync counters; read only (there is no write endpoint)', async () => {
+  test('a whitelist: no shop, no ids, no sync counters; only POST /rules and /rules/preview write', async () => {
     const r = await admin.get('rules');
     const keys = allKeys(r.json);
     for (const bad of ['id', 'shop', 'ruleSeq', 'ruleSyncedSeq', 'createdAt', 'earnMode']) assert.ok(!keys.has(bad), `no "${bad}"`);
     assert.ok(!r.text.includes(shop));
-    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    for (const method of ['PUT', 'PATCH', 'DELETE']) {
       const w = await admin.req(method, 'rules', { pointsPerReward: 1 });
       assert.strictEqual(w.status, 404, `${method} /rules`);
     }
+    // a direct write of a column name is refused as an unknown field and changes nothing
+    const w = await admin.post('rules', { expected: r.json.program.updatedAt, changes: { pointsPerReward: 1 } });
+    assert.strictEqual(w.status, 400);
     assert.strictEqual((await prisma.loyaltyConfig.findUnique({ where: { shop } })).pointsPerReward, 100);
   });
 
@@ -73,9 +76,9 @@ describe('Admin rules and navigation', () => {
     assert.strictEqual((await forced.get('rules')).status, 403);
   });
 
-  test('the page shows the rules in words, says it is read only, and what is not available', async () => {
+  test('the page shows the rules in words, offers editing, and says what is not available', async () => {
     const html = String((renderRules((await admin.get('rules')).json)));
-    for (const text of ['100 points per ₹100', 'Proportional, round down', 'Product value after discounts', 'tax is taken out', '100 points = ₹10', '30 days', '90 days', '900001, 900002', 'not applied when points are earned', 'read only', 'reward catalogue']) assert.ok(html.includes(text), `has ${text}`);
+    for (const text of ['100 points per ₹100', 'Proportional, round down', 'Product value after discounts', 'tax is taken out', '100 points = ₹10', '30 days', '90 days', '900001, 900002', 'not applied when points are earned', 'Edit rules', 'reward catalogue']) assert.ok(html.includes(text), `has ${text}`);
     assert.ok(!/\sstyle=/.test(html));
     assert.match(String(renderRules({ configured: false })), /no loyalty rule/);
   });

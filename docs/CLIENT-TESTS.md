@@ -2,8 +2,8 @@
 
 Source: `docs/reference/tests.js` (BRD section 73, the client's prototype suite). Executable version:
 `test/loyalty/client-43.test.js`, one test per client test with the client's group and name and its status in the title.
-Run `npm test` and read the "The client's 43 edge-case tests" suite: 29 pass as WORKING, 6 pass as PARTIAL (our form of the
-behaviour), 8 are skipped as NOT BUILT with the reason in the name.
+Run `npm test` and read the "The client's 43 edge-case tests" suite: 31 pass as WORKING, 5 pass as PARTIAL (our form of the
+behaviour), 7 are skipped as NOT BUILT with the reason in the name.
 
 | # | Group | Client test | Status | Note |
 |---|---|---|---|---|
@@ -44,11 +44,11 @@ behaviour), 8 are skipped as NOT BUILT with the reason in the name.
 | 35 | Redemption | Cancelling an order that used a reward returns the reward's points | working | |
 | 36 | Admin | Manual adjustment needs amount, reason, note and admin; it lands in ledger and audit log | working | |
 | 37 | Admin | Deduction larger than the available balance is refused | working | |
-| 38 | Admin | Invalid rule (₹0 spend) is refused and the live rule is unchanged | **partial** | no rule editing yet; the database refuses a rule with 0 spend |
-| 39 | Admin | Rule change is recorded with previous and new value | **not built** | the Rules page is read only |
+| 38 | Admin | Invalid rule (₹0 spend) is refused and the live rule is unchanged | working | Rules page editing (validated; the database check is a second guard) |
+| 39 | Admin | Rule change is recorded with previous and new value | working | one `rules_changed` audit row per save, previous and new value per field |
 | 40 | Admin | Invalid reward (value above min cart) is refused | **not built** | no reward catalogue |
 | 41 | Integrity | Reconciliation is clean after a busy scenario | working | |
 | 42 | Integrity | Reconciliation detects a drifted cached balance; rebuild fixes it from the ledger | working | |
 | 43 | Integrity | Future campaign: 2× points only inside its window, capped at max bonus | **not built** | campaigns off by design in Phase 1 |
 
-**Totals: 29 working, 6 partial, 8 not built.**
+**Totals: 31 working, 5 partial, 7 not built.**

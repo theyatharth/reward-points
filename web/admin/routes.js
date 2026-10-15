@@ -6,7 +6,7 @@
 
 import { overview } from './data/overview.js';
 import { listNotifications } from './data/notifications.js';
-import { rules } from './data/rules.js';
+import { rules, previewRules, saveRules } from './data/rules.js';
 import { lastReconciliation, runNow } from './data/reconciliation.js';
 import { listAudit } from './data/audit.js';
 import { listOrders, listEvents, retryEvent } from './data/orders.js';
@@ -47,6 +47,14 @@ export function registerDataRoutes(api) {
   }));
 
   api.get('/rules', route(async (req, res) => res.json({ ok: true, ...(await rules(req.admin.shop)) })));
+  api.post('/rules/preview', route(async (req, res) => {
+    const { status, body } = await previewRules({ shop: req.admin.shop, body: req.body });
+    return res.status(status).json(body);
+  }));
+  api.post('/rules', route(async (req, res) => {
+    const { status, body } = await saveRules({ shop: req.admin.shop, adminId: req.admin.id, ip: req.ip, body: req.body });
+    return res.status(status).json(body);
+  }));
 
   api.get('/notifications', route(async (req, res) => res.json({ ok: true, ...(await listNotifications(req.admin.shop, { cursor: req.query.cursor, limit: req.query.limit })) })));
 }

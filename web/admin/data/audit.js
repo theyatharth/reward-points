@@ -35,6 +35,11 @@ export function describe(action, detail) {
       ?? `A reward code was used after it was ${action.replace('reward_used_after_', '')}`;
     return { ...none, reason: `${what}${d.order || d.secondOrder ? ` · order ${str(d.order ?? d.secondOrder)}` : ''}` };
   }
+  if (action === 'rules_changed') {
+    const changes = Array.isArray(d.changes) ? d.changes.slice(0, 20) : [];
+    const line = (key) => changes.map((c) => `${str(c.label, 60)}: ${str(typeof c[key] === 'boolean' ? (c[key] ? 'yes' : 'no') : c[key], 40)}`).join(' · ') || '—';
+    return { previous: line('previous'), next: line('next'), reason: `Rules changed (${changes.length} field${changes.length === 1 ? '' : 's'})${d.warningsAcknowledged ? ', warning acknowledged' : ''}`, subject: null };
+  }
   if (action === 'admin_login') return { ...none, reason: 'Signed in' };
   if (action === 'admin_logout') return { ...none, reason: 'Signed out' };
   if (action === 'admin_login_failed') return { ...none, reason: 'A sign-in attempt failed' };

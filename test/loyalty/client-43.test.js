@@ -5,7 +5,7 @@
 //   WORKING  the behaviour exists and the test checks the client's scenario with the client's numbers
 //   PARTIAL  it exists in a different form (the comment says how); the test checks our form
 //   NOT BUILT  skipped, with the reason
-// Counts: 29 working, 6 partial, 8 not built.
+// Counts: 31 working, 5 partial, 7 not built.
 //
 // Config used unless a test changes it: 1 point per 100 paise (INR), 500 points = 50.00 (client's 500/₹50 case),
 // 30-day hold, codes valid 90 days. Orders are built the way Shopify sends them (line ids, quantities).
@@ -18,6 +18,7 @@ import { storeWebhook, processPendingWebhooks } from '../../web/loyalty/service/
 import { activateDueLots, expireUnusedCodes } from '../../web/loyalty/service/jobs.js';
 import { redeem } from '../../web/loyalty/service/redemption.js';
 import { adjustPoints } from '../../web/loyalty/service/adjustment.js';
+import { saveRules } from '../../web/admin/data/rules.js';
 import { reconcileAccount, rebuildCache } from '../../web/loyalty/service/reconcile.js';
 import { customerView } from '../../web/loyalty/service/storefront.js';
 import { multiplyPoints } from '../../web/loyalty/rules/money.js';
@@ -395,12 +396,24 @@ describe('The client\'s 43 edge-case tests', () => {
     assert.strictEqual((await balances()).available, 100);
   });
 
-  test('[Admin] Invalid rule (₹0 spend) is refused and the live rule is unchanged — PARTIAL (rules cannot be edited in this version; the database itself refuses a rule with 0 spend)', async () => {
-    await assert.rejects(config({ spendAmountPaise: 0 }), /check constraint|spendAmountPaise/i);
+  const saveRule = async (changes) => saveRules({ shop, adminId, ip: '127.0.0.1', body: { expected: (await prisma.loyaltyConfig.findUnique({ where: { shop } })).updatedAt.toISOString(), changes } });
+
+  test('[Admin] Invalid rule (₹0 spend) is refused and the live rule is unchanged — WORKING (Rules page editing; the database check is a second guard)', async () => {
+    const r = await saveRule({ spend: '0' });
+    assert.strictEqual(r.status, 400);
+    assert.strictEqual(r.body.field, 'spend');
     assert.strictEqual((await prisma.loyaltyConfig.findUnique({ where: { shop } })).spendAmountPaise, 100);
+    await assert.rejects(config({ spendAmountPaise: 0 }), /check constraint|spendAmountPaise/i);
   });
 
-  test.skip('[Admin] Rule change is recorded with previous and new value — NOT BUILT (the Rules page is read only; editing with an audited diff is a later step)');
+  test('[Admin] Rule change is recorded with previous and new value — WORKING (one audit row per save)', async () => {
+    const r = await saveRule({ holdPeriodDays: 7, spend: '2.50' });
+    assert.strictEqual(r.status, 200);
+    const audit = await prisma.auditLog.findFirst({ where: { shop, action: 'rules_changed' } });
+    assert.strictEqual(audit.adminId, adminId);
+    assert.deepStrictEqual(audit.detail.changes.map((c) => [c.field, c.previous, c.next]), [['spend', '1.00', '2.50'], ['holdPeriodDays', 30, 7]]);
+    assert.deepStrictEqual([(await prisma.loyaltyConfig.findUnique({ where: { shop } })).holdPeriodDays], [7]);
+  });
 
   test.skip('[Admin] Invalid reward (value above min cart) is refused — NOT BUILT (no reward catalogue, no minimum cart)');
 
