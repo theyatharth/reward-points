@@ -215,6 +215,19 @@ and the code never works. The cost is a code that appears and is withdrawn secon
   | Reconcile reversal check (`reversal_mismatch`) | done | 017e3dd |
   | Rules page editing | NOT done: read only (568f283); being built in step 3 | - |
 
+- CLIENT TEST READINESS (2026-10-15), steps 2 to 10:
+  * `scripts/check-real-order.mjs` (83243f0): real `getOrder` works on API 2026-07; 8 of 8 dev orders MATCH Shopify's refund list.
+  * Rules page editing (preview, audited save, stale-form check); client tests 38 and 39 now working (31 working, 5 partial, 7 not built).
+  * Overview "last worker tick" (migration 11, `WorkerHeartbeat`), amber after 5 minutes.
+  * Currency: every amount label follows the shop's configured code (`rules/currency.js` plus two browser copies, proven equal by a test);
+    the admin Orders page no longer hardcodes INR.
+  * `scripts/onboard-shop.mjs` (config from the seed profile, ledgerStartAt = now, idempotent, optional admin, refuses protected databases).
+  * Tenant isolation test: three shops (INR, USD, EUR), the same customer id in each, admin and proxy APIs: no leak found.
+    One admin e-mail in two shops is refused with a clear message (only to someone who knows the password); different e-mails sign in with ADMIN_SHOP unset.
+  * `docs/CLIENT-TEST-GUIDE.md`. Server: files synced, migration 11 on test then dev, suite twice: 667 tests, 0 failures.
+  * First client test store onboarded on dev: reward-points-test-oldfdvqk.myshopify.com, INR, hold 0 (offline session found).
+  * ADMIN_SHOP is not set in the server .env.
+
 ## Next
 - Checkpoint 4: sync to the server, apply migration 10 (test, then dev), run the suite twice, report the 43-test table.
 
