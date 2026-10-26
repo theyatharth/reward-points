@@ -105,6 +105,15 @@ async function handleAppUninstalled(topic, shop, body, webhookId) {
 }
 
 /**
+ * A webhook with no signature header at all is refused with 401, the same as a wrong signature (the library answers 400 for a
+ * missing header and 401 only for a mismatch). Mounted in front of shopify.processWebhooks.
+ */
+export function requireWebhookSignature(req, res, next) {
+  if (!req.get('x-shopify-hmac-sha256')) return res.status(401).send('Unauthorized');
+  return next();
+}
+
+/**
  * Combined webhook handlers object — merges Shopify privacy requirements
  * with our custom business logic handlers.
  */

@@ -10,6 +10,7 @@ import { rules, previewRules, saveRules } from './data/rules.js';
 import { lastReconciliation, runNow } from './data/reconciliation.js';
 import { listAudit } from './data/audit.js';
 import { listOrders, listEvents, retryEvent } from './data/orders.js';
+import { listDataRequests, dataRequestDetail, markDataRequestSent } from '../loyalty/service/privacy.js';
 import { searchCustomers, customerDetail, adjustCustomer, adjustMeta } from './data/customers.js';
 
 /** Wraps an async handler so a thrown error reaches the router's error handler. */
@@ -57,4 +58,14 @@ export function registerDataRoutes(api) {
   }));
 
   api.get('/notifications', route(async (req, res) => res.json({ ok: true, ...(await listNotifications(req.admin.shop, { cursor: req.query.cursor, limit: req.query.limit })) })));
+
+  api.get('/data-requests', route(async (req, res) => res.json({ ok: true, requests: await listDataRequests(req.admin.shop) })));
+  api.get('/data-requests/:id', route(async (req, res) => {
+    const detail = await dataRequestDetail(req.admin.shop, req.params.id);
+    return detail ? res.json({ ok: true, ...detail }) : res.status(404).json({ ok: false, error: 'NOT_FOUND' });
+  }));
+  api.post('/data-requests/:id/sent', route(async (req, res) => {
+    const r = await markDataRequestSent({ shop: req.admin.shop, id: req.params.id, adminId: req.admin.id, shopifyUserId: req.admin.shopifyUserId });
+    return r ? res.json({ ok: true, alreadySent: r.alreadySent }) : res.status(404).json({ ok: false, error: 'NOT_FOUND' });
+  }));
 }

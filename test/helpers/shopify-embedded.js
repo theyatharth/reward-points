@@ -77,3 +77,36 @@ export async function startEmbeddedConsole({ basePath = '/reward-points' } = {})
   };
   return { url, shopify, call, close: () => new Promise((resolve) => server.close(resolve)) };
 }
+
+/**
+ * The webhook route as web/index.js mounts it: shopify.processWebhooks with the app's real handlers (privacy, orders, uninstall ...).
+ * `send` signs the body with the app secret exactly as Shopify does (HMAC-SHA256, base64, X-Shopify-Hmac-Sha256).
+ */
+let webhookMiddleware;
+
+export async function startWebhookServer() {
+  const shopify = await loadShopify();
+  const { webhookHandlers, requireWebhookSignature } = await import('../../web/routes/webhook.routes.js');
+  // processWebhooks() REGISTERS the handlers on the shared shopify instance: calling it twice would run every handler twice.
+  // web/index.js calls it once; so does this helper, however many servers a test file starts.
+  webhookMiddleware ??= shopify.processWebhooks({ webhookHandlers });
+  const app = express();
+  app.post(shopify.config.webhooks.path, requireWebhookSignature, webhookMiddleware);
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}${shopify.config.webhooks.path}`;
+  const send = async (topic, shop, payload, { secret = TEST_API_SECRET, hmac, webhookId = crypto.randomUUID(), body } = {}) => {
+    const raw = body ?? JSON.stringify(payload);
+    const signature = hmac === undefined ? crypto.createHmac('sha256', secret).update(raw, 'utf8').digest('base64') : hmac;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', 'X-Shopify-Topic': topic, 'X-Shopify-Shop-Domain': shop, 'X-Shopify-API-Version': '2026-10',
+        'X-Shopify-Webhook-Id': webhookId, ...(signature === null ? {} : { 'X-Shopify-Hmac-Sha256': signature }),
+      },
+      body: raw,
+    });
+    return { status: res.status, text: await res.text() };
+  };
+  return { url, send, close: () => new Promise((resolve) => server.close(resolve)) };
+}

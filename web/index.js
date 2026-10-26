@@ -5,7 +5,7 @@ import express from 'express';
 import serveStatic from 'serve-static';
 
 import shopify from './shopify.js';
-import { webhookHandlers } from './routes/webhook.routes.js';
+import { webhookHandlers, requireWebhookSignature } from './routes/webhook.routes.js';
 import proxyRouter from './routes/proxy.routes.js';
 import settingsRouter from './routes/settings.routes.js';
 import { mountAdminConsole, adminAuthMode } from './admin/router.js';
@@ -50,6 +50,7 @@ app.get(
 // ---------------------------------------------------------------------------
 app.post(
   shopify.config.webhooks.path,
+  requireWebhookSignature,
   shopify.processWebhooks({ webhookHandlers })
 );
 

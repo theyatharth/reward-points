@@ -54,7 +54,7 @@ async function metafieldValues(accountId) {
 export async function syncDirtyAccounts({ shop, limit = MAX_PER_RUN } = {}) {
   const rows = await prisma.$queryRaw`
     SELECT id, shop, "shopifyCustomerId", "metafieldSeq" FROM "LoyaltyAccount"
-     WHERE "metafieldSeq" > "metafieldSyncedSeq" ${shop ? Prisma.sql`AND shop = ${shop}` : Prisma.empty}
+     WHERE "metafieldSeq" > "metafieldSyncedSeq" AND "redactedAt" IS NULL ${shop ? Prisma.sql`AND shop = ${shop}` : Prisma.empty}
      ORDER BY "updatedAt" ASC
      LIMIT ${limit}`;
 

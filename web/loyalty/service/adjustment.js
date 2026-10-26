@@ -118,7 +118,7 @@ export async function adjustPoints({ shop, shopifyCustomerId, points, reason, no
           shopifyUserId: admin ? null : shopifyUserId,
           action: 'points_adjusted',
           detail: {
-            shopifyCustomerId: String(shopifyCustomerId), accountId: account.id, ledgerEntryId: entryId, type, points, reason, note,
+            accountId: account.id, ledgerEntryId: entryId, type, points, reason, note,
             before: { available: before.available, pending: before.pending, debt: before.debt },
             after: { available: after.available, pending: after.pending, debt: after.debt },
           },

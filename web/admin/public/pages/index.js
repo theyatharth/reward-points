@@ -8,6 +8,7 @@ import { auditPage } from './audit.js';
 import { reconciliationPage } from './reconciliation.js';
 import { rulesPage } from './rules.js';
 import { notificationsPage } from './notifications.js';
+import { dataRequestsPage } from './datarequests.js';
 
 export const PAGES = [
   { key: 'overview', label: 'Overview', page: overviewPage },
@@ -25,6 +26,7 @@ export const PAGES = [
   { key: 'recon', label: 'Reconciliation', page: reconciliationPage },
   { key: 'notify', label: 'Notifications', page: notificationsPage },
   { key: 'audit', label: 'Audit log', page: auditPage },
+  { key: 'data', label: 'Data requests', page: dataRequestsPage },
   {
     key: 'analytics', label: 'Analytics events',
     page: unavailable({

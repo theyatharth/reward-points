@@ -22,7 +22,7 @@ export function describe(action, detail) {
       previous: `${str(d.before?.available)} available`,
       next: `${str(d.after?.available)} available`,
       reason: `${str(d.reason)} (${sign}${str(d.points)}) — ${str(d.note)}`,
-      subject: str(d.shopifyCustomerId) || null,
+      subject: str(d.shopifyCustomerId) || null, // rows written before the privacy work; newer rows carry only accountId (see listAudit)
     };
   }
   if (action.startsWith('rebuild_cache')) {
@@ -48,6 +48,10 @@ export function describe(action, detail) {
   if (action === 'admin_login_failed') return { ...none, reason: 'A sign-in attempt failed' };
   if (action === 'admin_password_reset') return { ...none, reason: 'Password reset by an operator: one-time password issued, sessions ended' };
   if (action === 'admin_password_changed') return { ...none, reason: 'Password changed' };
+  if (action === 'app_installed') return { ...none, reason: `The app was set up for this shop (${str(d.currency, 8)}, holding period ${str(d.holdPeriodDays, 4)} days${d.supported === false ? ', currency not supported' : ''})` };
+  if (action === 'customer_redacted') return { ...none, reason: d.matched === false ? 'Shopify asked to erase a customer who had no rewards account' : 'Shopify asked to erase a customer: the account was anonymised and its notes and stored webhook data cleared' };
+  if (action === 'data_request_received') return { ...none, reason: `A customer asked for their data (request ${str(d.requestId, 20)})` };
+  if (action === 'data_request_sent') return { ...none, reason: `A customer data request was marked as sent (request ${str(d.requestId, 20)})` };
   return none;
 }
 
@@ -65,14 +69,23 @@ export async function listAudit(shop, { action, cursor, limit } = {}) {
     prisma.auditLog.groupBy({ by: ['action'], where: { shop }, _count: { _all: true }, orderBy: { action: 'asc' } }),
   ]);
   const page = rows.slice(0, take);
+  // New audit rows keep our account key, not the Shopify customer id (so a customer can be redacted without touching them): the
+  // customer shown is the account's current one, or "redacted".
+  const keys = [...new Set(page.map((a) => (a.detail && typeof a.detail === 'object' && typeof a.detail.accountId === 'string' ? a.detail.accountId : null)).filter(Boolean))];
+  const accounts = keys.length === 0 ? [] : await prisma.loyaltyAccount.findMany({ where: { id: { in: keys }, shop }, select: { id: true, shopifyCustomerId: true, redactedAt: true } });
+  const customerOf = new Map(accounts.map((a) => [a.id, a.redactedAt ? 'redacted' : a.shopifyCustomerId]));
   return {
-    entries: page.map((a) => ({
-      id: a.id,
-      createdAt: iso(a.createdAt),
-      admin: a.admin?.email ?? (a.shopifyUserId ? `Shopify user ${a.shopifyUserId}` : 'system'),
-      action: a.action,
-      ...describe(a.action, a.detail),
-    })),
+    entries: page.map((a) => {
+      const shown = describe(a.action, a.detail);
+      return {
+        id: a.id,
+        createdAt: iso(a.createdAt),
+        admin: a.admin?.email ?? (a.shopifyUserId ? `Shopify user ${a.shopifyUserId}` : 'system'),
+        action: a.action,
+        ...shown,
+        subject: shown.subject ?? customerOf.get(a.detail?.accountId) ?? null,
+      };
+    }),
     nextCursor: rows.length > take ? rows[take].id : null,
     actions: kinds.map((k) => ({ action: k.action, count: k._count._all })),
   };

@@ -235,6 +235,9 @@ model LoyaltyAccount {
   metafieldSyncedSeq Int       @default(0)
   metafieldSyncedAt  DateTime?
 
+  // Set when customers/redact replaced shopifyCustomerId with a random token: such an account is never synced to Shopify.
+  redactedAt         DateTime?
+
   config   LoyaltyConfig @relation(fields: [shop], references: [shop])
   entries  LedgerEntry[]
   lots     PointLot[]
@@ -628,4 +631,31 @@ model WorkerHeartbeat {
   lastTickAt     DateTime
   lastTickRan    Boolean  @default(false)
   lastTickFailed Boolean  @default(false)
+}
+
+// A customers/data_request from Shopify: what was asked and for whom. The merchant sees the customer's data on the console's
+// "Data requests" screen and marks the request sent. shopifyCustomerId becomes a random token if the customer is redacted later.
+model DataRequest {
+  id                String    @id @default(uuid())
+  shop              String
+  shopifyRequestId  String
+  shopifyCustomerId String
+  accountId         String?
+  ordersRequested   Json      @default("[]")
+  status            String    @default("open") // "open" | "sent"
+  createdAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  @@unique([shop, shopifyRequestId])
+  @@index([shop, status])
+}
+
+// Whether the app is installed on a shop (the uninstall webhook marks it "uninstalled"; a reinstall marks it "active").
+model ShopInstall {
+  shop          String    @id
+  status        String    @default("active") // "active" | "uninstalled"
+  installedAt   DateTime  @default(now())
+  uninstalledAt DateTime?
+  scopes        String?
+  updatedAt     DateTime  @default(now()) @updatedAt
 }
