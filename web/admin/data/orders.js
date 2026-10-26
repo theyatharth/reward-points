@@ -93,7 +93,7 @@ export async function listEvents(shop, { status, topic, cursor, limit } = {}) {
 }
 
 /** @returns {Promise<{ status: number, body: Object }>} */
-export async function retryEvent({ shop, adminId, eventId }) {
+export async function retryEvent({ shop, adminId, shopifyUserId = null, eventId }) {
   if (!/^[A-Za-z0-9-]{1,64}$/.test(eventId)) return { status: 404, body: { ok: false, error: 'NOT_FOUND' } };
   const event = await prisma.webhookEvent.findFirst({ where: { id: eventId, shop }, select: { id: true, topic: true, status: true, payloadPurgedAt: true, payload: true } });
   if (!event) return { status: 404, body: { ok: false, error: 'NOT_FOUND' } };
@@ -108,6 +108,6 @@ export async function retryEvent({ shop, adminId, eventId }) {
   });
   if (moved.count === 0) return { status: 409, body: { ok: false, error: 'NOT_RETRYABLE', message: 'The event changed while you were looking at it.' } };
   const p = event.payload && typeof event.payload === 'object' ? event.payload : {};
-  await audit(shop, adminId, 'event_retried', { eventId: event.id, topic: event.topic, previousStatus: event.status, orderRef: ref(event.topic === 'refunds/create' ? p.order_id : p.id) });
+  await audit(shop, adminId, 'event_retried', { eventId: event.id, topic: event.topic, previousStatus: event.status, orderRef: ref(event.topic === 'refunds/create' ? p.order_id : p.id) }, shopifyUserId);
   return { status: 200, body: { ok: true, status: 'pending' } };
 }

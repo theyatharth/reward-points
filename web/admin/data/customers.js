@@ -66,7 +66,7 @@ export async function customerDetail(shop, shopifyCustomerId, { cursor, limit } 
   const orderRefs = new Map((await prisma.loyaltyOrder.findMany({ where: { id: { in: orderIds } }, select: { id: true, shopifyOrderId: true } })).map((o) => [o.id, o.shopifyOrderId]));
   const adjustIds = page.filter((e) => e.type === 'adjustment' || e.type === 'bonus').map((e) => e.id);
   const audits = adjustIds.length === 0 ? [] : await prisma.$queryRaw`
-    SELECT l.detail->>'ledgerEntryId' AS entry, l.detail->>'note' AS note, l.detail->>'reason' AS reason, u.email AS admin
+    SELECT l.detail->>'ledgerEntryId' AS entry, l.detail->>'note' AS note, l.detail->>'reason' AS reason, COALESCE(u.email, CASE WHEN l."shopifyUserId" IS NOT NULL THEN 'Shopify user ' || l."shopifyUserId" END) AS admin
       FROM "AuditLog" l LEFT JOIN "AdminUser" u ON u.id = l."adminId"
      WHERE l.shop = ${shop} AND l.action = 'points_adjusted' AND l.detail->>'ledgerEntryId' = ANY(${adjustIds}::text[])`;
   const why = new Map(audits.map((a) => [a.entry, a]));
@@ -114,7 +114,7 @@ export async function customerDetail(shop, shopifyCustomerId, { cursor, limit } 
 /**
  * @returns {Promise<{ status: number, body: Object }>}
  */
-export async function adjustCustomer({ shop, adminId, shopifyCustomerId, body }) {
+export async function adjustCustomer({ shop, adminId, shopifyUserId = null, shopifyCustomerId, body }) {
   const { points, reason, note, idempotencyKey } = body || {};
   if (!Number.isInteger(points) || points === 0 || Math.abs(points) > MAX_ADJUSTMENT) {
     return { status: 400, body: { ok: false, error: 'INVALID_POINTS', message: 'Enter a whole number of points other than 0.' } };
@@ -123,7 +123,7 @@ export async function adjustCustomer({ shop, adminId, shopifyCustomerId, body })
   if (typeof reason !== 'string' || !allowed.includes(reason)) {
     return { status: 400, body: { ok: false, error: 'INVALID_REASON', message: 'Choose a reason from the list.' } };
   }
-  const result = await adjustPoints({ shop, shopifyCustomerId: String(shopifyCustomerId), points, reason, note, adminId, idempotencyKey });
+  const result = await adjustPoints({ shop, shopifyCustomerId: String(shopifyCustomerId), points, reason, note, adminId, shopifyUserId, idempotencyKey });
   if (result.ok) {
     return { status: 200, body: { ok: true, replayed: result.replayed, type: result.type, points: result.points, available: result.available, owed: result.debt } };
   }

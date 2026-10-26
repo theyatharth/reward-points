@@ -27,14 +27,14 @@ export function registerDataRoutes(api) {
   }));
   api.post('/customers/:id/adjust', route(async (req, res) => {
     if (!/^\d{1,20}$/.test(req.params.id)) return res.status(404).json({ ok: false, error: 'NOT_FOUND' });
-    const { status, body } = await adjustCustomer({ shop: req.admin.shop, adminId: req.admin.id, shopifyCustomerId: req.params.id, body: req.body });
+    const { status, body } = await adjustCustomer({ shop: req.admin.shop, adminId: req.admin.id, shopifyUserId: req.admin.shopifyUserId, shopifyCustomerId: req.params.id, body: req.body });
     return res.status(status).json(body);
   }));
 
   api.get('/orders', route(async (req, res) => res.json({ ok: true, ...(await listOrders(req.admin.shop, { cursor: req.query.cursor, limit: req.query.limit })) })));
   api.get('/events', route(async (req, res) => res.json({ ok: true, ...(await listEvents(req.admin.shop, { status: req.query.status, topic: req.query.topic, cursor: req.query.cursor, limit: req.query.limit })) })));
   api.post('/events/:id/retry', route(async (req, res) => {
-    const { status, body } = await retryEvent({ shop: req.admin.shop, adminId: req.admin.id, eventId: req.params.id });
+    const { status, body } = await retryEvent({ shop: req.admin.shop, adminId: req.admin.id, shopifyUserId: req.admin.shopifyUserId, eventId: req.params.id });
     return res.status(status).json(body);
   }));
 
@@ -52,7 +52,7 @@ export function registerDataRoutes(api) {
     return res.status(status).json(body);
   }));
   api.post('/rules', route(async (req, res) => {
-    const { status, body } = await saveRules({ shop: req.admin.shop, adminId: req.admin.id, ip: req.ip, body: req.body });
+    const { status, body } = await saveRules({ shop: req.admin.shop, adminId: req.admin.id, shopifyUserId: req.admin.shopifyUserId, ip: req.ip, body: req.body });
     return res.status(status).json(body);
   }));
 

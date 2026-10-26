@@ -95,8 +95,9 @@ const ipKey = (ip) => `ip:${ip}`;
 
 // ---- audit ----
 
-export const audit = (shop, adminId, action, detail) =>
-  prisma.auditLog.create({ data: { shop, adminId: adminId ?? null, action, detail: detail ?? undefined } }).catch((err) => {
+/** `shopifyUserId`: the Shopify staff member's id when the embedded console made the change (adminId is then null). */
+export const audit = (shop, adminId, action, detail, shopifyUserId = null) =>
+  prisma.auditLog.create({ data: { shop, adminId: adminId ?? null, shopifyUserId: shopifyUserId ?? null, action, detail: detail ?? undefined } }).catch((err) => {
     console.error('[admin] audit write failed:', err.message);
   });
 

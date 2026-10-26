@@ -2,7 +2,7 @@
 // All markup is built with h`...` (esc.js); events are delegated (data-act / data-form), never inline.
 
 import { h, mount } from './esc.js';
-import { api, setCsrf, onAuthEvents, newKey } from './api.js';
+import { api, embedded, setCsrf, onAuthEvents, newKey } from './api.js';
 import { PAGES } from './pages/index.js';
 
 const root = document.getElementById('app');
@@ -40,11 +40,22 @@ const changePasswordView = (forced, error) => h`<main class="wrap"><div class="c
   </form>
 </div></main>`;
 
+// Opened outside the Shopify admin, or the session could not be proven: there is no password to fall back to.
+const embeddedProblemView = (message) => h`<main class="wrap"><div class="card auth-card">
+  <div class="brand"><b>Reward Points</b></div>
+  <h1>Open this app from Shopify</h1>
+  <p class="muted">${message}</p>
+</div></main>`;
+
+const userBar = () => embedded
+  ? h`<div class="topbar-user"><span>${state.admin.shop}</span></div>`
+  : h`<div class="topbar-user"><span>${state.admin.email}</span>
+      <button class="chip-btn" type="button" data-act="show-change">Change password</button>
+      <button class="chip-btn" type="button" data-act="logout">Log out</button></div>`;
+
 const consoleView = () => h`<header class="top"><div class="top-in">
     <div class="brand"><b>ecofynd</b><span>Rewards · Admin</span></div>
-    <div class="topbar-user"><span>${state.admin.email}</span>
-      <button class="chip-btn" type="button" data-act="show-change">Change password</button>
-      <button class="chip-btn" type="button" data-act="logout">Log out</button></div>
+    ${userBar()}
   </div></header>
   <main class="wrap"><div class="admin">
     <nav class="anav" aria-label="Admin">${PAGES.map((p) => h`<button type="button" data-act="nav" data-v="${p.key}" ${state.route.key === p.key ? h`aria-current="page"` : ''}>${p.label}</button>`)}</nav>
@@ -84,7 +95,16 @@ async function showConsole() {
   await renderPage();
 }
 
+function showEmbeddedProblem(message) { state.screen = 'problem'; mount(root, embeddedProblemView(message)); }
+
 async function boot() {
+  if (embedded) {
+    onAuthEvents({ lost: () => { state.admin = null; showEmbeddedProblem('Your session ended. Reload this page, or open the app again from the Shopify admin.'); } });
+    const res = await api.get('session');
+    if (!res.ok) return showEmbeddedProblem('This console runs inside the Shopify admin. Open Apps in your Shopify admin and choose this app.');
+    state.admin = res.data.admin;
+    return showConsole();
+  }
   onAuthEvents({ lost: () => { state.admin = null; showLogin('Your session ended. Sign in again.'); }, mustChange: () => showChange(true) });
   const res = await api.get('session');
   if (!res.ok) return showLogin();

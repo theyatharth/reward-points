@@ -155,7 +155,7 @@ export async function previewRules({ shop, body }) {
  * Saves a requested change: config row locked, optimistic check on `expected`, the update and its AuditLog row
  * in one transaction. A request that would change nothing is a successful no-op (a repeated save is harmless).
  */
-export async function saveRules({ shop, adminId, ip, body }) {
+export async function saveRules({ shop, adminId, shopifyUserId = null, ip, body }) {
   const expectedMs = new Date(body?.expected).getTime();
   if (!body || typeof body.expected !== 'string' || Number.isNaN(expectedMs)) return bad('expected', 'Reload the page and try again.');
 
@@ -177,6 +177,7 @@ export async function saveRules({ shop, adminId, ip, body }) {
       data: {
         shop,
         adminId,
+        shopifyUserId,
         ip: typeof ip === 'string' ? ip.slice(0, 64) : null,
         action: 'rules_changed',
         detail: { currency: config.currency, changes: plan.changes, warningsAcknowledged: plan.warnings.length > 0 },

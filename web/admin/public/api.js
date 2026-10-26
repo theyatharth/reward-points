@@ -1,19 +1,42 @@
-// api.js: the console's only way to talk to the server. Sends the CSRF token on writes; reports a lost
-// session or a pending password change to the app so it can show the right screen.
+// api.js: the console's only way to talk to the server. Two modes, told apart by the page the server sent:
+//   * password console: a session cookie plus the CSRF token on writes;
+//   * embedded in the Shopify admin (<meta name="rw-auth" content="shopify">): no cookie, every call carries a fresh
+//     App Bridge session token (shopify.idToken()) as a Bearer token. The server takes the shop from that token.
+// Reports a lost session or a pending password change to the app so it can show the right screen.
 
 let csrf = '';
 let handlers = { lost: () => {}, mustChange: () => {} };
 
+export const embedded = document.querySelector('meta[name="rw-auth"]')?.content === 'shopify';
 export const setCsrf = (token) => { csrf = token || ''; };
 export const onAuthEvents = (h) => { handlers = { ...handlers, ...h }; };
 
-async function call(method, path, body) {
-  const res = await fetch(`api/${path}`, {
+/** Headers that prove who is asking; null when the page is not running inside the Shopify admin. */
+async function credentials(method) {
+  if (!embedded) return method === 'GET' ? {} : { 'X-CSRF-Token': csrf };
+  try {
+    return { Authorization: `Bearer ${await window.shopify.idToken()}` };
+  } catch {
+    return null;
+  }
+}
+
+async function send(method, path, body) {
+  const auth = await credentials(method);
+  if (!auth) return null;
+  return fetch(`api/${path}`, {
     method,
     credentials: 'same-origin',
-    headers: { Accept: 'application/json', ...(method === 'GET' ? {} : { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }) },
+    headers: { Accept: 'application/json', ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }), ...auth },
     body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
   });
+}
+
+async function call(method, path, body) {
+  let res = await send(method, path, body);
+  if (!res) return { ok: false, status: 401, data: { error: 'NOT_EMBEDDED' } };
+  // An expired token comes back with this header: ask App Bridge for a new one and try once more.
+  if (embedded && res.status === 401 && res.headers.get('X-Shopify-Retry-Invalid-Session-Request')) res = (await send(method, path, body)) ?? res;
   let data = null;
   try { data = await res.json(); } catch { /* not JSON */ }
   if (res.status === 401 && path !== 'login') handlers.lost();

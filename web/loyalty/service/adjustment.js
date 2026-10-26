@@ -39,13 +39,14 @@ const refusal = (reason, message) => ({ ok: false, reason, message });
  * @param {number} p.points            signed whole number, not 0
  * @param {string} p.reason
  * @param {string} p.note              internal note, at least 5 characters
- * @param {string} p.adminId           AdminUser.id of the admin making the change
+ * @param {string} [p.adminId]         AdminUser.id of the admin making the change (password console)
+ * @param {string} [p.shopifyUserId]   Shopify staff id from the verified session token (embedded console); one of the two is required
  * @param {string} p.idempotencyKey    scoped to the account
  * @returns {Promise<
  *   { ok: true, replayed: boolean, entryId: string, type: 'adjustment'|'bonus', points: number, available: number, debt: number }
  *   | { ok: false, reason: string, message: string }>}
  */
-export async function adjustPoints({ shop, shopifyCustomerId, points, reason, note, adminId, idempotencyKey }) {
+export async function adjustPoints({ shop, shopifyCustomerId, points, reason, note, adminId, shopifyUserId, idempotencyKey }) {
   if (!Number.isInteger(points) || points === 0 || Math.abs(points) > MAX_ADJUSTMENT) {
     return refusal('INVALID_POINTS', 'Enter a whole number of points other than 0.');
   }
@@ -53,15 +54,18 @@ export async function adjustPoints({ shop, shopifyCustomerId, points, reason, no
   if (typeof note !== 'string' || note.trim().length < MIN_NOTE_LENGTH) {
     return refusal('NOTE_TOO_SHORT', `Add an internal note (at least ${MIN_NOTE_LENGTH} characters) so support can explain this change.`);
   }
-  if (typeof adminId !== 'string' || adminId === '') return refusal('ADMIN_REQUIRED', 'Admin is required.');
+  const hasAdmin = typeof adminId === 'string' && adminId !== '';
+  const hasShopifyUser = typeof shopifyUserId === 'string' && shopifyUserId !== '';
+  if (!hasAdmin && !hasShopifyUser) return refusal('ADMIN_REQUIRED', 'Admin is required.');
   if (typeof idempotencyKey !== 'string' || idempotencyKey.length < 1 || idempotencyKey.length > MAX_KEY_LENGTH) {
     return refusal('INVALID_KEY', 'Missing or invalid request key.');
   }
   reason = reason.trim();
   note = note.trim();
 
-  const admin = await prisma.adminUser.findFirst({ where: { id: adminId, shop }, select: { id: true } });
-  if (!admin) return refusal('ADMIN_UNKNOWN', 'Admin not found.');
+  // The embedded console has no AdminUser: its actor was verified from the session token (shop and sub), so only the id is recorded.
+  const admin = hasAdmin ? await prisma.adminUser.findFirst({ where: { id: adminId, shop }, select: { id: true } }) : null;
+  if (hasAdmin && !admin) return refusal('ADMIN_UNKNOWN', 'Admin not found.');
 
   const account = await prisma.loyaltyAccount.findUnique({
     where: { shop_shopifyCustomerId: { shop, shopifyCustomerId: String(shopifyCustomerId) } },
@@ -110,7 +114,8 @@ export async function adjustPoints({ shop, shopifyCustomerId, points, reason, no
       await tx.auditLog.create({
         data: {
           shop,
-          adminId: admin.id,
+          adminId: admin ? admin.id : null,
+          shopifyUserId: admin ? null : shopifyUserId,
           action: 'points_adjusted',
           detail: {
             shopifyCustomerId: String(shopifyCustomerId), accountId: account.id, ledgerEntryId: entryId, type, points, reason, note,

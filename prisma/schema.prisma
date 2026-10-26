@@ -514,6 +514,8 @@ model AuditLog {
   shop      String
   adminId   String?  // AdminUser.id (null for system events)
   admin     AdminUser? @relation(fields: [adminId], references: [id])
+  // Shopify staff member (session token "sub") when the embedded console made the change; null otherwise.
+  shopifyUserId String?
 
   // What changed: "config_change" | "admin_login" | "admin_logout" |
   //               "adjustment" | "redemption_override" | ...

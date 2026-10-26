@@ -69,7 +69,7 @@ export async function listAudit(shop, { action, cursor, limit } = {}) {
     entries: page.map((a) => ({
       id: a.id,
       createdAt: iso(a.createdAt),
-      admin: a.admin?.email ?? 'system',
+      admin: a.admin?.email ?? (a.shopifyUserId ? `Shopify user ${a.shopifyUserId}` : 'system'),
       action: a.action,
       ...describe(a.action, a.detail),
     })),

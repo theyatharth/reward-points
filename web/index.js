@@ -8,7 +8,10 @@ import shopify from './shopify.js';
 import { webhookHandlers } from './routes/webhook.routes.js';
 import proxyRouter from './routes/proxy.routes.js';
 import settingsRouter from './routes/settings.routes.js';
-import { mountAdminConsole } from './admin/router.js';
+import { mountAdminConsole, adminAuthMode } from './admin/router.js';
+
+// ADMIN_AUTH=password (default, the dev app) or shopify (the public app: the console is embedded in the Shopify admin).
+const ADMIN_AUTH = adminAuthMode();
 
 const PORT = parseInt(process.env.BACKEND_PORT || process.env.PORT || '3000', 10);
 
@@ -62,7 +65,7 @@ app.use('/api/proxy', proxyRouter);
 //     "/admin" redirects to "<base>/admin/"; "/admin/" serves the console; unknown paths under it are a 404.
 //     Mounted at /admin (nginx strips the base path) and at <base>/admin (in case it ever does not).
 // ---------------------------------------------------------------------------
-mountAdminConsole(app, { basePath: BASE_PATH });
+mountAdminConsole(app, { basePath: BASE_PATH, authMode: ADMIN_AUTH, shopify });
 
 // ---------------------------------------------------------------------------
 // 4. AUTHENTICATED ADMIN ROUTES — All routes below require a valid Shopify
@@ -79,6 +82,15 @@ app.use('/api', settingsRouter);
 // ---------------------------------------------------------------------------
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
+
+// The public app's application_url: Shopify opens "/?shop=…&host=…&embedded=1&id_token=…" in the admin iframe. Hand it to the
+// console (the same query goes along, so App Bridge finds its host). ensureInstalledOnShop sends a top-level visit back into the admin.
+if (ADMIN_AUTH === 'shopify') {
+  app.use('/{*splat}', shopify.ensureInstalledOnShop(), (req, res) => {
+    const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    res.redirect(302, `${BASE_PATH}/admin/${query}`);
+  });
+}
 
 app.use('/{*splat}', shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
   return res
