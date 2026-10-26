@@ -17,6 +17,13 @@
 //   postgres, template0, template1, rdsadmin — Postgres system databases.
 //   reward_points — current production database (moved to a new DB at M5).
 //
+// The one exception that can be added: the PUBLIC app's own live database. Its name is read from LIVE_DATABASE_NAME, and only
+// a process started with APP_ENV=production may use it, and such a process may use NOTHING else:
+//   * APP_ENV=production: the database must be exactly LIVE_DATABASE_NAME (which must be set, be a plain name, and not be one of the
+//     denied names above: it cannot be used to unlock reward_points or a system database);
+//   * any other APP_ENV (dev, tests, scripts run by hand): a URL naming LIVE_DATABASE_NAME is refused, so a dev checkout that
+//     happens to have the live URL in its environment cannot write to it.
+//
 // Additionally, the test runner refuses any database whose name does not end
 // in _test, so a test run can never wipe a development or production database.
 
@@ -86,6 +93,25 @@ export function assertDbAllowed(url, { requireTestSuffix = false } = {}) {
         `This is either a production database, an unrelated product database, or a Postgres system database. ` +
         `Allowed databases in Phase 1: reward_points_dev and reward_points_dev_test.`
     );
+  }
+
+  // 2b. The public app's live database: only in production, and nothing else in production.
+  const live = (process.env.LIVE_DATABASE_NAME || '').trim();
+  const production = (process.env.APP_ENV || '').trim() === 'production';
+  if (live && !/^[A-Za-z0-9_]{1,63}$/.test(live)) {
+    throw new Error('[db-guard] LIVE_DATABASE_NAME must be exactly one plain database name (letters, digits, underscore).');
+  }
+  if (live && DENIED_DB_NAMES.has(live)) {
+    throw new Error(`[db-guard] LIVE_DATABASE_NAME names "${live}", which is a refused database; it cannot be unlocked this way.`);
+  }
+  if (production) {
+    if (!live) throw new Error('[db-guard] APP_ENV=production needs LIVE_DATABASE_NAME (the one database this app may use).');
+    if (dbName !== live) {
+      throw new Error(`[db-guard] APP_ENV=production may connect only to the database named in LIVE_DATABASE_NAME, not "${dbName}".`);
+    }
+    if (requireTestSuffix) throw new Error('[db-guard] The test runner refuses to run with APP_ENV=production.');
+  } else if (live && dbName === live) {
+    throw new Error(`[db-guard] "${dbName}" is the live database (LIVE_DATABASE_NAME) and can be used only when APP_ENV=production.`);
   }
 
   // 3. Test-suffix check (for the test runner).

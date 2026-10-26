@@ -8,6 +8,7 @@ import shopify from './shopify.js';
 import { webhookHandlers, requireWebhookSignature } from './routes/webhook.routes.js';
 import proxyRouter from './routes/proxy.routes.js';
 import settingsRouter from './routes/settings.routes.js';
+import { createHealthRouter } from './routes/health.js';
 import { mountAdminConsole, adminAuthMode } from './admin/router.js';
 
 // ADMIN_AUTH=password (default, the dev app) or shopify (the public app: the console is embedded in the Shopify admin).
@@ -33,6 +34,10 @@ const app = express();
 // nginx is the only thing in front of this process: trust one proxy hop so req.ip is the real client
 // (the admin login rate limit counts failures per IP).
 app.set('trust proxy', 1);
+
+// 0. HEALTH — /healthz answers 200 when the database does (no session, no shop). Also under the base path in case nginx stops stripping it.
+app.use(createHealthRouter());
+app.use(BASE_PATH, createHealthRouter());
 
 // ---------------------------------------------------------------------------
 // 1. AUTH — Shopify OAuth flow

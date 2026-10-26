@@ -137,3 +137,89 @@ test('assertNotProtected is a no-op when PROTECTED_DATABASES is unset', () => {
     assertNotProtected('postgresql://u:p@host:5432/reward_points?schema=public')
   );
 });
+
+// ---------------------------------------------------------------------------
+// The public app's live database: LIVE_DATABASE_NAME, only with APP_ENV=production, and nothing else then.
+// ---------------------------------------------------------------------------
+
+const HOST = 'smarthawker-devdb.cry8skcsql30.ap-south-1.rds.amazonaws.com';
+const urlFor = (db, host = HOST) => `postgresql://postgres:pw@${host}:5432/${db}?schema=public`;
+
+/** Runs fn with APP_ENV / LIVE_DATABASE_NAME set (undefined = unset), then puts them back. */
+function withEnv(env, fn) {
+  const saved = { APP_ENV: process.env.APP_ENV, LIVE_DATABASE_NAME: process.env.LIVE_DATABASE_NAME };
+  for (const [k, v] of Object.entries(env)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  try { return fn(); } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+}
+
+test('production: exactly the database named in LIVE_DATABASE_NAME is allowed', () => {
+  withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: 'reward_points_app' }, () => {
+    assert.doesNotThrow(() => assertDbAllowed(urlFor('reward_points_app')));
+  });
+});
+
+test('production: every other database is refused, even an otherwise allowed one', () => {
+  withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: 'reward_points_app' }, () => {
+    for (const db of ['reward_points_dev', 'reward_points_dev_test', 'reward_points_app_2', 'reward_points_app_test', 'something_else']) {
+      assert.throws(() => assertDbAllowed(urlFor(db)), /only to the database named in LIVE_DATABASE_NAME/, db);
+    }
+  });
+});
+
+test('production still refuses reward_points, the other products, the system databases and the shared host', () => {
+  withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: 'reward_points_app' }, () => {
+    for (const db of ['reward_points', 'PlantCare', 'adgenius', 'attendix', 'hawkerdb', 'postgres', 'template0', 'template1', 'rdsadmin']) {
+      assert.throws(() => assertDbAllowed(urlFor(db)), undefined, db);
+    }
+    assert.throws(() => assertDbAllowed(urlFor('reward_points_app', 'proluma-db-instance.us-east-1.rds.amazonaws.com')), /proluma-db-instance/);
+  });
+});
+
+test('LIVE_DATABASE_NAME cannot be used to unlock a refused database, and must be one plain name', () => {
+  for (const name of ['reward_points', 'postgres', 'template1', 'rdsadmin', 'hawkerdb']) {
+    withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: name }, () => {
+      assert.throws(() => assertDbAllowed(urlFor(name)), /refused/, name);
+    });
+  }
+  for (const name of ['a,b', 'reward_points_app reward_points_dev', 'x;y', '../x', 'a'.repeat(64)]) {
+    withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: name }, () => {
+      assert.throws(() => assertDbAllowed(urlFor('reward_points_app')), /exactly one plain database name/, name);
+    });
+  }
+});
+
+test('production without LIVE_DATABASE_NAME refuses to start', () => {
+  withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: undefined }, () => {
+    assert.throws(() => assertDbAllowed(urlFor('reward_points_app')), /needs LIVE_DATABASE_NAME/);
+    assert.throws(() => assertDbAllowed(urlFor('reward_points_dev')), /needs LIVE_DATABASE_NAME/);
+  });
+});
+
+test('outside production the live database is refused, and nothing else changes', () => {
+  for (const appEnv of [undefined, '', 'development', 'test', 'staging']) {
+    withEnv({ APP_ENV: appEnv, LIVE_DATABASE_NAME: 'reward_points_app' }, () => {
+      assert.throws(() => assertDbAllowed(urlFor('reward_points_app')), /only when APP_ENV=production/, String(appEnv));
+      assert.doesNotThrow(() => assertDbAllowed(urlFor('reward_points_dev')));
+      assert.doesNotThrow(() => assertDbAllowed(urlFor('reward_points_dev_test'), { requireTestSuffix: true }));
+      assert.throws(() => assertDbAllowed(urlFor('reward_points')), /reward_points/);
+    });
+  }
+  withEnv({ APP_ENV: 'Production', LIVE_DATABASE_NAME: 'reward_points_app' }, () => {
+    assert.throws(() => assertDbAllowed(urlFor('reward_points_app')), /only when APP_ENV=production/);
+  });
+});
+
+test('the guard is unchanged when neither variable is set (dev, CI, the test runner)', () => {
+  withEnv({ APP_ENV: undefined, LIVE_DATABASE_NAME: undefined }, () => {
+    assert.doesNotThrow(() => assertDbAllowed(urlFor('reward_points_app')));
+    assert.doesNotThrow(() => assertDbAllowed(CI_TEST_URL, { requireTestSuffix: true }));
+  });
+});
+
+test('the test runner refuses to run in production', () => {
+  withEnv({ APP_ENV: 'production', LIVE_DATABASE_NAME: 'reward_points_app_test' }, () => {
+    assert.throws(() => assertDbAllowed(urlFor('reward_points_app_test'), { requireTestSuffix: true }), /test runner refuses/);
+  });
+});

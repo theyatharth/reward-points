@@ -64,3 +64,25 @@ test('theme blocks and the storefront client default to /apps/reward-points', ()
   }
   assert.match(read('extensions/rewards-widget/assets/rewards-client.js'), /DEFAULT_PROXY = '\/apps\/reward-points'/);
 });
+
+test('hosting files agree with the toml and with each other: names, port 3004, /reward-points-app, no secrets', async () => {
+  const { createRequire } = await import('node:module');
+  const eco = createRequire(import.meta.url)('../../deploy/ecosystem.public.config.cjs');
+  const [web, worker] = eco.apps;
+  assert.deepEqual(eco.apps.map((a) => a.name), ['reward-points-app', 'reward-points-app-worker']);
+  assert.deepEqual([web.script, worker.script], ['index.js', 'worker.js']);
+  assert.ok(web.cwd.startsWith('/home/ubuntu/reward-points-app') && worker.cwd.startsWith('/home/ubuntu/reward-points-app'));
+  assert.equal(web.env.PORT, 3004);
+  assert.equal(web.env.APP_BASE_PATH, '/reward-points-app');
+  assert.equal(web.env.ADMIN_AUTH, 'shopify');
+  assert.equal(web.env.APP_ENV, 'production');
+  assert.equal(worker.env.APP_ENV, 'production');
+  // The base path in the toml's application_url is the one the app is started with.
+  assert.ok(noComments.match(/^application_url = "([^"]*)"/m)[1].endsWith(web.env.APP_BASE_PATH));
+  // Only names the public app needs; no secret or database URL in the file.
+  for (const key of [...Object.keys(web.env), ...Object.keys(worker.env)]) assert.ok(!/SECRET|PASSWORD|DATABASE_URL|API_KEY/.test(key), key);
+  const nginx = read('deploy/nginx-reward-points-app.conf.example');
+  assert.match(nginx, /location \/reward-points-app\/ \{[^}]*proxy_pass http:\/\/127\.0\.0\.1:3004\/;/);
+  assert.match(nginx, /location = \/reward-points-app \{[^}]*proxy_pass http:\/\/127\.0\.0\.1:3004\/;/);
+  assert.ok(!/reward-points-dev|3001/.test(nginx.replace(/^#.*$/gm, '')), 'no dev app routing in the public app block');
+});

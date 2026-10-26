@@ -1,0 +1,33 @@
+# Nginx for the PUBLIC app: paste the two location blocks into the existing HTTPS server block of integrations.platinuminfo.tech
+# (the one that already holds /reward-points-dev/), then:  sudo nginx -t && sudo systemctl reload nginx
+#
+# The trailing slash on proxy_pass is what strips the /reward-points-app prefix, exactly as for /reward-points-dev: the app sees
+# /api/webhooks, /api/proxy/..., /admin/ and /healthz, never /reward-points-app/.... The bodies are passed on untouched (the webhook
+# signature is computed over the raw body). The app sits behind ONE proxy hop (app.set('trust proxy', 1)), so X-Forwarded-For must be
+# set here and nowhere in front of this block.
+#
+# The URLs this serves (shopify.app.production.toml):
+#   https://integrations.platinuminfo.tech/reward-points-app                 application_url (opens the console in the Shopify admin)
+#   https://integrations.platinuminfo.tech/reward-points-app/api/auth        OAuth redirect URLs
+#   https://integrations.platinuminfo.tech/reward-points-app/api/webhooks    webhooks and the privacy topics
+#   https://integrations.platinuminfo.tech/reward-points-app/api/proxy       the storefront app proxy (/apps/reward-points)
+#   https://integrations.platinuminfo.tech/reward-points-app/healthz         200 when the database answers
+
+location = /reward-points-app {
+    proxy_pass http://127.0.0.1:3004/;   # must match PORT in deploy/ecosystem.public.config.cjs
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /reward-points-app/ {
+    proxy_pass http://127.0.0.1:3004/;   # trailing slash: the prefix is stripped
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+}
