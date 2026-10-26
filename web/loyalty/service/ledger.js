@@ -13,6 +13,8 @@ import { now } from '../adapters/clock.js';
 import { normalizeTopic } from './topics.js';
 import { PermanentError } from './errors.js';
 import { notify } from './notifications.js';
+import { ensureShopConfig } from './install.js';
+import { ShopNotSetUpError } from './errors.js';
 import { ShopifyGateway } from '../adapters/gateway.js';
 import { FakeShopifyGateway } from '../adapters/fake-gateway.js';
 
@@ -30,7 +32,14 @@ export function setGatewayFactory(factory) {
  * Main dispatcher. Loads config and routes WebhookEvent to the right handler.
  */
 export async function processEvent(event) {
-  const configRow = await prisma.loyaltyConfig.findUnique({ where: { shop: event.shop } });
+  let configRow = await prisma.loyaltyConfig.findUnique({ where: { shop: event.shop } });
+  if (!configRow && ['orders/paid', 'refunds/create', 'orders/cancelled'].includes(normalizeTopic(event.topic))) {
+    // No configuration yet (the install setup has not run, or it could not read the shop's currency): try it now. If that cannot be
+    // done either, the event WAITS (retried, see waitingPlan in webhook.js) rather than earning with made-up default rules.
+    await ensureShopConfig(event.shop, gatewayFactory(event.shop));
+    configRow = await prisma.loyaltyConfig.findUnique({ where: { shop: event.shop } });
+    if (!configRow) throw new ShopNotSetUpError(event.shop);
+  }
   const config = configRow || DEFAULT_CONFIG;
 
   // Accept both forms: new events are stored in the slash form, but rows stored

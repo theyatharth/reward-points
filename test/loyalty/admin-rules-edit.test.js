@@ -72,11 +72,13 @@ describe('Admin rule editing', () => {
       assert.deepStrictEqual(planChange(current, { spend: '100', points: 100, rounding: 'floor' }).changes, []);
     });
 
-    test('holding days 0 to 365 only; whole numbers only', () => {
+    test('holding days 0 to 55 only (the 60-day order window); whole numbers only', () => {
       assert.strictEqual(planChange(current, { holdPeriodDays: 0 }).ok, true);
-      assert.strictEqual(planChange(current, { holdPeriodDays: 365 }).ok, true);
+      assert.strictEqual(planChange(current, { holdPeriodDays: 55 }).ok, true);
       bad({ holdPeriodDays: -1 }, 'holdPeriodDays');
-      bad({ holdPeriodDays: 366 }, 'holdPeriodDays');
+      bad({ holdPeriodDays: 56 }, 'holdPeriodDays');
+      bad({ holdPeriodDays: 60 }, 'holdPeriodDays');
+      bad({ holdPeriodDays: 365 }, 'holdPeriodDays');
       bad({ holdPeriodDays: 1.5 }, 'holdPeriodDays');
       bad({ holdPeriodDays: '7' }, 'holdPeriodDays');
       bad({ holdPeriodDays: null }, 'holdPeriodDays');
@@ -134,7 +136,7 @@ describe('Admin rule editing', () => {
   describe('over HTTP', () => {
     test('GET /rules carries the limits and options the form uses, still without ids or the shop', async () => {
       const r = await admin.get('rules');
-      assert.deepStrictEqual(r.json.limits.holdPeriodDays, { min: 0, max: 365 });
+      assert.deepStrictEqual(r.json.limits.holdPeriodDays, { min: 0, max: 55 });
       assert.deepStrictEqual(r.json.options.rounding, ['floor', 'round', 'block']);
       assert.ok(!r.text.includes(shop));
     });

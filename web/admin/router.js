@@ -25,6 +25,8 @@ import {
 } from './auth.js';
 import { registerDataRoutes } from './routes.js';
 import { createShopifyAuth } from './shopify-auth.js';
+import { runInstallSetup } from '../loyalty/service/install.js';
+import { gatewayFactory } from '../loyalty/service/ledger.js';
 
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 
@@ -138,7 +140,12 @@ export function createAdminRouter({ basePath = '', authMode = adminAuthMode(), s
     // No login, logout or password in this mode (those paths are plain 404s below): the App Bridge session token is the
     // credential, checked on every call, and the shop comes from it.
     api.use(createShopifyAuth(shopify));
-    api.get('/session', (req, res) => res.json({ ok: true, mode: 'shopify', admin: { shop: req.admin.shop, shopifyUserId: req.admin.shopifyUserId }, mustChangePassword: false, csrfToken: '' }));
+    // Opening the console is also the retry of the install setup (idempotent, never throws): a shop whose currency could not be read
+    // when it installed gets its configuration here.
+    api.get('/session', async (req, res) => {
+      await runInstallSetup({ session: { shop: req.admin.shop } }, (shop) => gatewayFactory(shop));
+      res.json({ ok: true, mode: 'shopify', admin: { shop: req.admin.shop, shopifyUserId: req.admin.shopifyUserId }, mustChangePassword: false, csrfToken: '' });
+    });
   } else {
     api.post('/login', loginHandler({ basePath }));
 

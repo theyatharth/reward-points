@@ -71,6 +71,18 @@ export class ShopifyGateway {
   }
 
   /**
+   * The shop's currency as an ISO code ("INR"), read with the Admin API (no access scope needed for the shop's own settings).
+   * @returns {Promise<string>}
+   */
+  async getShopCurrency() {
+    const client = await this.getGraphqlClient();
+    const response = await client.request(`query shopCurrency { shop { currencyCode } }`, { retries: 2 });
+    const code = response.data?.shop?.currencyCode;
+    if (typeof code !== 'string' || code === '') throw new Error('Shopify did not return the shop currency');
+    return code;
+  }
+
+  /**
    * Looks up an order by ID: processed_at (T2.8), plus the refunds list the
    * J3 check compares against the ledger.
    */

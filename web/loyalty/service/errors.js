@@ -12,3 +12,14 @@ export class PermanentError extends Error {
     this.permanent = true;
   }
 }
+
+// The shop has no LoyaltyConfig yet (its install setup has not run or its currency could not be read). Not permanent: the
+// event waits and is retried until the shop is set up (see waitingPlan in webhook.js), because earning with made-up default
+// rules in the wrong currency would be worse than waiting.
+export class ShopNotSetUpError extends Error {
+  constructor(shop) {
+    super(`The shop ${shop} is not set up yet (no rewards configuration); waiting for it`);
+    this.name = 'ShopNotSetUpError';
+    this.waitingForShop = true;
+  }
+}

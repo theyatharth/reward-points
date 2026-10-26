@@ -19,6 +19,8 @@ import { shopifyApp } from "@shopify/shopify-app-express";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { restResources } from "@shopify/shopify-api/rest/admin/2026-07";
 import { prisma } from "./lib/prisma.js";
+import { runInstallSetup } from "./loyalty/service/install.js";
+import { gatewayFactory } from "./loyalty/service/ledger.js";
 
 // ---------------------------------------------------------------------------
 // Session Storage — Postgres, via the same Prisma client as the rest of the
@@ -63,6 +65,11 @@ const shopify = shopifyApp({
   },
   future: {
     tokenExchange: true,
+  },
+  hooks: {
+    // Runs after token exchange (a shop's first visit) and after the OAuth callback. Creates the shop's rewards configuration; it
+    // is idempotent and never throws, so it can never fail the request (see loyalty/service/install.js).
+    afterAuth: (arg) => runInstallSetup(arg, (shop) => gatewayFactory(shop)),
   },
   // No afterAuth registerWebhooks(): webhook subscriptions are declared in
   // shopify.app.toml (app-specific). Registering the same topics through the API

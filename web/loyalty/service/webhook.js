@@ -92,6 +92,24 @@ export function retryPlan(failureNumber, error) {
 }
 
 /**
+ * An event that finds its shop not set up yet (no LoyaltyConfig, ShopNotSetUpError) is not counted against the retry schedule above:
+ * it is retried every WAITING_RETRY_MINUTES until WAITING_WINDOW_DAYS after it arrived, then it is dead. The longer window is
+ * for a shop whose currency could not be read at install: it is set up on its next console visit, and its first orders must
+ * not be lost in the meantime.
+ */
+export const WAITING_RETRY_MINUTES = 5;
+export const WAITING_WINDOW_DAYS = 7;
+
+/** @returns {{ status: 'failed' | 'dead', nextRetryAt: Date | null }} */
+export function waitingPlan(event) {
+  const t = now();
+  const expired = t.getTime() - event.createdAt.getTime() > WAITING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return expired
+    ? { status: 'dead', nextRetryAt: null }
+    : { status: 'failed', nextRetryAt: new Date(t.getTime() + WAITING_RETRY_MINUTES * 60 * 1000) };
+}
+
+/**
  * Marks a webhook as failed and schedules its retry per RETRY_DELAYS_MINUTES, or
  * marks it 'dead' (see retryPlan). The reason is kept in lastError either way.
  *
@@ -103,7 +121,7 @@ export async function markWebhookFailed(eventId, error) {
   if (!event) return;
 
   const attempts = event.attempts + 1;
-  const { status, nextRetryAt } = retryPlan(attempts, error);
+  const { status, nextRetryAt } = error?.waitingForShop ? waitingPlan(event) : retryPlan(attempts, error);
 
   return prisma.webhookEvent.update({
     where: { id: eventId },

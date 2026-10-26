@@ -12,7 +12,7 @@
 // in the ledger or in a customer's hands is rewritten.
 
 import { prisma } from '../../lib/prisma.js';
-import { validateConfig } from '../../loyalty/rules/config.js';
+import { validateConfig, MAX_HOLD_DAYS } from '../../loyalty/rules/config.js';
 import { decimal, iso } from './util.js';
 
 const ENUMS = {
@@ -33,7 +33,7 @@ export const FIELDS = {
   excludeGiftCards: { db: 'excludeGiftCards', kind: 'bool', label: 'Gift cards are excluded' },
   pointsPerReward: { db: 'pointsPerReward', kind: 'int', min: 1, max: 1_000_000, label: 'Points per reward' },
   rewardValue: { db: 'rewardValue', kind: 'money', min: 1, max: MAX_PAISE, label: 'Reward value' },
-  holdPeriodDays: { db: 'holdPeriodDays', kind: 'int', min: 0, max: 365, label: 'Holding period (days)' },
+  holdPeriodDays: { db: 'holdPeriodDays', kind: 'int', min: 0, max: MAX_HOLD_DAYS, label: 'Holding period (days)' },
   codeValidDays: { db: 'rewardExpiryDays', kind: 'int', min: 1, max: 365, label: 'Reward code valid (days)' },
   returnPointsOnCodeExpiry: { db: 'returnPointsOnCodeExpiry', kind: 'bool', label: 'Return points when an unused code expires' },
   restoreRewardOnFullRefund: { db: 'restoreRewardOnFullRefund', kind: 'bool', label: 'Return reward points when its order is fully refunded or cancelled' },

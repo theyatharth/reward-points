@@ -10,6 +10,14 @@
  * These match the client's prototype defaults and the live settings
  * (spend 100, earn 100 points, redeem 100 pts for ₹10) seeded at M5.
  */
+/**
+ * The longest holding period. Shopify gives an app holding only `read_orders` the last 60 days of orders, and when a hold ends the
+ * worker reads that order from Shopify (the J3 refund check in ledger.js activatePendingLot) and will not unlock without it. A hold
+ * of N days means the order is N days plus a little old at that moment, so N = 60 would already be outside the window. 55 leaves
+ * five days of room for a late webhook or a retried job. Web docs say 60 days; the installed @shopify packages say nothing either way.
+ */
+export const MAX_HOLD_DAYS = 55;
+
 export const DEFAULT_CONFIG = {
   earnMode: 'per_currency_unit',  // 'per_currency_unit' | 'fixed_per_order'
   spendAmountPaise: 100,          // spend this much (paise: 100 = ₹1) ...
@@ -155,9 +163,13 @@ export function validateConfig(incoming, current = DEFAULT_CONFIG) {
     throw new Error(`[config] rewardExpiryDays must be a positive integer (got ${merged.rewardExpiryDays})`);
   }
 
-  // holdPeriodDays: non-negative integer
+  // holdPeriodDays: non-negative integer, at most MAX_HOLD_DAYS. The cap applies to a value being SET: a row saved earlier with a
+  // longer hold can still have its other rules edited.
   if (!Number.isInteger(merged.holdPeriodDays) || merged.holdPeriodDays < 0) {
     throw new Error(`[config] holdPeriodDays must be a non-negative integer (got ${merged.holdPeriodDays})`);
+  }
+  if (merged.holdPeriodDays > MAX_HOLD_DAYS && (incoming === undefined || Object.hasOwn(incoming, 'holdPeriodDays'))) {
+    throw new Error(`[config] holdPeriodDays cannot be more than ${MAX_HOLD_DAYS} (got ${merged.holdPeriodDays})`);
   }
 
   // shortfallPolicy (Phase 1: always owe_only — locked above, validated for completeness)

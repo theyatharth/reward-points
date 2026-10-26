@@ -48,3 +48,19 @@ export function formatMoney(value, code) {
   const text = Math.abs(n).toLocaleString(locale, { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
   return `${n < 0 ? '-' : ''}${currencySymbol(code)}${text}`;
 }
+
+/**
+ * Whether amounts in this currency can be kept as whole hundredths ("paise"), which every amount in this system assumes.
+ * Only currencies with exactly two decimals are supported: JPY (none), KWD (three) and the like are not. The digits come from
+ * Intl (ISO 4217); a code Intl does not know is NOT supported.
+ */
+export function isTwoDecimalCurrency(code) {
+  const c = normalizeCurrency(code);
+  if (!c) return false;
+  try {
+    const o = new Intl.NumberFormat('en-US', { style: 'currency', currency: c }).resolvedOptions();
+    return o.minimumFractionDigits === 2 && o.maximumFractionDigits === 2;
+  } catch {
+    return false;
+  }
+}

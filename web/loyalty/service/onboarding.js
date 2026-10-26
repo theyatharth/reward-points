@@ -8,7 +8,7 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '../../lib/prisma.js';
 import { hashPassword } from '../../lib/passwords.js';
-import { DEFAULT_CONFIG, SEED_PROFILE, validateConfig } from '../rules/config.js';
+import { DEFAULT_CONFIG, SEED_PROFILE, MAX_HOLD_DAYS, validateConfig } from '../rules/config.js';
 import { normalizeCurrency } from '../rules/currency.js';
 import { now } from '../adapters/clock.js';
 
@@ -28,21 +28,11 @@ const summary = (c) => ({
 });
 
 /**
- * @param {Object} p
- * @param {string} p.shop         the shop's myshopify.com domain
- * @param {string} p.currency     ISO code, e.g. "INR"
- * @param {number} p.holdDays     0 to 365
- * @param {string} [p.adminEmail] also create this admin (one-time password, must change at first sign-in)
- * @returns {Promise<{ created: boolean, differences: string[], config: object, installed: boolean, emailAlsoAdminOfOtherShops: number, admin: null | { created: boolean, email: string, oneTimePassword?: string } }>}
+ * Inserts the shop's LoyaltyConfig from the seed profile (ledgerStartAt = now) unless it has one. Never changes an existing row.
+ * @returns {Promise<boolean>} true when the row was created
  */
-export async function onboardShop({ shop, currency, holdDays, adminEmail }) {
-  if (typeof shop !== 'string' || !SHOP_DOMAIN.test(shop)) throw new OnboardingError('--shop must be the shop\'s myshopify.com domain, e.g. my-store.myshopify.com');
+export async function createShopConfig({ shop, currency, holdDays }) {
   const code = normalizeCurrency(currency);
-  if (!code) throw new OnboardingError('--currency must be a three-letter ISO code, e.g. INR');
-  if (!Number.isInteger(holdDays) || holdDays < 0 || holdDays > 365) throw new OnboardingError('--hold-days must be a whole number from 0 to 365');
-  const email = adminEmail === undefined ? null : String(adminEmail).trim().toLowerCase();
-  if (email !== null && !EMAIL.test(email)) throw new OnboardingError('--admin-email is not an e-mail address');
-
   const seed = validateConfig({ ...DEFAULT_CONFIG, ...SEED_PROFILE, currency: code, holdPeriodDays: holdDays });
   const inserted = await prisma.loyaltyConfig.createMany({
     data: [{
@@ -55,7 +45,26 @@ export async function onboardShop({ shop, currency, holdDays, adminEmail }) {
     }],
     skipDuplicates: true,
   });
-  const created = inserted.count === 1;
+  return inserted.count === 1;
+}
+
+/**
+ * @param {Object} p
+ * @param {string} p.shop         the shop's myshopify.com domain
+ * @param {string} p.currency     ISO code, e.g. "INR"
+ * @param {number} p.holdDays     0 to MAX_HOLD_DAYS (55)
+ * @param {string} [p.adminEmail] also create this admin (one-time password, must change at first sign-in)
+ * @returns {Promise<{ created: boolean, differences: string[], config: object, installed: boolean, emailAlsoAdminOfOtherShops: number, admin: null | { created: boolean, email: string, oneTimePassword?: string } }>}
+ */
+export async function onboardShop({ shop, currency, holdDays, adminEmail }) {
+  if (typeof shop !== 'string' || !SHOP_DOMAIN.test(shop)) throw new OnboardingError('--shop must be the shop\'s myshopify.com domain, e.g. my-store.myshopify.com');
+  const code = normalizeCurrency(currency);
+  if (!code) throw new OnboardingError('--currency must be a three-letter ISO code, e.g. INR');
+  if (!Number.isInteger(holdDays) || holdDays < 0 || holdDays > MAX_HOLD_DAYS) throw new OnboardingError(`--hold-days must be a whole number from 0 to ${MAX_HOLD_DAYS}`);
+  const email = adminEmail === undefined ? null : String(adminEmail).trim().toLowerCase();
+  if (email !== null && !EMAIL.test(email)) throw new OnboardingError('--admin-email is not an e-mail address');
+
+  const created = await createShopConfig({ shop, currency: code, holdDays });
   const config = await prisma.loyaltyConfig.findUnique({ where: { shop } });
 
   // An existing config is never changed here; say where it differs from what was asked.

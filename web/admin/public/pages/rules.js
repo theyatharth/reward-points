@@ -191,7 +191,7 @@ export function renderEdit(d, draft, errorsIn) {
           ${numberField('pointsPerReward', 'Points for one reward', v.pointsPerReward, L.pointsPerReward, 'points', null, e)}
           ${amountField('rewardValue', `Reward value (${sym})`, v.rewardValue, sym, 'What that many points are worth as a discount.', e)}
         </fieldset>
-        ${numberField('holdPeriodDays', 'Holding period (days, 0 to 365)', v.holdPeriodDays, L.holdPeriodDays, 'days', '0 means points are usable as soon as the worker activates them, within a minute.', e)}
+        ${numberField('holdPeriodDays', `Holding period (days, 0 to ${L.holdPeriodDays.max})`, v.holdPeriodDays, L.holdPeriodDays, 'days', `0 means points are usable as soon as the worker activates them, within a minute. At most ${L.holdPeriodDays.max} days: Shopify lets this app read only the last 60 days of orders, and points unlock only after the order is read from Shopify when the hold ends.`, e)}
         ${numberField('codeValidDays', 'Reward code valid for (days)', v.codeValidDays, L.codeValidDays, 'days', '1 to 365 days after the code is issued.', e)}
       </div>
       <div class="rp-checks">${check('restoreRewardOnFullRefund', 'Return reward points when its order is fully refunded or cancelled', v.restoreRewardOnFullRefund)}${check('returnPointsOnCodeExpiry', 'Return points when an unused code expires', v.returnPointsOnCodeExpiry)}</div>

@@ -49,10 +49,10 @@ describe('onboarding a shop', () => {
     assert.equal(r.admin, null);
   });
 
-  test('currency is normalised; hold 0 and 365 are accepted', async () => {
+  test('currency is normalised; hold 0 and 55 are accepted', async () => {
     assert.equal((await onboardShop({ shop, currency: 'inr', holdDays: 0 })).config.currency, 'INR');
     const other = `onb-b-${Date.now()}.myshopify.com`;
-    assert.equal((await onboardShop({ shop: other, currency: 'EUR', holdDays: 365 })).config.holdPeriodDays, 365);
+    assert.equal((await onboardShop({ shop: other, currency: 'EUR', holdDays: 55 })).config.holdPeriodDays, 55);
   });
 
   test('IDEMPOTENT: a second run changes nothing and says so, even when asked for different values', async () => {
@@ -79,7 +79,7 @@ describe('onboarding a shop', () => {
     const bad = [
       { shop: 'not-a-shop.com', currency: 'INR', holdDays: 1 }, { shop: 'x.myshopify.com.evil.com', currency: 'INR', holdDays: 1 }, { shop: '', currency: 'INR', holdDays: 1 },
       { shop: undefined, currency: 'INR', holdDays: 1 }, { shop, currency: 'XX', holdDays: 1 }, { shop, currency: '', holdDays: 1 }, { shop, currency: undefined, holdDays: 1 },
-      { shop, currency: 'INR', holdDays: -1 }, { shop, currency: 'INR', holdDays: 366 }, { shop, currency: 'INR', holdDays: 1.5 }, { shop, currency: 'INR', holdDays: '1' },
+      { shop, currency: 'INR', holdDays: -1 }, { shop, currency: 'INR', holdDays: 56 }, { shop, currency: 'INR', holdDays: 1.5 }, { shop, currency: 'INR', holdDays: '1' },
       { shop, currency: 'INR', holdDays: NaN }, { shop, currency: 'INR', holdDays: 1, adminEmail: 'nope' }, { shop, currency: 'INR', holdDays: 1, adminEmail: 'a b@c.de' },
     ];
     for (const input of bad) await assert.rejects(onboardShop(input), OnboardingError, JSON.stringify(input));

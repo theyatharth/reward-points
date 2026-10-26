@@ -12,6 +12,7 @@ export class FakeShopifyGateway {
     this.discounts = new Map(); // code -> { id, ...input }
     this.loseNextCreateResponse = false;
     this.collectionLookupCount = 0;
+    this.shopCurrency = 'INR';
   }
 
   /**
@@ -135,6 +136,11 @@ export class FakeShopifyGateway {
     const err = new Error('Not Found');
     err.response = { code: 404 };
     throw err;
+  }
+
+  async getShopCurrency() {
+    this._checkFailure();
+    return this.shopCurrency;
   }
 
   async getProductCollections(productIds) {
