@@ -96,7 +96,7 @@ Before you start: the deploy above is done (`/healthz` answers, `shopify app dep
 
 **4. An order**
 - In the store admin create an order for the test customer (Orders > Create order, add a product, Mark as paid).
-- Server log: `[shopify-api/INFO] Receiving webhook request`, `--- [WEBHOOK] orders/paid for <shop> (ID: ...) ---`, `Stored orders/paid webhook for deferred processing.`, `[shopify-app/INFO] Webhook processed, returned status code 200`. Worker log: `[worker] tick: picked=1 processed=1 failed=0` within about 30 seconds.
+- Server log: `[shopify-api/INFO] Receiving webhook request`, `--- [WEBHOOK] orders/paid for <shop> (ID: ...) ---`, `Stored orders/paid webhook for deferred processing.`, `[shopify-app/INFO] Webhook processed, returned status code 200`. (Trust the "Stored ..." line, not the last one: the library prints "returned status code 200" even when a handler failed or the signature was wrong.) Worker log: `[worker] tick: picked=1 processed=1 failed=0` within about 30 seconds.
 - Console: Orders & webhooks shows the event `processed`; Customers shows the customer with pending points (available after the 30-day hold; change the hold to 0 on the Rules page to see them unlock).
 
 **5. Uninstall and reinstall**
@@ -117,7 +117,7 @@ Before you start: the deploy above is done (`/healthz` answers, `shopify app dep
 | Orders & webhooks shows events `failed` with "The shop ... is not set up yet" | Same cause: events wait (retried every 5 minutes for 7 days) until the config exists, then they are processed. | Fix the cause above; nothing is lost. |
 | Events `skipped` with "The shop currency (JPY) is not supported" and a red banner | The shop's currency has other than two decimals. | Nothing to fix: the program does not run for this shop by design. |
 | `[uninstall] could not check the token of <shop> (...); the shop is NOT marked uninstalled, the webhook is refused so Shopify sends it again` | The token check failed for a reason other than 401/403 (network, Shopify 5xx or 429, a database error). The webhook got a 500 and Shopify redelivers it. | Nothing, unless it repeats for hours: then check the server's network and the database. |
-| Webhooks answer **401** in the log (`Webhook processed, returned status code 401`) | The signature did not match: `SHOPIFY_API_SECRET` is wrong, or something between Shopify and the app changed the body (a proxy that rewrites it). | Check the secret; check the nginx block does not buffer or rewrite the body. |
+| Shopify's webhook delivery shows failures, and the log has `Failed to process webhook: InvalidWebhookError ...` (after `Receiving webhook request`, with no `Stored ...` line) | The signature did not match (the answer to Shopify is 401): `SHOPIFY_API_SECRET` is wrong, or something between Shopify and the app changed the body (a proxy that rewrites it). The log line `Webhook processed, returned status code 200` that may follow it is printed by the library regardless and means nothing. | Check the secret; check the nginx block does not buffer or rewrite the body. |
 | `[db-guard] APP_ENV=production may connect only to the database named in LIVE_DATABASE_NAME` at start | `DATABASE_URL` names another database than `LIVE_DATABASE_NAME`. | Fix the `.env`; do not point it at the dev or old production database. |
 | `ADMIN_AUTH must be "password" or "shopify"` at start | A typo in `ADMIN_AUTH`. | Fix it (the ecosystem file sets `shopify`). |
 
