@@ -47,6 +47,11 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
+      # --ignore-scripts skipped @prisma/client's postinstall, which writes the default-location stub that
+      # @shopify/shopify-app-session-storage-prisma requires when web/shopify.js is imported (the embedded-console tests do).
+      - name: Prisma client stub
+        run: npm rebuild @prisma/client
+
       - name: Generate Prisma client
         run: |
           ./node_modules/.bin/prisma -v | grep -E '^prisma +: 6\.'
