@@ -126,6 +126,7 @@ export async function syncRuleMetafields({ shop } = {}) {
         rewardValue: decimal(config.rewardValue),
         currency: config.currency,
         holdPeriodDays: config.holdPeriodDays,
+        programName: config.programName,
       });
       await prisma.loyaltyConfig.updateMany({ where: { shop: row.shop, ruleSeq: row.ruleSeq }, data: { ruleSyncedSeq: row.ruleSeq } });
       result.synced++;

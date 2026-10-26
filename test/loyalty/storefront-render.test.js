@@ -68,7 +68,7 @@ describe('the Rewards page sections', () => {
   test('a new member sees the start-earning card with the earn rate and the reward, and ways to earn', () => {
     const body = draw(view());
     const t = text(body);
-    assert.match(t, /Start earning Ecofynd Rewards/);
+    assert.match(t, /Start earning Reward Points/);
     assert.match(t, /Every ₹100 you spend earns 100 points, and 100 points are worth ₹10/);
     assert.match(t, /₹10 off/);
     assert.match(t, /Ways to earn/);
@@ -155,7 +155,7 @@ describe('the Rewards page sections', () => {
       history: [
         { date: '2026-10-09T12:00:00.000Z', kind: 'reversed', points: -675, label: 'Points reversed for a refund' },
         { date: '2026-10-09T10:00:00.000Z', kind: 'earned', points: 1349, label: evil },
-        { date: '2026-10-08T12:00:00.000Z', kind: 'adjusted', points: -40, label: 'Adjustment by Ecofynd' },
+        { date: '2026-10-08T12:00:00.000Z', kind: 'adjusted', points: -40, label: 'Adjustment by Reward Points' },
       ],
     }));
     const days = byClass(body, 'tl-day');
@@ -201,17 +201,17 @@ describe('the widget', () => {
 
   test('expanded, new member: the start-earning card; logged out: join and log in', () => {
     const fresh = panelFor(view());
-    assert.match(text(fresh), /Start earning Ecofynd Rewards/);
+    assert.match(text(fresh), /Start earning Reward Points/);
     assert.match(text(fresh), /Earn 100 points for every ₹100/);
     const out = panelFor(null);
-    assert.match(text(out), /Join Ecofynd Rewards/);
+    assert.match(text(out), /Join Reward Points/);
     assert.equal(all(out, (x) => x.tagName === 'a')[0].getAttribute('href'), '/account/login');
   });
 
   test('expanded, with points: balance, value pill, progress to the next reward, pending, View Rewards', () => {
     const p = panelFor(view({ balance: { available: 40, pending: 300, owed: 0 }, history: [{ date: '2026-10-08T12:00:00.000Z', kind: 'earned', points: 340, label: 'x' }] }));
     const t = text(p);
-    assert.match(t, /Your Ecofynd Rewards/);
+    assert.match(t, /Your Reward Points/);
     assert.match(t, /40\s+points/);
     assert.match(t, /₹4 available/);
     assert.match(t, /60 points to your next reward/);
@@ -239,7 +239,7 @@ describe('the widget', () => {
     toggle.click();
     assert.equal(panel.hidden, false);
     assert.equal(toggle.getAttribute('aria-expanded'), 'true');
-    assert.match(text(panel), /Your Ecofynd Rewards/);
+    assert.match(text(panel), /Your Reward Points/);
     assert.equal(all(panel, (x) => x.tagName === 'a').at(-1).getAttribute('href'), '/pages/rewards', 'a bad page URL fell back');
     toggle.click();
     assert.equal(panel.hidden, true);
@@ -253,7 +253,7 @@ describe('the widget', () => {
     await w2.ready;
     t2.click();
     assert.equal(calls2.length, 0, 'logged out: no request');
-    assert.match(text(p2), /Join Ecofynd Rewards/);
+    assert.match(text(p2), /Join Reward Points/);
   });
 
   test('initWidget survives a failing server: the first-paint label stays, the panel still opens', async () => {

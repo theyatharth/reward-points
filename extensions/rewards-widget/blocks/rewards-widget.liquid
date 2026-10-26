@@ -7,6 +7,7 @@
   textContent; styles come from assets/rewards-theme.css (the prototype's own, scoped under .ecr).
 {% endcomment %}
 {% assign proxy_path = block.settings.proxy_path | default: '/apps/reward-points' %}
+{% assign program_name = app.metafields.rewards.redeem_rule.value.programName | default: 'Reward Points' %}
 {% assign side = block.settings.side | default: 'right' %}
 {% assign rewards_page = block.settings.rewards_page_url | default: '/pages/rewards' %}
 {% assign label = 'Rewards' %}
@@ -21,7 +22,7 @@
 {{ 'rewards-theme.css' | asset_url | stylesheet_tag }}
 
 <div class="ecr ecr-widget side-{{ side | escape }}" id="ecrWidget"
-     data-proxy="{{ proxy_path | escape }}" data-logged-in="{% if customer %}true{% else %}false{% endif %}"
+     data-proxy="{{ proxy_path | escape }}" data-program="{{ program_name | escape }}" data-logged-in="{% if customer %}true{% else %}false{% endif %}"
      data-shop-url="{{ routes.all_products_collection_url | escape }}" data-page-url="{{ rewards_page | escape }}" data-login-url="{{ routes.account_login_url | escape }}">
   <div class="wpanel" id="ecrPanel" role="dialog" aria-label="Your rewards" hidden></div>
   <button class="wbtn" id="ecrToggle" type="button" aria-expanded="false" aria-controls="ecrPanel">
@@ -44,6 +45,7 @@
       panel: document.getElementById('ecrPanel'),
       proxyPath: root.getAttribute('data-proxy'),
       loggedIn: root.getAttribute('data-logged-in') === 'true',
+      programName: root.getAttribute('data-program'),
       shopUrl: root.getAttribute('data-shop-url'),
       pageUrl: root.getAttribute('data-page-url'),
       loginUrl: root.getAttribute('data-login-url'),

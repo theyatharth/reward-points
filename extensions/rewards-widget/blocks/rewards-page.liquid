@@ -6,6 +6,8 @@
   prototype's own, scoped under .ecr). The proxy path is a block setting (dev app: /apps/rewards-dev).
 {% endcomment %}
 {% assign proxy_path = block.settings.proxy_path | default: '/apps/reward-points' %}
+{% comment %} The program's name as the merchant set it (the rule metafield the app keeps in sync); "Reward Points" if it cannot be read. Once the customer's data loads, the page heading is set from the live value. {% endcomment %}
+{% assign program_name = app.metafields.rewards.redeem_rule.value.programName | default: 'Reward Points' %}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,11 +16,11 @@
 
 <div class="ecr ecr-page" id="ecrPage" data-proxy="{{ proxy_path | escape }}" data-logged-in="{% if customer %}true{% else %}false{% endif %}" data-shop-url="{{ routes.all_products_collection_url | escape }}">
   {% if customer %}
-    <div class="rw-title"><span class="eyebrow">Shop. Grow. Get rewarded.</span><h1>Ecofynd Rewards</h1><p>Welcome back, {{ customer.first_name | escape }}</p></div>
+    <div class="rw-title"><span class="eyebrow">Shop. Grow. Get rewarded.</span><h1 id="ecrTitle">{{ program_name | escape }}</h1><p>Welcome back, {{ customer.first_name | escape }}</p></div>
     <div id="ecrBody" class="grid"><p class="muted">Loading your rewards…</p></div>
     <div id="ecrMessage" role="status" aria-live="polite"></div>
   {% else %}
-    <div class="rw-title"><span class="eyebrow">Shop. Grow. Get rewarded.</span><h1>Ecofynd Rewards</h1><p>Join free and earn on every eligible order.</p></div>
+    <div class="rw-title"><span class="eyebrow">Shop. Grow. Get rewarded.</span><h1 id="ecrTitle">{{ program_name | escape }}</h1><p>Join free and earn on every eligible order.</p></div>
     <section class="zero">
       <h2>Earn points on every order</h2>
       <p class="muted">Create an account to start earning points for every purchase, get reward codes, and unlock special perks.</p>
@@ -36,6 +38,7 @@
     E.initPage({
       body: document.getElementById('ecrBody'),
       message: document.getElementById('ecrMessage'),
+      title: document.getElementById('ecrTitle'),
       proxyPath: root.getAttribute('data-proxy'),
       shopUrl: root.getAttribute('data-shop-url'),
     });

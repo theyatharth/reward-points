@@ -1,5 +1,5 @@
-/* Ecofynd Rewards admin console.
-   Tokens, fonts and component rules are the client's prototype (docs/reference/Ecofynd Rewards V1 (1).html),
+/* Reward Points admin console.
+   Tokens, fonts and component rules are the client's prototype (docs/reference/),
    copied unchanged; the rules after the marker at the bottom are additions for this console (no inline
    styles are used anywhere, the Content-Security-Policy forbids them). */
 :root{

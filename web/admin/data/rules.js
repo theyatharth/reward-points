@@ -12,7 +12,7 @@
 // in the ledger or in a customer's hands is rewritten.
 
 import { prisma } from '../../lib/prisma.js';
-import { validateConfig, MAX_HOLD_DAYS } from '../../loyalty/rules/config.js';
+import { validateConfig, MAX_HOLD_DAYS, normalizeProgramName, PROGRAM_NAME_MAX } from '../../loyalty/rules/config.js';
 import { decimal, iso } from './util.js';
 
 const ENUMS = {
@@ -24,6 +24,7 @@ const MAX_PAISE = 100_000_000; // 1,000,000.00 in the shop's currency
 
 /** The editable fields. kind: money (decimal string in, paise stored) | int | enum | bool. */
 export const FIELDS = {
+  programName: { db: 'programName', kind: 'text', max: PROGRAM_NAME_MAX, label: 'Program name' },
   spend: { db: 'spendAmountPaise', kind: 'money', min: 1, max: MAX_PAISE, label: 'Spend' },
   points: { db: 'pointsPerUnit', kind: 'int', min: 1, max: 1_000_000, label: 'Points earned' },
   rounding: { db: 'pointsRounding', kind: 'enum', values: ENUMS.rounding, label: 'Rounding' },
@@ -73,6 +74,10 @@ export function planChange(config, changes) {
       if (!Number.isInteger(value)) return bad(key, `${f.label}: a whole number.`);
       if (value < f.min || value > f.max) return bad(key, `${f.label}: between ${f.min} and ${f.max}.`);
       incoming[f.db] = value;
+    } else if (f.kind === 'text') {
+      const name = normalizeProgramName(value);
+      if (name === null) return bad(key, `${f.label}: 1 to ${f.max} characters, no angle brackets.`);
+      incoming[f.db] = name;
     } else if (f.kind === 'enum') {
       if (typeof value !== 'string' || !f.values.includes(value)) return bad(key, `${f.label}: choose one of the listed options.`);
       incoming[f.db] = value;
@@ -104,6 +109,7 @@ export function planChange(config, changes) {
   const backPct = ((next.pointsPerUnit / spend) * (next.rewardValue / 100 / next.pointsPerReward)) * 100;
   if (diff.length > 0 && backPct > 25) warnings.push(`These rules give customers back about ${Math.round(backPct)}% of what they spend as rewards.`);
   if (diff.some((c) => c.field === 'holdPeriodDays') && next.holdPeriodDays === 0) notes.push('With no holding period, points can be spent as soon as the worker activates them (within a minute). A refund after the customer has spent them leaves an owed balance.');
+  if (diff.some((c) => c.field === 'programName')) notes.push('The new name shows on the storefront (widget, Rewards page) and in the title of new discount codes. The storefront picks it up within a minute.');
   if (diff.length > 0) notes.push('Changes apply to new orders and new redemptions. Points already earned, codes already issued and the ledger are not rewritten.');
   return { ok: true, incoming, changes: diff, warnings, notes, next };
 }
@@ -136,7 +142,7 @@ export async function rules(shop) {
       restoreRewardOnFullRefund: c.restoreRewardOnFullRefund,
       returnPointsOnCodeExpiry: c.returnPointsOnCodeExpiry,
     },
-    program: { campaignEnabled: c.campaignEnabled, expiryEnabled: c.expiryEnabled, ledgerStartAt: iso(c.ledgerStartAt), updatedAt: iso(c.updatedAt) },
+    program: { name: c.programName, nameMaxLength: PROGRAM_NAME_MAX, campaignEnabled: c.campaignEnabled, expiryEnabled: c.expiryEnabled, ledgerStartAt: iso(c.ledgerStartAt), updatedAt: iso(c.updatedAt) },
     limits: LIMITS,
     options: ENUMS,
   };

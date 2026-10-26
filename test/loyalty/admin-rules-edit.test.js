@@ -284,12 +284,12 @@ describe('Admin rule editing', () => {
       redeem: { pointsPerReward: 100, rewardValue: '10.00', currency: 'INR', codeValidDays: 90, holdPeriodDays: 30 },
       returns: { shortfallPolicy: 'owe_only', restoreRewardOnFullRefund: true, returnPointsOnCodeExpiry: false },
       program: { campaignEnabled: false, expiryEnabled: false, ledgerStartAt: null, updatedAt: '2026-10-01T00:00:00.000Z' },
-      limits: { points: { min: 1, max: 1000000 }, pointsPerReward: { min: 1, max: 1000000 }, holdPeriodDays: { min: 0, max: 365 }, codeValidDays: { min: 1, max: 365 } },
+      limits: { points: { min: 1, max: 1000000 }, pointsPerReward: { min: 1, max: 1000000 }, holdPeriodDays: { min: 0, max: 55 }, codeValidDays: { min: 1, max: 365 } },
     });
     /** A form as the browser holds it: elements by name. */
     const form = (over = {}) => ({
       elements: Object.fromEntries(Object.entries({
-        spend: { value: '100.00' }, rewardValue: { value: '10.00' }, points: { value: '100' }, pointsPerReward: { value: '100' }, holdPeriodDays: { value: '30' }, codeValidDays: { value: '90' },
+        programName: { value: 'Reward Points' }, spend: { value: '100.00' }, rewardValue: { value: '10.00' }, points: { value: '100' }, pointsPerReward: { value: '100' }, holdPeriodDays: { value: '30' }, codeValidDays: { value: '90' },
         rounding: { value: 'floor' }, basis: { value: 'after_discount' }, taxHandling: { value: 'inclusive' },
         includeShipping: { checked: false }, giftCardsEarn: { checked: false }, returnPointsOnCodeExpiry: { checked: false }, restoreRewardOnFullRefund: { checked: true },
         ...over,
@@ -305,8 +305,8 @@ describe('Admin rule editing', () => {
 
     test('the edit form has an input for every editable field, with the limits, and escapes hostile values', () => {
       const html = String(renderEdit(d(), null, null));
-      for (const name of ['spend', 'points', 'rounding', 'basis', 'taxHandling', 'includeShipping', 'giftCardsEarn', 'pointsPerReward', 'rewardValue', 'holdPeriodDays', 'codeValidDays', 'restoreRewardOnFullRefund', 'returnPointsOnCodeExpiry']) assert.ok(html.includes(`name="${name}"`), name);
-      assert.match(html, /name="holdPeriodDays"[^>]*min="0" max="365"|min="0" max="365"[^>]*name="holdPeriodDays"/);
+      for (const name of ['programName', 'spend', 'points', 'rounding', 'basis', 'taxHandling', 'includeShipping', 'giftCardsEarn', 'pointsPerReward', 'rewardValue', 'holdPeriodDays', 'codeValidDays', 'restoreRewardOnFullRefund', 'returnPointsOnCodeExpiry']) assert.ok(html.includes(`name="${name}"`), name);
+      assert.match(html, /name="holdPeriodDays"[^>]*min="0" max="55"|min="0" max="55"[^>]*name="holdPeriodDays"/);
       assert.match(html, /Spend \(₹\)/);
       const hostile = { ...currentValues(d()), spend: '"><script>alert(1)</script>' };
       const bad = String(renderEdit(d(), hostile, '<img src=x onerror=alert(1)>'));

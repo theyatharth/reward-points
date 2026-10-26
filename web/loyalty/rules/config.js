@@ -18,7 +18,24 @@
  */
 export const MAX_HOLD_DAYS = 55;
 
+export const DEFAULT_PROGRAM_NAME = 'Reward Points';
+export const PROGRAM_NAME_MAX = 40;
+
+/**
+ * A program name as it will be stored: whitespace collapsed and trimmed, 1 to 40 characters, no angle brackets (it is shown in the
+ * storefront and the console, always escaped, but a name has no business holding markup) and no control characters.
+ * @returns {string|null} the normalised name, or null when it is not acceptable
+ */
+export function normalizeProgramName(value) {
+  if (typeof value !== 'string') return null;
+  const name = value.replace(/\s+/g, ' ').trim();
+  if (name.length < 1 || name.length > PROGRAM_NAME_MAX) return null;
+  if (/[<>\p{C}]/u.test(name)) return null;
+  return name;
+}
+
 export const DEFAULT_CONFIG = {
+  programName: DEFAULT_PROGRAM_NAME,
   earnMode: 'per_currency_unit',  // 'per_currency_unit' | 'fixed_per_order'
   spendAmountPaise: 100,          // spend this much (paise: 100 = ₹1) ...
   pointsPerUnit: 1,               // ... to earn this many points (default 1 point per ₹1)
@@ -171,6 +188,13 @@ export function validateConfig(incoming, current = DEFAULT_CONFIG) {
   if (merged.holdPeriodDays > MAX_HOLD_DAYS && (incoming === undefined || Object.hasOwn(incoming, 'holdPeriodDays'))) {
     throw new Error(`[config] holdPeriodDays cannot be more than ${MAX_HOLD_DAYS} (got ${merged.holdPeriodDays})`);
   }
+
+  // programName
+  const programName = normalizeProgramName(merged.programName);
+  if (programName === null) {
+    throw new Error(`[config] programName must be 1 to ${PROGRAM_NAME_MAX} characters, without < or > (got ${JSON.stringify(merged.programName)})`);
+  }
+  merged.programName = programName;
 
   // shortfallPolicy (Phase 1: always owe_only — locked above, validated for completeness)
   if (!VALID_SHORTFALL.includes(merged.shortfallPolicy)) {

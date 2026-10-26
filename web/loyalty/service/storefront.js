@@ -7,7 +7,7 @@
 // taken from the signed request by the route.
 
 import { prisma } from '../../lib/prisma.js';
-import { DEFAULT_CONFIG } from '../rules/config.js';
+import { DEFAULT_CONFIG, DEFAULT_PROGRAM_NAME } from '../rules/config.js';
 import { redeem } from './redemption.js';
 import { listForAccount, markAllRead } from './notifications.js';
 import { isTwoDecimalCurrency } from '../rules/currency.js';
@@ -23,8 +23,8 @@ const KIND = {
   cancel: { kind: 'reversed', label: 'Points reversed for a cancelled order' },
   redemption: { kind: 'redeemed', label: 'Reward redeemed' },
   reward_return: { kind: 'returned', label: 'Reward points returned' },
-  adjustment: { kind: 'adjusted', label: 'Adjustment by Ecofynd' },
-  bonus: { kind: 'bonus', label: 'Special bonus from Ecofynd' },
+  adjustment: { kind: 'adjusted', label: (name) => `Adjustment by ${name}` },
+  bonus: { kind: 'bonus', label: (name) => `Special bonus from ${name}` },
 };
 
 async function configFor(shop) {
@@ -77,8 +77,10 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
     where: { shop_shopifyCustomerId: { shop, shopifyCustomerId: String(shopifyCustomerId) } },
   });
 
+  const programName = config.programName || DEFAULT_PROGRAM_NAME;
   const view = {
     success: true,
+    program: { name: programName }, // what customers see the program called (titles in the theme blocks)
     balance: { available: 0, pending: 0, owed: 0 },
     rule: {
       pointsPerReward: config.pointsPerReward, rewardValue: decimal(config.rewardValue), currency: config.currency, holdPeriodDays: config.holdPeriodDays,
@@ -106,9 +108,10 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
   view.rewards = rewards.map((r) => ({ code: r.discountCode, value: decimal(r.valueInPaise), expiresAt: iso(r.expiresAt) }));
   view.history = entries.map((e) => {
     const k = KIND[e.type] || { kind: 'other', label: 'Points updated' };
+    const kindLabel = typeof k.label === 'function' ? k.label(programName) : k.label;
     const m = e.type === 'earn' && typeof e.note === 'string' ? /^Order #{1,2}([\w-]{1,30})$/.exec(e.note) : null;
     const order = m ? m[1] : null;
-    return { date: iso(e.createdAt), kind: k.kind, points: e.points, label: order ? `${k.label} on order ${order}` : k.label };
+    return { date: iso(e.createdAt), kind: k.kind, points: e.points, label: order ? `${kindLabel} on order ${order}` : kindLabel };
   });
   return view;
 }

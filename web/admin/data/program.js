@@ -1,16 +1,18 @@
 // web/admin/data/program.js: what the console shell needs about the shop's program on every page (GET /admin/api/meta -> program):
-// whether the currency is supported (the banner), and, later, the program's name.
+// the program's name (the console's heading) and whether the currency is supported (the banner).
 
 import { prisma } from '../../lib/prisma.js';
+import { DEFAULT_PROGRAM_NAME } from '../../loyalty/rules/config.js';
 import { isTwoDecimalCurrency, unsupportedCurrencyReason } from '../../loyalty/rules/currency.js';
 
-/** @returns {Promise<{ configured: boolean, currency: string|null, currencySupported: boolean, currencyMessage: string|null }>} */
+/** @returns {Promise<{ configured: boolean, name: string, currency: string|null, currencySupported: boolean, currencyMessage: string|null }>} */
 export async function programInfo(shop) {
-  const config = await prisma.loyaltyConfig.findUnique({ where: { shop }, select: { currency: true } });
-  if (!config) return { configured: false, currency: null, currencySupported: true, currencyMessage: null };
+  const config = await prisma.loyaltyConfig.findUnique({ where: { shop }, select: { currency: true, programName: true } });
+  if (!config) return { configured: false, name: DEFAULT_PROGRAM_NAME, currency: null, currencySupported: true, currencyMessage: null };
   const supported = isTwoDecimalCurrency(config.currency);
   return {
     configured: true,
+    name: config.programName,
     currency: config.currency,
     currencySupported: supported,
     currencyMessage: supported ? null : `${unsupportedCurrencyReason(config.currency)}. Events from this shop are skipped and customers cannot redeem.`,

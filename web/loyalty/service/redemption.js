@@ -18,7 +18,7 @@
 
 import crypto from 'node:crypto';
 import { prisma } from '../../lib/prisma.js';
-import { DEFAULT_CONFIG } from '../rules/config.js';
+import { DEFAULT_CONFIG, DEFAULT_PROGRAM_NAME } from '../rules/config.js';
 import { formatPaise } from '../rules/money.js';
 import { isTwoDecimalCurrency } from '../rules/currency.js';
 import { now } from '../adapters/clock.js';
@@ -223,7 +223,7 @@ async function issueDiscount(redemption, customerId, config) {
   try {
     const { id } = await gw.createRewardDiscount({
       code: redemption.discountCode,
-      title: `Reward Points — ${formatPaise(redemption.rewardValuePaise, config.currency)} off`,
+      title: `${config.programName || DEFAULT_PROGRAM_NAME} — ${formatPaise(redemption.rewardValuePaise, config.currency)} off`,
       amount: paiseToDecimal(redemption.rewardValuePaise),
       customerId,
       startsAt: now(),

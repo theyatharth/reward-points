@@ -209,6 +209,9 @@ model LoyaltyConfig {
   // arithmetic uses integer paise regardless of currency.
   currency          String  @default("INR")
 
+  // What customers see the program called (storefront titles, discount titles). 1 to 40 characters; editable on the Rules page.
+  programName       String  @default("Reward Points")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

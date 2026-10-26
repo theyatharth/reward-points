@@ -9,6 +9,10 @@ import { renderBanner } from './banner.js';
 const root = document.getElementById('app');
 const state = { screen: 'loading', admin: null, program: null, route: { key: 'overview', param: null }, toastTimer: null };
 
+// The program's name as the merchant set it on the Rules page ("Reward Points" until then); the heading of every screen.
+const programName = () => state.program?.name || 'Reward Points';
+const brand = () => h`<div class="brand"><b>${programName()}</b><span>Admin</span></div>`;
+
 const routeFromHash = () => {
   const [key, param] = (location.hash.replace(/^#\/?/, '') || 'overview').split('/');
   return { key: PAGES.some((p) => p.key === key) ? key : 'overview', param: param ? decodeURIComponent(param) : null };
@@ -18,7 +22,7 @@ const currentPage = () => PAGES.find((p) => p.key === state.route.key).page;
 // ---- views ----
 
 const loginView = (error) => h`<main class="wrap"><div class="card auth-card">
-  <div class="brand"><b>ecofynd</b><span>Rewards · Admin</span></div>
+  ${brand()}
   <h1>Sign in</h1>
   <form data-form="login" novalidate>
     <label class="f" for="login-email">Email<input class="inp" id="login-email" name="email" type="email" autocomplete="username" required></label>
@@ -30,7 +34,7 @@ const loginView = (error) => h`<main class="wrap"><div class="card auth-card">
 </div></main>`;
 
 const changePasswordView = (forced, error) => h`<main class="wrap"><div class="card auth-card">
-  <div class="brand"><b>ecofynd</b><span>Rewards · Admin</span></div>
+  ${brand()}
   <h1>${forced ? 'Choose a new password' : 'Change password'}</h1>
   ${forced ? h`<p class="muted">You signed in with a one-time password. Choose your own before you continue.</p>` : ''}
   <form data-form="change-password" novalidate>
@@ -43,7 +47,7 @@ const changePasswordView = (forced, error) => h`<main class="wrap"><div class="c
 
 // Opened outside the Shopify admin, or the session could not be proven: there is no password to fall back to.
 const embeddedProblemView = (message) => h`<main class="wrap"><div class="card auth-card">
-  <div class="brand"><b>Reward Points</b></div>
+  ${brand()}
   <h1>Open this app from Shopify</h1>
   <p class="muted">${message}</p>
 </div></main>`;
@@ -55,7 +59,7 @@ const userBar = () => embedded
       <button class="chip-btn" type="button" data-act="logout">Log out</button></div>`;
 
 const consoleView = () => h`<header class="top"><div class="top-in">
-    <div class="brand"><b>ecofynd</b><span>Rewards · Admin</span></div>
+    ${brand()}
     ${userBar()}
   </div></header>
   <main class="wrap">${renderBanner(state.program)}<div class="admin">
@@ -74,7 +78,16 @@ function toast(message) {
   state.toastTimer = setTimeout(() => mount(el, h``), 3500);
 }
 
-const ctx = () => ({ api, newKey, toast, route: state.route, rerender: renderPage, go: (path) => { location.hash = `#/${path}`; } });
+// After the merchant renames the program: fetch it again and redraw the heading and the page title (nothing else on the screen).
+async function refreshProgram() {
+  const meta = await api.get('meta');
+  state.program = meta.ok ? meta.data.program ?? null : state.program;
+  document.title = `${programName()} · Admin`;
+  const el = document.querySelector('.top .brand');
+  if (el) mount(el, h`<b>${programName()}</b><span>Admin</span>`);
+}
+
+const ctx = () => ({ api, newKey, toast, refreshProgram, route: state.route, rerender: renderPage, go: (path) => { location.hash = `#/${path}`; } });
 
 async function renderPage() {
   const host = document.getElementById('page');
@@ -94,6 +107,7 @@ async function showConsole() {
   state.route = routeFromHash();
   const meta = await api.get('meta'); // the program: its currency (the banner) and, below, its name
   state.program = meta.ok ? meta.data.program ?? null : null;
+  document.title = `${programName()} · Admin`;
   mount(root, consoleView());
   await renderPage();
 }

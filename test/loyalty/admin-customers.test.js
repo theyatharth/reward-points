@@ -224,7 +224,7 @@ describe('Admin customers', () => {
       lots: [{ status: 'pending', originalPoints: 600, remaining: 300, activatesAt: '2026-11-01T00:00:00.000Z', createdAt: '2026-10-01T00:00:00.000Z', source: 'order', orderRef: '1019' }],
       rewards: [{ code: 'PLAT-ABCD2345', status: 'active', pointsUsed: 500, value: '50.00', createdAt: '2026-10-01T00:00:00.000Z', expiresAt: '2027-01-01T00:00:00.000Z', usedOrderRef: null, deletePending: false }],
       orders: [{ orderRef: '1019', processedAt: '2026-10-01T00:00:00.000Z', eligible: '600.00', pointsEarned: 600, pointsReversed: 300, state: 'partly reversed' }],
-      ledger: { entries: [{ id: 'e1', createdAt: '2026-10-01T00:00:00.000Z', type: 'bonus', points: 100, status: 'active', note: 'Special bonus from Ecofynd', source: 'adjust', orderRef: null, adminNote: '<script>alert(1)</script>', adminReason: 'Special bonus', adminEmail: 'a@b.test' }], nextCursor: 'e2' },
+      ledger: { entries: [{ id: 'e1', createdAt: '2026-10-01T00:00:00.000Z', type: 'bonus', points: 100, status: 'active', note: 'Special bonus from the shop', source: 'adjust', orderRef: null, adminNote: '<script>alert(1)</script>', adminReason: 'Special bonus', adminEmail: 'a@b.test' }], nextCursor: 'e2' },
     },
   });
 

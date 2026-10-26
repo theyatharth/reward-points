@@ -98,11 +98,11 @@ export async function adjustPoints({ shop, shopifyCustomerId, points, reason, no
       }
 
       let entryId;
-      const label = `${points > 0 ? 'Added' : 'Deducted'} by Ecofynd: ${reason}`;
+      const label = `${points > 0 ? 'Added' : 'Deducted'} by the shop: ${reason}`;
       if (points > 0) {
         const given = await returnPoints(tx, {
           accountId: account.id, points, type, lotTag: `adjust:${idempotencyKey}:${account.id}`, dedupeKey,
-          note: isBonus ? 'Special bonus from Ecofynd' : label,
+          note: isBonus ? 'Special bonus from the shop' : label,
         });
         entryId = given.entryId;
       } else {

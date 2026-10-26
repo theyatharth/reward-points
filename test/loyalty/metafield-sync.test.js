@@ -237,7 +237,7 @@ describe('Storefront metafield sync', () => {
 
   test('the redeem rule is written once, again only when pointsPerReward, rewardValue, hold period or currency change', async () => {
     assert.deepStrictEqual(await syncRuleMetafields({ shop }), { dirty: 1, synced: 1, failed: [] });
-    assert.deepStrictEqual(gw.ruleMetafields, [{ pointsPerReward: 500, rewardValue: '50.00', currency: 'INR', holdPeriodDays: 30 }]);
+    assert.deepStrictEqual(gw.ruleMetafields, [{ pointsPerReward: 500, rewardValue: '50.00', currency: 'INR', holdPeriodDays: 30, programName: 'Reward Points' }]);
     assert.deepStrictEqual(await syncRuleMetafields({ shop }), { dirty: 0, synced: 0, failed: [] });
 
     await prisma.loyaltyConfig.update({ where: { shop }, data: { rewardExpiryDays: 60 } }); // not part of the rule
@@ -245,7 +245,7 @@ describe('Storefront metafield sync', () => {
 
     await prisma.loyaltyConfig.update({ where: { shop }, data: { pointsPerReward: 250, rewardValue: 2500 } });
     assert.strictEqual((await syncRuleMetafields({ shop })).synced, 1);
-    assert.deepStrictEqual(gw.ruleMetafields.at(-1), { pointsPerReward: 250, rewardValue: '25.00', currency: 'INR', holdPeriodDays: 30 });
+    assert.deepStrictEqual(gw.ruleMetafields.at(-1), { pointsPerReward: 250, rewardValue: '25.00', currency: 'INR', holdPeriodDays: 30, programName: 'Reward Points' });
     await prisma.loyaltyConfig.update({ where: { shop }, data: { holdPeriodDays: 14 } });
     await syncRuleMetafields({ shop });
     assert.strictEqual(gw.ruleMetafields.at(-1).holdPeriodDays, 14);

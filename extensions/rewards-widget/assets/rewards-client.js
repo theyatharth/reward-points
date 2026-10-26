@@ -343,7 +343,7 @@
       : 'Earn points automatically on every eligible paid order. Gift cards don\'t earn.';
     return el('section', 'grid', null, [el('div', 'sec-h', null, [el('h3', null, 'Ways to earn')]), el('div', 'earn', null, [
       el('div', 'e', null, [icon('bag'), el('div', null, null, [el('b', null, 'Shop'), el('p', null, shop)])]),
-      el('div', 'e', null, [icon('spark'), el('div', null, null, [el('b', null, 'Special bonuses'), el('p', null, 'Receive bonus points from selected Ecofynd promotions.')])]),
+      el('div', 'e', null, [icon('spark'), el('div', null, null, [el('b', null, 'Special bonuses'), el('p', null, 'Receive bonus points from selected promotions.')])]),
     ])]);
   }
 
@@ -380,9 +380,20 @@
     var text = r.earnPoints && r.earnSpend
       ? 'Earn points with eligible purchases and special bonuses. Every ' + money(r.earnSpend, r.currency) + ' you spend earns ' + P(r.earnPoints) + ' points, and ' + P(r.pointsPerReward) + ' points are worth ' + money(r.rewardValue, r.currency) + '.'
       : 'Earn points with eligible purchases and special bonuses.';
-    return el('section', 'zero', null, [el('h2', null, 'Start earning Ecofynd Rewards'), el('p', 'muted', text),
+    return el('section', 'zero', null, [el('h2', null, 'Start earning ' + programName(view)), el('p', 'muted', text),
       r.pointsPerReward ? el('div', 'ladder', null, [el('div', null, null, [el('b', null, money(r.rewardValue, r.currency) + ' off'), el('span', 'muted num', P(r.pointsPerReward) + ' points')])]) : null,
       handlers.shopUrl ? (function () { var a = h('a', 'btn', 'Start Shopping'); a.setAttribute('href', handlers.shopUrl); return a; })() : null]);
+  }
+
+  /** What customers see the program called: the shop's name for it from /history, or "Reward Points" before it is known. */
+  function programName(view) {
+    var name = view && view.program && typeof view.program.name === 'string' ? view.program.name : '';
+    return name || 'Reward Points';
+  }
+
+  /** A program name from a data attribute: text only, at most 40 characters, or "" (then "Reward Points" is used). */
+  function cleanName(value) {
+    return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 40) : '';
   }
 
   /** Shown instead of balances when the server says the program does not run for this store (currency not supported). */
@@ -411,7 +422,7 @@
     clear(panel);
     var add = function (n) { if (n) panel.appendChild(n); };
     if (!view) { // logged out
-      add(el('h4', null, 'Join Ecofynd Rewards'));
+      add(el('h4', null, 'Join ' + (handlers.programName || 'Reward Points')));
       add(el('p', 'muted', 'Join our rewards program and earn points with every purchase.'));
       var login = h('a', 'btn small', 'Log In / Sign Up');
       login.setAttribute('href', handlers.loginUrl || '/account/login');
@@ -421,7 +432,7 @@
     if (view.unavailable) { add(unavailableNote()); return; }
     if (!hasActivity(view)) {
       var r = view.rule || {};
-      add(el('h4', null, 'Start earning Ecofynd Rewards'));
+      add(el('h4', null, 'Start earning ' + programName(view)));
       add(el('p', 'muted', r.earnPoints && r.earnSpend ? 'Earn ' + P(r.earnPoints) + ' points for every ' + money(r.earnSpend, r.currency) + ' on eligible purchases.' : 'Earn points on eligible purchases.'));
       if (handlers.shopUrl) { var a = h('a', 'btn small', 'Start Shopping'); a.setAttribute('href', handlers.shopUrl); add(a); }
       return;
@@ -429,7 +440,7 @@
     var b = view.balance;
     var value = pointsValue(view, b.available);
     var p = progress(view);
-    add(el('h4', null, 'Your Ecofynd Rewards'));
+    add(el('h4', null, 'Your ' + programName(view)));
     add(el('div', 'wbig num', P(b.available), [el('span', null, ' points')]));
     if (value !== null) add(el('span', 'pill st-Available', money(value.toFixed(2), view.rule.currency) + ' available'));
     if (b.owed > 0) add(el('p', 'minus', P(b.owed) + ' points being recovered from a return'));
@@ -454,7 +465,8 @@
 
   /**
    * Wires the Rewards page: loads /history, draws it, redeems, copies. Elements are passed in so this can be tested.
-   * @param {{ body: Element, message: Element, proxyPath: string, shopUrl?: string, fetchImpl?: Function }} o
+   * @param {{ body: Element, message: Element, title?: Element, proxyPath: string, shopUrl?: string, fetchImpl?: Function }} o
+   *   title: the page heading, set to the program's name once /history has answered
    */
   function initPage(o) {
     var proxyPath = safeProxyPath(o.proxyPath);
@@ -465,6 +477,7 @@
       if (text) o.message.appendChild(h('div', cls, text));
     }
     function draw() {
+      if (o.title) o.title.textContent = programName(state.latest);
       renderRewardsPage(o.body, state.latest, handlers);
       if (!state.markedRead && unreadCount(state.latest) > 0) {
         state.markedRead = true; // shown as "New" this time; read from now on
@@ -514,12 +527,12 @@
 
   /**
    * Wires the floating widget: the button label, and the panel (drawn from /history when it opens).
-   * @param {{ toggle: Element, label: Element, panel: Element, proxyPath: string, loggedIn: boolean, shopUrl?: string,
+   * @param {{ toggle: Element, label: Element, panel: Element, proxyPath: string, loggedIn: boolean, programName?: string, shopUrl?: string,
    *           pageUrl?: string, loginUrl?: string, fetchImpl?: Function }} o
    */
   function initWidget(o) {
     var proxyPath = safeProxyPath(o.proxyPath);
-    var handlers = { shopUrl: safePath(o.shopUrl, null), pageUrl: safePath(o.pageUrl, '/pages/rewards'), loginUrl: safePath(o.loginUrl, '/account/login') };
+    var handlers = { shopUrl: safePath(o.shopUrl, null), pageUrl: safePath(o.pageUrl, '/pages/rewards'), loginUrl: safePath(o.loginUrl, '/account/login'), programName: cleanName(o.programName) };
     var state = { open: false, latest: null };
     function draw() {
       renderWidgetPanel(o.panel, o.loggedIn ? state.latest : null, handlers);
@@ -566,6 +579,8 @@
     rewardsAffordable: rewardsAffordable,
     hasActivity: hasActivity,
     widgetLabel: widgetLabel,
+    programName: programName,
+    cleanName: cleanName,
     renderRewardsPage: renderRewardsPage,
     renderWidgetPanel: renderWidgetPanel,
     safePath: safePath,

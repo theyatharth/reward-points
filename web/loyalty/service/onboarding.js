@@ -41,7 +41,7 @@ export async function createShopConfig({ shop, currency, holdDays }) {
       excludedCollectionIds: seed.excludedCollectionIds, pointsPerReward: seed.pointsPerReward, rewardValue: seed.rewardValue,
       rewardExpiryDays: seed.rewardExpiryDays, holdPeriodDays: seed.holdPeriodDays, restoreRewardOnFullRefund: seed.restoreRewardOnFullRefund,
       returnPointsOnCodeExpiry: seed.returnPointsOnCodeExpiry, shortfallPolicy: seed.shortfallPolicy, campaignEnabled: seed.campaignEnabled,
-      expiryEnabled: seed.expiryEnabled, currency: code, ledgerStartAt: now(),
+      expiryEnabled: seed.expiryEnabled, programName: seed.programName, currency: code, ledgerStartAt: now(),
     }],
     skipDuplicates: true,
   });

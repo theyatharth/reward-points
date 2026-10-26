@@ -118,7 +118,7 @@ describe('Currency guard', () => {
       const ok = newShop();
       await prisma.loyaltyConfig.create({ data: { shop: ok, ...BASE, currency: 'USD' } });
       await installShop(ok);
-      assert.deepStrictEqual((await site.call('GET', 'meta', { token: sessionToken(ok) })).json.program, { configured: true, currency: 'USD', currencySupported: true, currencyMessage: null });
+      assert.deepStrictEqual((await site.call('GET', 'meta', { token: sessionToken(ok) })).json.program, { configured: true, name: 'Reward Points', currency: 'USD', currencySupported: true, currencyMessage: null });
       const none = newShop();
       await installShop(none);
       assert.strictEqual((await site.call('GET', 'meta', { token: sessionToken(none) })).json.program.configured, false);

@@ -56,28 +56,29 @@ describe('Rules page: view mode', () => {
     assert.equal(usd, '100 points per $100 · 100 points = $10 · points usable after 30 days · codes valid 90 days');
   });
 
-  test('three section cards, each a settings list with its rows in order', () => {
+  test('four section cards, each a settings list with its rows in order', () => {
     const s = sections(view);
-    assert.deepEqual(s.map((x) => x.title), ['Purchase earning', 'Redemption', 'Returns and shortfall']);
-    assert.deepEqual(s[0].labels, ['Earn', 'Rounding', 'Calculated on', 'Tax', 'Shipping earns points', 'Gift cards earn points', 'Collections that don\'t earn']);
-    assert.deepEqual(s[1].labels, ['Redemption rate', 'Holding period', 'Reward code valid for']);
-    assert.deepEqual(s[2].labels, ['When a return reverses points already spent', 'Return reward points when its order is fully refunded or cancelled', 'Return points when an unused code expires']);
+    assert.deepEqual(s.map((x) => x.title), ['Program', 'Purchase earning', 'Redemption', 'Returns and shortfall']);
+    assert.deepEqual(s[0].labels, ['Program name']);
+    assert.deepEqual(s[1].labels, ['Earn', 'Rounding', 'Calculated on', 'Tax', 'Shipping earns points', 'Gift cards earn points', 'Collections that don\'t earn']);
+    assert.deepEqual(s[2].labels, ['Redemption rate', 'Holding period', 'Reward code valid for']);
+    assert.deepEqual(s[3].labels, ['When a return reverses points already spent', 'Return reward points when its order is fully refunded or cancelled', 'Return points when an unused code expires']);
     for (const x of s) assert.match(x.html, /<dl class="rp-list">/);
   });
 
   test('every value sits in a value cell; the strings the earlier tests relied on are all there', () => {
     for (const t of ['100 points per ₹100', 'Proportional, round down', 'Product value after discounts', 'tax is taken out', '100 points = ₹10', '0 days', '90 days', '900001, 900002', 'not applied when points are earned', 'Edit rules', 'reward catalogue', 'before new points can be used', 'Recover from future points (after voiding unused reward codes)']) assert.ok(view.includes(t), t);
-    assert.equal((view.match(/<dd class="rp-value/g) || []).length, 13, 'thirteen rows, thirteen values');
+    assert.equal((view.match(/<dd class="rp-value/g) || []).length, 14, 'fourteen rows, fourteen values');
   });
 
   test('Yes and No are pills: olive for Yes, grey for No', () => {
-    const [earning, , returns] = sections(view);
+    const [, earning, , returns] = sections(view);
     const pills = (markup) => [...markup.matchAll(/<span class="rp-pill (yes|no)">(Yes|No)<\/span>/g)].map((m) => [m[1], m[2]]);
     assert.deepEqual(pills(earning.html), [['no', 'No'], ['no', 'No']], 'shipping No; gift cards earn No (they are excluded)');
     assert.deepEqual(pills(returns.html), [['yes', 'Yes'], ['no', 'No']]);
     const flipped = sections(html(renderRules(rule({ earn: { includeShipping: true, excludeGiftCards: false }, returns: { returnPointsOnCodeExpiry: true, restoreRewardOnFullRefund: false } }))));
-    assert.deepEqual(pills(flipped[0].html), [['yes', 'Yes'], ['yes', 'Yes']]);
-    assert.deepEqual(pills(flipped[2].html), [['no', 'No'], ['yes', 'Yes']]);
+    assert.deepEqual(pills(flipped[1].html), [['yes', 'Yes'], ['yes', 'Yes']]);
+    assert.deepEqual(pills(flipped[3].html), [['no', 'No'], ['yes', 'Yes']]);
     assert.ok(!/>(Yes|No)<\/dd>/.test(view), 'never bare text');
   });
 
@@ -118,9 +119,9 @@ describe('Rules page: edit mode', () => {
   const d = rule();
   const edit = html(renderEdit(d, null, null));
 
-  test('three section cards: earning, redemption, and what is fixed in this version', () => {
+  test('four section cards: program, earning, redemption, and what is fixed in this version', () => {
     const s = sections(edit);
-    assert.deepEqual(s.map((x) => x.title), ['Purchase earning', 'Redemption &amp; lifecycle', 'Fixed in this version']);
+    assert.deepEqual(s.map((x) => x.title), ['Program', 'Purchase earning', 'Redemption &amp; lifecycle', 'Fixed in this version']);
   });
 
   test('a two-column field grid with the labels above the inputs and the hints below', () => {
@@ -141,7 +142,7 @@ describe('Rules page: edit mode', () => {
   });
 
   test('locked items are muted read-only rows with a "locked" pill (campaigns, expiry, shortfall policy)', () => {
-    const locked = sections(edit)[2];
+    const locked = sections(edit)[3];
     assert.deepEqual(locked.labels, ['Campaign multipliers', 'Points expiry', 'When a return reverses points already spent']);
     assert.equal((locked.html.match(/<span class="rp-pill lock">locked<\/span>/g) || []).length, 3);
     assert.ok(!/<input|<select/.test(locked.html), 'read-only: no controls');
@@ -157,7 +158,7 @@ describe('Rules page: edit mode', () => {
 
   test('no errors: no summary, nothing marked invalid', () => {
     assert.ok(!edit.includes('rp-summary') && !edit.includes('aria-invalid="true"') && !edit.includes('rp-error'));
-    assert.equal((edit.match(/aria-invalid="false"/g) || []).length, 9, 'every input and select says it is valid');
+    assert.equal((edit.match(/aria-invalid="false"/g) || []).length, 10, 'every input and select says it is valid');
   });
 
   test('errors show next to the field and in a summary at the top', () => {
@@ -220,12 +221,12 @@ describe('Rules page: review step', () => {
 
 describe('Rules page: the form checks, focus, and the stylesheet', () => {
   const limits = rule().limits;
-  const ok = { spend: '100.00', rewardValue: '10', points: 100, pointsPerReward: 100, holdPeriodDays: 0, codeValidDays: 90 };
+  const ok = { programName: 'Reward Points', spend: '100.00', rewardValue: '10', points: 100, pointsPerReward: 100, holdPeriodDays: 0, codeValidDays: 90 };
 
   test('a good draft has no errors', () => assert.deepEqual(validateDraft(ok, limits), {}));
 
   test('several problems are reported at once, each under its own field name', () => {
-    const errors = validateDraft({ spend: 'abc', rewardValue: '0', points: null, pointsPerReward: 1.5, holdPeriodDays: 400, codeValidDays: 0 }, limits);
+    const errors = validateDraft({ programName: 'Reward Points', spend: 'abc', rewardValue: '0', points: null, pointsPerReward: 1.5, holdPeriodDays: 400, codeValidDays: 0 }, limits);
     assert.deepEqual(Object.keys(errors).sort(), ['codeValidDays', 'holdPeriodDays', 'points', 'pointsPerReward', 'rewardValue', 'spend']);
     assert.equal(errors.spend, 'Spend: enter an amount such as 100 or 100.50.');
     assert.equal(errors.holdPeriodDays, 'Holding period (days): between 0 and 365.');

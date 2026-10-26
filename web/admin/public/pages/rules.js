@@ -26,6 +26,7 @@ const head = (title, lede, action) => h`<div class="rp-head"><div><h2>${title}</
 
 /** The current values keyed like the API's editable fields. */
 export const currentValues = (d) => ({
+  programName: d.program?.name ?? 'Reward Points',
   spend: d.earn.spend, points: d.earn.points, rounding: d.earn.rounding, basis: d.earn.basis, taxHandling: d.earn.taxHandling,
   includeShipping: d.earn.includeShipping, excludeGiftCards: d.earn.excludeGiftCards,
   pointsPerReward: d.redeem.pointsPerReward, rewardValue: d.redeem.rewardValue, holdPeriodDays: d.redeem.holdPeriodDays, codeValidDays: d.redeem.codeValidDays,
@@ -35,12 +36,14 @@ export const currentValues = (d) => ({
 const MONEY_KEYS = new Set(['spend', 'rewardValue']);
 const INT_KEYS = ['points', 'pointsPerReward', 'holdPeriodDays', 'codeValidDays'];
 const BOOL_KEYS = ['includeShipping', 'returnPointsOnCodeExpiry', 'restoreRewardOnFullRefund'];
-const LABELS = { spend: 'Spend', points: 'Points earned', rewardValue: 'Reward value', pointsPerReward: 'Points per reward', holdPeriodDays: 'Holding period (days)', codeValidDays: 'Reward code valid (days)' };
+const NAME_MAX = 40;
+const LABELS = { programName: 'Program name', spend: 'Spend', points: 'Points earned', rewardValue: 'Reward value', pointsPerReward: 'Points per reward', holdPeriodDays: 'Holding period (days)', codeValidDays: 'Reward code valid (days)' };
 
 /** What the form currently holds, typed like the API wants it. The gift-card box reads "gift cards earn", the API field is the inverse. */
 export function readForm(form) {
   const el = (n) => form.elements[n];
   const v = {};
+  v.programName = String(el('programName').value).replace(/\s+/g, ' ').trim();
   for (const k of ['spend', 'rewardValue']) v[k] = String(el(k).value).trim();
   for (const k of INT_KEYS) v[k] = el(k).value.trim() === '' ? null : Number(el(k).value);
   for (const k of ['rounding', 'basis', 'taxHandling']) v[k] = String(el(k).value);
@@ -60,6 +63,8 @@ export function changedFields(draft, current) {
  */
 export function validateDraft(draft, limits = {}) {
   const errors = {};
+  const max = limits.programName?.max ?? NAME_MAX;
+  if (typeof draft.programName !== 'string' || draft.programName.length < 1 || draft.programName.length > max || /[<>]/.test(draft.programName)) errors.programName = `${LABELS.programName}: 1 to ${max} characters, no angle brackets.`;
   for (const k of MONEY_KEYS) {
     const v = draft[k];
     if (typeof v !== 'string' || !/^\d{1,9}(\.\d{1,2})?$/.test(v.trim())) { errors[k] = `${LABELS[k]}: enter an amount such as 100 or 100.50.`; continue; }
@@ -101,6 +106,9 @@ export function renderRules(d) {
   return h`${head('Earning & redemption rules', 'The rules this shop runs on today; a change applies to new orders and redemptions and is audited.', h`<button class="btn small" type="button" data-act="rules-edit">Edit rules</button>`)}
   <p class="rp-strip" aria-label="Rule summary">${strip.map((s, i) => h`${i ? h`<span class="sep" aria-hidden="true">·</span> ` : ''}<span>${s}</span> `)}</p>
   ${st.notice ? h`<div class="warnbox" role="status">${st.notice}</div>` : ''}
+  ${card('Program', [
+    row('Program name', d.program?.name ?? 'Reward Points', 'what customers see on the storefront and in discount titles'),
+  ])}
   ${card('Purchase earning', [
     row('Earn', `${P(d.earn.points)} points per ${money(d.earn.spend, cur)}`),
     row('Rounding', ROUNDING[d.earn.rounding] ?? d.earn.rounding),
@@ -156,6 +164,10 @@ const numberField = (name, label, value, lim, suffix, hint, errors) => field({
   name, label, suffix, hint, error: errors[name],
   control: h`<input class="inp num" id="r-${name}" name="${name}" type="number" step="1" min="${lim.min}" max="${lim.max}" required value="${value ?? ''}" aria-invalid="${errors[name] ? 'true' : 'false'}" aria-describedby="${describedBy(name, hint, errors[name])}">`,
 });
+const textField = (name, label, value, maxLength, hint, errors) => field({
+  name, label, hint, error: errors[name],
+  control: h`<input class="inp" id="r-${name}" name="${name}" type="text" maxlength="${maxLength}" autocomplete="off" required value="${value ?? ''}" aria-invalid="${errors[name] ? 'true' : 'false'}" aria-describedby="${describedBy(name, hint, errors[name])}">`,
+});
 const amountField = (name, label, value, suffix, hint, errors) => field({
   name, label, suffix, hint, error: errors[name],
   control: h`<input class="inp num" id="r-${name}" name="${name}" type="text" inputmode="decimal" autocomplete="off" required value="${value ?? ''}" aria-invalid="${errors[name] ? 'true' : 'false'}" aria-describedby="${describedBy(name, hint, errors[name])}">`,
@@ -173,6 +185,11 @@ export function renderEdit(d, draft, errorsIn) {
   return h`${head('Edit rules', `Amounts are in ${sym} (${cur}). You review every change before it is saved.`)}
   ${summary(errors)}
   <form data-form="rules-review" class="rp-form" novalidate>
+    <section class="rp-card"><h3>Program</h3>
+      <div class="rp-grid">
+        ${textField('programName', 'Program name', v.programName, d.program?.nameMaxLength ?? NAME_MAX, 'Shown to customers on the storefront and in the title of discount codes. For example "Reward Points" or "Acme Club".', e)}
+      </div>
+    </section>
     <section class="rp-card"><h3>Purchase earning</h3>
       <div class="rp-grid">
         <fieldset class="rp-group"><legend>Earn rate</legend>
@@ -242,7 +259,7 @@ export function focusFirstError() {
   if (target && typeof target.focus === 'function') target.focus();
 }
 
-const FORM_FIELDS = new Set(['spend', 'points', 'rounding', 'basis', 'taxHandling', 'includeShipping', 'excludeGiftCards', 'pointsPerReward', 'rewardValue', 'holdPeriodDays', 'codeValidDays', 'returnPointsOnCodeExpiry', 'restoreRewardOnFullRefund']);
+const FORM_FIELDS = new Set(['programName', 'spend', 'points', 'rounding', 'basis', 'taxHandling', 'includeShipping', 'excludeGiftCards', 'pointsPerReward', 'rewardValue', 'holdPeriodDays', 'codeValidDays', 'returnPointsOnCodeExpiry', 'restoreRewardOnFullRefund']);
 
 export const rulesPage = {
   async render({ api }) {
@@ -299,6 +316,7 @@ export const rulesPage = {
       }
       Object.assign(st, { mode: 'view', draft: null, review: null, error: null, fieldErrors: {} });
       ctx.toast(res.data.changed === 0 ? 'Nothing to change: already saved.' : 'Rules saved.');
+      if (ctx.refreshProgram) await ctx.refreshProgram(); // the program name may have changed
       return ctx.rerender();
     },
   },
