@@ -3,15 +3,12 @@
 # This is NOT the old production app (shopify.app.prod.toml, client_id 6e567e94…) and NOT the dev app
 # (shopify.app.toml). Deploy it only with `shopify app deploy --config production`.
 #
-# Fill in before the first deploy:
-#   client_id      the public app's client_id from the Partner Dashboard
-#   REPLACE_HOST   the public https URL the server is reached on, INCLUDING the base path nginx strips
-#                  (e.g. https://apps.example.com/reward-points). It must equal HOST and APP_BASE_PATH in the
-#                  server's .env. See docs/PUBLIC-APP.md.
+# Hosted on the shared domain under /reward-points-app (nginx strips that prefix, as for /reward-points-dev): PM2 app
+# reward-points-app on port 3004 with APP_BASE_PATH=/reward-points-app. See docs/PUBLIC-APP.md.
 
-client_id = "REPLACE_WITH_PUBLIC_APP_CLIENT_ID"
+client_id = "390831a870f228d74b15950a9b1f3043"
 name = "Reward Points"
-application_url = "https://REPLACE_HOST"
+application_url = "https://integrations.platinuminfo.tech/reward-points-app"
 embedded = true
 
 [build]
@@ -43,11 +40,11 @@ scopes = "read_orders,write_discounts,read_customers,write_customers"
 
 [auth]
 redirect_urls = [
-  "https://REPLACE_HOST/api/auth",
-  "https://REPLACE_HOST/api/auth/callback"
+  "https://integrations.platinuminfo.tech/reward-points-app/api/auth",
+  "https://integrations.platinuminfo.tech/reward-points-app/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://REPLACE_HOST/api/proxy"
+url = "https://integrations.platinuminfo.tech/reward-points-app/api/proxy"
 subpath = "reward-points"
 prefix = "apps"

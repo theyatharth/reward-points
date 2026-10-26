@@ -19,7 +19,7 @@ test('public app: embedded, named Reward Points, own proxy path', () => {
   assert.match(noComments, /^name = "Reward Points"$/m);
   assert.match(noComments, /^prefix = "apps"$/m);
   assert.match(noComments, /^subpath = "reward-points"$/m);
-  assert.match(noComments, /^url = "https:\/\/REPLACE_HOST\/api\/proxy"$/m);
+  assert.match(noComments, /^url = "https:\/\/integrations\.platinuminfo\.tech\/reward-points-app\/api\/proxy"$/m);
 });
 
 test('public app: exactly the four scopes, no product scopes', () => {
@@ -34,6 +34,14 @@ test('public app: the five event topics and the three compliance topics go to /a
   assert.deepEqual(compliance.sort(), ['customers/data_request', 'customers/redact', 'shop/redact']);
   const uris = [...noComments.matchAll(/^\s*uri = "([^"]*)"/gm)].map((m) => m[1]);
   assert.deepEqual(uris, ['/api/webhooks', '/api/webhooks']);
+});
+
+test('public app: its own client id and URLs under /reward-points-app, no placeholder left', () => {
+  assert.match(noComments, /^client_id = "390831a870f228d74b15950a9b1f3043"$/m);
+  assert.match(noComments, /^application_url = "https:\/\/integrations\.platinuminfo\.tech\/reward-points-app"$/m);
+  const redirects = noComments.match(/redirect_urls = \[([^\]]*)\]/)[1].split(',').map((x) => x.trim().replace(/^"|"$/g, ''));
+  assert.deepEqual(redirects, ['https://integrations.platinuminfo.tech/reward-points-app/api/auth', 'https://integrations.platinuminfo.tech/reward-points-app/api/auth/callback']);
+  assert.ok(!/REPLACE/.test(toml));
 });
 
 test('public app: no client id of the dev or old production app', () => {
