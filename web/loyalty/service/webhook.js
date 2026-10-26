@@ -12,6 +12,7 @@ import { processEvent } from './ledger.js';
 import { now } from '../adapters/clock.js';
 import { normalizeTopic, isKnownTopic } from './topics.js';
 import { inactiveShops, notInactive } from './shop-state.js';
+import { scrubPayload } from '../../lib/intake-scrub.js';
 
 /**
  * Stores an incoming webhook in the database.
@@ -47,7 +48,8 @@ export async function storeWebhook({ shop, topic, payload, shopifyWebhookId }) {
     data: {
       shop,
       topic,
-      payload,
+      // Names, e-mails, phones and addresses never reach the database (lib/intake-scrub.js); ids, lines, discounts, taxes and refunds do.
+      payload: scrubPayload(payload),
       shopifyWebhookId,
       status: 'pending',
     },

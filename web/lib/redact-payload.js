@@ -48,7 +48,7 @@ const SECRET_QUERY = /([?&](?:key|token|access_token|auth|signature|secret)=)[^&
 const PHONE_WHOLE = /^\+\d[\d\s().-]{7,}$/;                 // +91 98765 43210, +1 (555) 625-1199
 const IPV6_WHOLE = /^[0-9a-fA-F:]+$/;
 
-function sweepString(s) {
+export function sweepString(s) {
   if (PHONE_WHOLE.test(s.trim())) return '[phone]';
   if (IPV6_WHOLE.test(s) && (s.includes('::') || (s.match(/:/g) || []).length >= 4)) return '[ip]';
   return s.replace(EMAIL, '[email]').replace(IPV4, '[ip]').replace(SECRET_QUERY, '$1[redacted]');
