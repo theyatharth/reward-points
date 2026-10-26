@@ -52,6 +52,7 @@ export function describe(action, detail) {
   if (action === 'customer_redacted') return { ...none, reason: d.matched === false ? 'Shopify asked to erase a customer who had no rewards account' : 'Shopify asked to erase a customer: the account was anonymised and its notes and stored webhook data cleared' };
   if (action === 'data_request_received') return { ...none, reason: `A customer asked for their data (request ${str(d.requestId, 20)})` };
   if (action === 'data_request_sent') return { ...none, reason: `A customer data request was marked as sent (request ${str(d.requestId, 20)})` };
+  if (action === 'setup_done') return { ...none, reason: 'The Get started page was marked done' };
   return none;
 }
 

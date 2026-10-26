@@ -660,5 +660,7 @@ model ShopInstall {
   installedAt   DateTime  @default(now())
   uninstalledAt DateTime?
   scopes        String?
+  // When the merchant marked the "Get started" page done; until then (and while the shop has no order) it is the first page shown.
+  setupDoneAt   DateTime?
   updatedAt     DateTime  @default(now()) @updatedAt
 }

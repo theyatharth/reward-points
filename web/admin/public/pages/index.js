@@ -9,8 +9,10 @@ import { reconciliationPage } from './reconciliation.js';
 import { rulesPage } from './rules.js';
 import { notificationsPage } from './notifications.js';
 import { dataRequestsPage } from './datarequests.js';
+import { startPage } from './start.js';
 
 export const PAGES = [
+  { key: 'start', label: 'Get started', page: startPage },
   { key: 'overview', label: 'Overview', page: overviewPage },
   { key: 'customers', label: 'Customers', page: customersPage },
   { key: 'orders', label: 'Orders & webhooks', page: ordersPage },

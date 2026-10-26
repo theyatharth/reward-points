@@ -6,6 +6,7 @@
 
 import { overview } from './data/overview.js';
 import { programInfo } from './data/program.js';
+import { getStarted, markSetupDone } from './data/get-started.js';
 import { listNotifications } from './data/notifications.js';
 import { rules, previewRules, saveRules } from './data/rules.js';
 import { lastReconciliation, runNow } from './data/reconciliation.js';
@@ -19,6 +20,11 @@ const route = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(ne
 
 export function registerDataRoutes(api) {
   api.get('/meta', route(async (req, res) => res.json({ ok: true, adjust: adjustMeta, program: await programInfo(req.admin.shop) })));
+  api.get('/get-started', route(async (req, res) => res.json({ ok: true, ...(await getStarted({ shop: req.admin.shop, apiKey: process.env.SHOPIFY_API_KEY })) })));
+  api.post('/get-started/done', route(async (req, res) => {
+    const r = await markSetupDone({ shop: req.admin.shop, adminId: req.admin.id, shopifyUserId: req.admin.shopifyUserId });
+    return res.json({ ok: true, already: r.already });
+  }));
   api.get('/overview', route(async (req, res) => res.json({ ok: true, ...(await overview(req.admin.shop)) })));
 
   api.get('/customers', route(async (req, res) => res.json({ ok: true, ...(await searchCustomers(req.admin.shop, req.query.query)) })));

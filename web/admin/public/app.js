@@ -5,6 +5,7 @@ import { h, mount } from './esc.js';
 import { api, embedded, setCsrf, onAuthEvents, newKey } from './api.js';
 import { PAGES } from './pages/index.js';
 import { renderBanner } from './banner.js';
+import { pickRoute } from './route.js';
 
 const root = document.getElementById('app');
 const state = { screen: 'loading', admin: null, program: null, route: { key: 'overview', param: null }, toastTimer: null };
@@ -13,10 +14,7 @@ const state = { screen: 'loading', admin: null, program: null, route: { key: 'ov
 const programName = () => state.program?.name || 'Reward Points';
 const brand = () => h`<div class="brand"><b>${programName()}</b><span>Admin</span></div>`;
 
-const routeFromHash = () => {
-  const [key, param] = (location.hash.replace(/^#\/?/, '') || 'overview').split('/');
-  return { key: PAGES.some((p) => p.key === key) ? key : 'overview', param: param ? decodeURIComponent(param) : null };
-};
+const routeFromHash = () => pickRoute(location.hash, null, PAGES.map((p) => p.key));
 const currentPage = () => PAGES.find((p) => p.key === state.route.key).page;
 
 // ---- views ----
@@ -104,9 +102,10 @@ function showLogin(error) { state.screen = 'login'; mount(root, loginView(error)
 function showChange(forced, error) { state.screen = forced ? 'forced' : 'change'; mount(root, changePasswordView(forced, error)); }
 async function showConsole() {
   state.screen = 'console';
-  state.route = routeFromHash();
-  const meta = await api.get('meta'); // the program: its currency (the banner) and, below, its name
+  const meta = await api.get('meta'); // the program: its name, its currency (the banner), whether to open on Get started
   state.program = meta.ok ? meta.data.program ?? null : null;
+  // A new shop lands on Get started; anyone who has chosen a page (a hash in the address) lands there.
+  state.route = pickRoute(location.hash, state.program, PAGES.map((p) => p.key));
   document.title = `${programName()} · Admin`;
   mount(root, consoleView());
   await renderPage();

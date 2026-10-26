@@ -256,3 +256,16 @@ select.inp{appearance:auto}
   .rp-card{padding-inline:14px}
   .rp-head .btn{width:100%}
 }
+
+/* ---------- Get started ---------- */
+.gs-steps{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:12px}
+.gs-step{display:flex;gap:14px;align-items:flex-start}
+.gs-n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--umber-soft);color:var(--umber-strong);font-weight:800;display:grid;place-items:center}
+.gs-body{flex:1;min-width:0}
+.gs-body h3{margin:0 0 4px;font-size:16px}
+.gs-body p{margin:0 0 10px}
+.gs-pill{display:inline-block;margin-left:6px;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle}
+.gs-pill-done{background:var(--olive-soft);color:var(--olive)}
+.gs-pill-blocked{background:var(--danger-soft);color:var(--danger)}
+.gs-pill-waiting{background:var(--gold-soft);color:var(--gold-ink)}
+.gs-done .gs-n{background:var(--olive-soft);color:var(--olive)}
