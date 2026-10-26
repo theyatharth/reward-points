@@ -83,6 +83,28 @@ export class ShopifyGateway {
   }
 
   /**
+   * Whether the app's stored token still works on the shop. false when Shopify answers 401 or 403 (token revoked: the app was
+   * uninstalled, or there is no stored session at all); any other failure throws, because it says nothing about the install.
+   * @returns {Promise<boolean>}
+   */
+  async isTokenValid() {
+    let client;
+    try {
+      client = await this.getGraphqlClient();
+    } catch {
+      return false; // no stored session: nothing to call Shopify with
+    }
+    try {
+      await client.request(`query tokenCheck { shop { name } }`);
+      return true;
+    } catch (err) {
+      const code = err?.response?.code ?? err?.response?.status;
+      if (code === 401 || code === 403) return false;
+      throw err;
+    }
+  }
+
+  /**
    * Looks up an order by ID: processed_at (T2.8), plus the refunds list the
    * J3 check compares against the ledger.
    */

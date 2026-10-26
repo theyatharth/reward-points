@@ -13,6 +13,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { normalizeCurrency, isTwoDecimalCurrency } from '../rules/currency.js';
 import { createShopConfig } from './onboarding.js';
+import { markInstalled } from './shop-state.js';
 
 export const INSTALL_HOLD_DAYS = 30;
 
@@ -51,6 +52,12 @@ export async function runInstallSetup({ session }, gatewayFor, log = console) {
   const shop = session?.shop;
   try {
     if (typeof shop !== 'string' || shop === '') return { status: 'failed', error: 'no shop in the session' };
+    // First, a reinstall switches the shop back on (jobs resume); independent of the currency call below.
+    try {
+      await markInstalled(shop, session.scope);
+    } catch (err) {
+      log.error(`[install] ${shop}: could not mark the shop installed: ${err.message}`);
+    }
     const result = await ensureShopConfig(shop, gatewayFor(shop));
     if (result.status === 'failed') log.error(`[install] ${shop}: ${result.error}. The shop will be set up on its next console visit or when its first event is processed.`);
     else if (result.status === 'created') log.log(`[install] ${shop}: configuration created (${result.currency}, hold ${INSTALL_HOLD_DAYS} days${result.supported ? '' : ', currency NOT supported: no points will be earned or redeemed'})`);

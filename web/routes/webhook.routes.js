@@ -18,6 +18,8 @@ import {
 import { promotePendingPoints } from '../lib/promotion.js';
 import PrivacyWebhookHandlers from '../privacy.js';
 import { storeWebhook } from '../loyalty/service/webhook.js';
+import { markUninstalled, updateScopes } from '../loyalty/service/shop-state.js';
+import { gatewayFactory } from '../loyalty/service/ledger.js';
 
 /**
  * Webhook handler for ORDERS_PAID.
@@ -90,18 +92,44 @@ async function handleOrdersCancelled(topic, shop, body, webhookId) {
 }
 
 /**
- * Webhook handler for APP_UNINSTALLED.
- * Cleans up the merchant's sessions from the session storage.
+ * Webhook handler for APP_UNINSTALLED. Marks the shop uninstalled (the background jobs then leave it alone) and drops its sessions,
+ * which are the access tokens. Nothing else is touched: the shop's data stays until Shopify sends shop/redact. A reinstall
+ * marks it active again (loyalty/service/install.js, from the afterAuth hook).
+ *
+ * Webhooks can arrive late. If the stored token still works, the shop has already reinstalled and this event is old: it is ignored,
+ * so a delayed uninstall can never switch off a live shop. (shopify-app-express adds its own handler for this topic that always
+ * deletes the shop's sessions; after a stale event the next visit exchanges a new token and the afterAuth hook runs again.)
  */
-async function handleAppUninstalled(topic, shop, body, webhookId) {
+export async function handleAppUninstalled(topic, shop, body, webhookId) {
   console.log(`\n--- [WEBHOOK] ${topic} for ${shop} ---`);
+  let stillInstalled = false;
   try {
-    const shopify = (await import('../shopify.js')).default;
-    await shopify.config.sessionStorage.deleteSessions(shop);
-    console.log(`Sessions cleared for uninstalled shop: ${shop}`);
+    stillInstalled = await gatewayFactory(shop).isTokenValid();
   } catch (error) {
-    console.error('Failed to clean up sessions on uninstall:', error.message);
+    console.warn(`[uninstall] could not check the token of ${shop} (${error.message}); treating the shop as uninstalled`);
   }
+  if (stillInstalled) {
+    console.log(`[uninstall] ${shop} still has a working token: this is an old event, ignored`);
+    return;
+  }
+  await markUninstalled(shop);
+  // The Session table is the session storage (web/shopify.js): every offline and online token of the shop goes.
+  await prisma.session.deleteMany({ where: { shop } });
+  console.log(`[uninstall] ${shop} marked uninstalled, sessions dropped (webhook ${webhookId})`);
+}
+
+/**
+ * Webhook handler for APP_SCOPES_UPDATE: the merchant granted or revoked access scopes. Payload: { id, previous: [..], current: [..],
+ * updated_at }. The new list is stored on the shop and on its session (the library checks the session's scope).
+ */
+export async function handleAppScopesUpdate(topic, shop, body, webhookId) {
+  const payload = JSON.parse(body);
+  if (!Array.isArray(payload?.current)) {
+    console.warn(`[scopes] ${shop}: no "current" list in the payload; nothing stored (webhook ${webhookId})`);
+    return;
+  }
+  const stored = await updateScopes(shop, payload.current);
+  console.log(`[scopes] ${shop}: scopes now ${stored || '(none)'} (webhook ${webhookId})`);
 }
 
 /**
@@ -138,5 +166,10 @@ export const webhookHandlers = {
     deliveryMethod: DeliveryMethod.Http,
     callbackUrl: '/api/webhooks',
     callback: handleAppUninstalled,
+  },
+  APP_SCOPES_UPDATE: {
+    deliveryMethod: DeliveryMethod.Http,
+    callbackUrl: '/api/webhooks',
+    callback: handleAppScopesUpdate,
   },
 };

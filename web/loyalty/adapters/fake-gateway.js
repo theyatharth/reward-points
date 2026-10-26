@@ -138,6 +138,11 @@ export class FakeShopifyGateway {
     throw err;
   }
 
+  async isTokenValid() {
+    this._checkFailure();
+    return this.tokenValid === true;
+  }
+
   async getShopCurrency() {
     this._checkFailure();
     return this.shopCurrency;

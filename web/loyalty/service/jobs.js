@@ -25,6 +25,7 @@ import { DEFAULT_CONFIG } from '../rules/config.js';
 import { recordJob, ranWithin } from './jobrun.js';
 import { runNightlyReconciliation } from './reconcile.js';
 import { syncDirtyAccounts, syncRuleMetafields } from './metafield-sync.js';
+import { inactiveShops, notInactive } from './shop-state.js';
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -97,8 +98,10 @@ export async function recoverStuckEvents({ shop } = {}) {
  * @returns {Promise<{ due: number, activated: number, blocked: Array<{ lotId: string, reason: string }> }>}
  */
 export async function activateDueLots({ shop } = {}) {
+  const inactive = await inactiveShops(); // an uninstalled shop is left alone until it is reinstalled
+  if (shop && inactive.includes(shop)) return { due: 0, activated: 0, blocked: [] };
   const lots = await prisma.pointLot.findMany({
-    where: { status: 'pending', remaining: { gt: 0 }, activatesAt: { lte: now() }, ...(shop ? { account: { shop } } : {}) },
+    where: { status: 'pending', remaining: { gt: 0 }, activatesAt: { lte: now() }, ...(shop ? { account: { shop } } : inactive.length ? { account: { shop: notInactive(inactive) } } : {}) },
     select: { id: true, account: { select: { shop: true } } },
     orderBy: { activatesAt: 'asc' },
     take: LOT_BATCH,
@@ -136,8 +139,10 @@ export async function activateDueLots({ shop } = {}) {
  * @returns {Promise<{ due: number, expired: number, pointsReturned: number }>}
  */
 export async function expireUnusedCodes({ shop } = {}) {
+  const inactive = await inactiveShops();
+  if (shop && inactive.includes(shop)) return { due: 0, expired: 0, pointsReturned: 0 };
   const due = await prisma.reward.findMany({
-    where: { status: 'active', expiresAt: { lte: now() }, ...(shop ? { shop } : {}) },
+    where: { status: 'active', expiresAt: { lte: now() }, ...(shop ? { shop } : inactive.length ? { shop: notInactive(inactive) } : {}) },
     select: { id: true, shop: true, accountId: true },
     orderBy: { expiresAt: 'asc' },
     take: LOT_BATCH,
@@ -197,8 +202,10 @@ export async function expireUnusedCodes({ shop } = {}) {
  * @returns {Promise<{ due: number, deleted: number, failed: Array<{ rewardId: string, reason: string }> }>}
  */
 export async function deleteVoidedCodes({ shop } = {}) {
+  const inactive = await inactiveShops(); // no token to call Shopify with
+  if (shop && inactive.includes(shop)) return { due: 0, deleted: 0, failed: [] };
   const due = await prisma.reward.findMany({
-    where: { needsShopifyDelete: true, ...(shop ? { shop } : {}) },
+    where: { needsShopifyDelete: true, ...(shop ? { shop } : inactive.length ? { shop: notInactive(inactive) } : {}) },
     select: { id: true, shop: true, discountCodeId: true },
     orderBy: { returnedAt: 'asc' },
     take: LOT_BATCH,

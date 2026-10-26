@@ -18,6 +18,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { Prisma } from '../../../prisma/generated/client/index.js';
 import { now } from '../adapters/clock.js';
+import { inactiveShops } from './shop-state.js';
 import { gatewayFactory } from './ledger.js';
 
 const BATCH = 6; // 6 customers x 4 metafields = 24 inputs; metafieldsSet takes at most 25
@@ -52,9 +53,11 @@ async function metafieldValues(accountId) {
  * @returns {Promise<{ dirty: number, synced: number, gone: number, failed: Array<{ customerId: string, reason: string }> }>}
  */
 export async function syncDirtyAccounts({ shop, limit = MAX_PER_RUN } = {}) {
+  const inactive = await inactiveShops(); // an uninstalled shop has no token
+  if (shop && inactive.includes(shop)) return { dirty: 0, synced: 0, gone: 0, failed: [] };
   const rows = await prisma.$queryRaw`
     SELECT id, shop, "shopifyCustomerId", "metafieldSeq" FROM "LoyaltyAccount"
-     WHERE "metafieldSeq" > "metafieldSyncedSeq" AND "redactedAt" IS NULL ${shop ? Prisma.sql`AND shop = ${shop}` : Prisma.empty}
+     WHERE "metafieldSeq" > "metafieldSyncedSeq" AND "redactedAt" IS NULL ${shop ? Prisma.sql`AND shop = ${shop}` : Prisma.empty} ${inactive.length ? Prisma.sql`AND shop <> ALL(${inactive}::text[])` : Prisma.empty}
      ORDER BY "updatedAt" ASC
      LIMIT ${limit}`;
 
@@ -109,9 +112,11 @@ export async function syncDirtyAccounts({ shop, limit = MAX_PER_RUN } = {}) {
  * @returns {Promise<{ dirty: number, synced: number, failed: Array<{ shop: string, reason: string }> }>}
  */
 export async function syncRuleMetafields({ shop } = {}) {
+  const inactive = await inactiveShops();
+  if (shop && inactive.includes(shop)) return { dirty: 0, synced: 0, failed: [] };
   const rows = await prisma.$queryRaw`
     SELECT shop, "ruleSeq" FROM "LoyaltyConfig"
-     WHERE "ruleSeq" > "ruleSyncedSeq" ${shop ? Prisma.sql`AND shop = ${shop}` : Prisma.empty}`;
+     WHERE "ruleSeq" > "ruleSyncedSeq" ${shop ? Prisma.sql`AND shop = ${shop}` : Prisma.empty} ${inactive.length ? Prisma.sql`AND shop <> ALL(${inactive}::text[])` : Prisma.empty}`;
   const result = { dirty: rows.length, synced: 0, failed: [] };
   for (const row of rows) {
     try {

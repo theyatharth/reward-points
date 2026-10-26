@@ -11,6 +11,7 @@ import { prisma } from '../../lib/prisma.js';
 import { processEvent } from './ledger.js';
 import { now } from '../adapters/clock.js';
 import { normalizeTopic, isKnownTopic } from './topics.js';
+import { inactiveShops, notInactive } from './shop-state.js';
 
 /**
  * Stores an incoming webhook in the database.
@@ -182,9 +183,12 @@ export async function processPendingWebhooks(options = {}) {
 export async function processPendingWebhooksWithStats({ shop } = {}) {
   const batchSize = 50;
 
+  // Events of an uninstalled shop wait (they are processed after a reinstall, or deleted by shop/redact).
+  const inactive = await inactiveShops();
+  if (shop && inactive.includes(shop)) return { picked: 0, processed: 0, failed: 0 };
   const events = await prisma.webhookEvent.findMany({
     where: {
-      ...(shop ? { shop } : {}),
+      ...(shop ? { shop } : inactive.length ? { shop: notInactive(inactive) } : {}),
       OR: [
         { status: 'pending' },
         {
