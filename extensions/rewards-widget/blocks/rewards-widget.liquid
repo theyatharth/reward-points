@@ -6,7 +6,7 @@
   (dev app: /apps/rewards-dev). All markup that depends on data is built by assets/rewards-client.js with createElement and
   textContent; styles come from assets/rewards-theme.css (the prototype's own, scoped under .ecr).
 {% endcomment %}
-{% assign proxy_path = block.settings.proxy_path | default: '/apps/rewards' %}
+{% assign proxy_path = block.settings.proxy_path | default: '/apps/reward-points' %}
 {% assign side = block.settings.side | default: 'right' %}
 {% assign rewards_page = block.settings.rewards_page_url | default: '/pages/rewards' %}
 {% assign label = 'Rewards' %}
@@ -62,8 +62,8 @@
       "type": "text",
       "id": "proxy_path",
       "label": "App proxy path",
-      "default": "/apps/rewards",
-      "info": "Where this app answers on the storefront: /apps/rewards for the live app, /apps/rewards-dev for the development app."
+      "default": "/apps/reward-points",
+      "info": "Where this app answers on the storefront: /apps/reward-points for the public app, /apps/rewards-dev for the development app."
     },
     {
       "type": "select",

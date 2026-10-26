@@ -5,7 +5,7 @@
   signed App Proxy /history call (createElement and textContent only); styles come from assets/rewards-theme.css (the
   prototype's own, scoped under .ecr). The proxy path is a block setting (dev app: /apps/rewards-dev).
 {% endcomment %}
-{% assign proxy_path = block.settings.proxy_path | default: '/apps/rewards' %}
+{% assign proxy_path = block.settings.proxy_path | default: '/apps/reward-points' %}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -51,8 +51,8 @@
       "type": "text",
       "id": "proxy_path",
       "label": "App proxy path",
-      "default": "/apps/rewards",
-      "info": "Where this app answers on the storefront: /apps/rewards for the live app, /apps/rewards-dev for the development app."
+      "default": "/apps/reward-points",
+      "info": "Where this app answers on the storefront: /apps/reward-points for the public app, /apps/rewards-dev for the development app."
     }
   ]
 }

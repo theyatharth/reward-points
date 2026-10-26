@@ -1,0 +1,53 @@
+# PUBLIC APP configuration ("Reward Points", free, for App Store review).
+#
+# This is NOT the old production app (shopify.app.prod.toml, client_id 6e567e94…) and NOT the dev app
+# (shopify.app.toml). Deploy it only with `shopify app deploy --config production`.
+#
+# Fill in before the first deploy:
+#   client_id      the public app's client_id from the Partner Dashboard
+#   REPLACE_HOST   the public https URL the server is reached on, INCLUDING the base path nginx strips
+#                  (e.g. https://apps.example.com/reward-points). It must equal HOST and APP_BASE_PATH in the
+#                  server's .env. See docs/PUBLIC-APP.md.
+
+client_id = "REPLACE_WITH_PUBLIC_APP_CLIENT_ID"
+name = "Reward Points"
+application_url = "https://REPLACE_HOST"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks"
+  topics = [
+    "orders/paid",
+    "orders/cancelled",
+    "refunds/create",
+    "app/uninstalled",
+    "app/scopes_update"
+  ]
+
+  # Mandatory privacy topics: same route; the handlers live in web/privacy.js.
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+[access_scopes]
+# Only what the code uses: read_orders (order lookups), write_discounts (reward codes, GraphQL discount mutations),
+# read_customers + write_customers (customer metafields the storefront blocks read).
+# No product scopes: nothing reads or writes products.
+scopes = "read_orders,write_discounts,read_customers,write_customers"
+
+[auth]
+redirect_urls = [
+  "https://REPLACE_HOST/api/auth",
+  "https://REPLACE_HOST/api/auth/callback"
+]
+
+[app_proxy]
+url = "https://REPLACE_HOST/api/proxy"
+subpath = "reward-points"
+prefix = "apps"

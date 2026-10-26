@@ -3,7 +3,7 @@
  * Shared browser code of the two theme blocks (floating widget, rewards page).
  *
  *  - talks to the app ONLY through the App Proxy path set in the block settings (the dev app answers on
- *    /apps/rewards-dev, production on /apps/rewards); the path is validated, never concatenated blindly;
+ *    /apps/rewards-dev, public app on /apps/reward-points); the path is validated, never concatenated blindly;
  *  - sends no customer id: the backend takes the customer from Shopify's signed proxy request;
  *  - every redeem click carries an idempotency key, kept across a network error so a retry replays the
  *    same redemption instead of making a second one;
@@ -15,7 +15,7 @@
 (function (root) {
   'use strict';
 
-  var DEFAULT_PROXY = '/apps/rewards';
+  var DEFAULT_PROXY = '/apps/reward-points';
 
   /** A proxy path from the theme settings, or the default if it does not look like /apps/<subpath>. */
   function safeProxyPath(value) {

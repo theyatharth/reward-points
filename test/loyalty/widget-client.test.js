@@ -53,13 +53,13 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 const answer = (status, body) => Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) });
 
 describe('rewards-client.js', () => {
-  test('safeProxyPath accepts /apps/<subpath> only, ignoring a trailing slash, else falls back to /apps/rewards', () => {
+  test('safeProxyPath accepts /apps/<subpath> only, ignoring a trailing slash, else falls back to /apps/reward-points', () => {
     const E = load();
     assert.equal(E.safeProxyPath('/apps/rewards-dev'), '/apps/rewards-dev');
-    assert.equal(E.safeProxyPath('/apps/rewards/'), '/apps/rewards');
+    assert.equal(E.safeProxyPath('/apps/reward-points/'), '/apps/reward-points');
     assert.equal(E.safeProxyPath(' /apps/rewards-dev '), '/apps/rewards-dev');
     for (const bad of [undefined, null, '', 'rewards', '/apps/', '/apps/a/b', 'https://evil.example/apps/x', '//evil.example', '/apps/x?y=1', '/apps/UPPER', '/apps/x y', 42]) {
-      assert.equal(E.safeProxyPath(bad), '/apps/rewards', String(bad));
+      assert.equal(E.safeProxyPath(bad), '/apps/reward-points', String(bad));
     }
   });
 
@@ -99,7 +99,7 @@ describe('rewards-client.js', () => {
     const calls = [];
     const E = load({ fetchImpl: (url) => { calls.push(url); return answer(200, { success: true, code: 'X' }); } });
     await E.createRedeemer({ proxyPath: 'https://evil.example/steal' }).run();
-    assert.equal(calls[0], '/apps/rewards/redeem');
+    assert.equal(calls[0], '/apps/reward-points/redeem');
   });
 
   test('the key survives a network error (a retry replays the same redemption) and is renewed after any real answer', async () => {
@@ -211,7 +211,7 @@ describe('theme blocks (static checks)', () => {
       assert.ok(!/fetch\(\s*['"]\/apps\//.test(text), `${name}: no fetch to a literal /apps/ path`);
       const schema = JSON.parse(text.match(/\{% schema %\}([\s\S]*?)\{% endschema %\}/)[1]);
       const setting = schema.settings.find((s) => s.id === 'proxy_path');
-      assert.deepEqual([setting.type, setting.default], ['text', '/apps/rewards'], `${name}: schema setting`);
+      assert.deepEqual([setting.type, setting.default], ['text', '/apps/reward-points'], `${name}: schema setting`);
     }
     // The client validates the path in every entry point that talks to the server.
     assert.match(CLIENT, /function initPage[\s\S]*?safeProxyPath\(o\.proxyPath\)/);
