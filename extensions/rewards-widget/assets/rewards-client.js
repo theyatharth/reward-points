@@ -385,9 +385,15 @@
       handlers.shopUrl ? (function () { var a = h('a', 'btn', 'Start Shopping'); a.setAttribute('href', handlers.shopUrl); return a; })() : null]);
   }
 
+  /** Shown instead of balances when the server says the program does not run for this store (currency not supported). */
+  function unavailableNote() {
+    return el('p', 'muted', 'Rewards are not available in this store right now.');
+  }
+
   /** The Rewards page body, in the prototype's order. `handlers`: onRedeem(button), onCopy(code, button), shopUrl. */
   function renderRewardsPage(container, view, handlers) {
     clear(container);
+    if (view && view.unavailable) { container.appendChild(unavailableNote()); return; }
     var parts = hasActivity(view)
       ? [balanceCard(view), owedCard(view), pendingCard(view), notificationsSection(view), codesSection(view, handlers), rewardCard(view, handlers), goalCard(view), waysToEarn(view), activitySection(view)]
       : [zeroState(view, handlers), waysToEarn(view)];
@@ -396,7 +402,7 @@
 
   /** The collapsed widget button label: "N pts", or "Rewards" while points are being recovered or unknown. */
   function widgetLabel(view) {
-    if (!view || !view.balance || view.balance.owed > 0) return 'Rewards';
+    if (!view || !view.balance || view.balance.owed > 0 || view.unavailable) return 'Rewards';
     return P(view.balance.available) + ' pts';
   }
 
@@ -412,6 +418,7 @@
       add(login);
       return;
     }
+    if (view.unavailable) { add(unavailableNote()); return; }
     if (!hasActivity(view)) {
       var r = view.rule || {};
       add(el('h4', null, 'Start earning Ecofynd Rewards'));

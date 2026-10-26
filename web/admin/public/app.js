@@ -4,9 +4,10 @@
 import { h, mount } from './esc.js';
 import { api, embedded, setCsrf, onAuthEvents, newKey } from './api.js';
 import { PAGES } from './pages/index.js';
+import { renderBanner } from './banner.js';
 
 const root = document.getElementById('app');
-const state = { screen: 'loading', admin: null, route: { key: 'overview', param: null }, toastTimer: null };
+const state = { screen: 'loading', admin: null, program: null, route: { key: 'overview', param: null }, toastTimer: null };
 
 const routeFromHash = () => {
   const [key, param] = (location.hash.replace(/^#\/?/, '') || 'overview').split('/');
@@ -57,7 +58,7 @@ const consoleView = () => h`<header class="top"><div class="top-in">
     <div class="brand"><b>ecofynd</b><span>Rewards · Admin</span></div>
     ${userBar()}
   </div></header>
-  <main class="wrap"><div class="admin">
+  <main class="wrap">${renderBanner(state.program)}<div class="admin">
     <nav class="anav" aria-label="Admin">${PAGES.map((p) => h`<button type="button" data-act="nav" data-v="${p.key}" ${state.route.key === p.key ? h`aria-current="page"` : ''}>${p.label}</button>`)}</nav>
     <div class="amain" id="page"><p class="muted">Loading…</p></div>
   </div></main>
@@ -91,6 +92,8 @@ function showChange(forced, error) { state.screen = forced ? 'forced' : 'change'
 async function showConsole() {
   state.screen = 'console';
   state.route = routeFromHash();
+  const meta = await api.get('meta'); // the program: its currency (the banner) and, below, its name
+  state.program = meta.ok ? meta.data.program ?? null : null;
   mount(root, consoleView());
   await renderPage();
 }

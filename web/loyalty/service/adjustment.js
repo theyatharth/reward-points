@@ -17,6 +17,7 @@
 
 import { prisma } from '../../lib/prisma.js';
 import { lockAccount, returnPoints, consumeLots } from './ledger.js';
+import { isTwoDecimalCurrency, unsupportedCurrencyReason } from '../rules/currency.js';
 
 const TX_OPTIONS = { maxWait: 10000, timeout: 20000 };
 export const MAX_ADJUSTMENT = 1_000_000;
@@ -66,6 +67,9 @@ export async function adjustPoints({ shop, shopifyCustomerId, points, reason, no
   // The embedded console has no AdminUser: its actor was verified from the session token (shop and sub), so only the id is recorded.
   const admin = hasAdmin ? await prisma.adminUser.findFirst({ where: { id: adminId, shop }, select: { id: true } }) : null;
   if (hasAdmin && !admin) return refusal('ADMIN_UNKNOWN', 'Admin not found.');
+
+  const shopConfig = await prisma.loyaltyConfig.findUnique({ where: { shop }, select: { currency: true } });
+  if (shopConfig && !isTwoDecimalCurrency(shopConfig.currency)) return refusal('CURRENCY_UNSUPPORTED', `${unsupportedCurrencyReason(shopConfig.currency)}.`);
 
   const account = await prisma.loyaltyAccount.findUnique({
     where: { shop_shopifyCustomerId: { shop, shopifyCustomerId: String(shopifyCustomerId) } },

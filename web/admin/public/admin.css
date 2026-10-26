@@ -87,6 +87,7 @@ label.f{display:grid;gap:5px;font-size:13px;font-weight:700;color:var(--ink-2)}
 .hb.bad{background:var(--danger-soft);color:var(--danger)}
 label.check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--ink)}label.check input{width:18px;height:18px;accent-color:var(--umber);flex:none}
 textarea.inp{min-height:70px;resize:vertical}
+.banner{margin:0 0 14px}
 .err{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
 .ok{background:var(--olive-soft);color:var(--olive);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
 .warnbox{background:var(--gold-soft);color:var(--gold-ink);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}

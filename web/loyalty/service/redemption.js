@@ -20,6 +20,7 @@ import crypto from 'node:crypto';
 import { prisma } from '../../lib/prisma.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { formatPaise } from '../rules/money.js';
+import { isTwoDecimalCurrency } from '../rules/currency.js';
 import { now } from '../adapters/clock.js';
 import { notify } from './notifications.js';
 import { gatewayFactory, lockAccount, checkLotJ3, activateLotInTx, returnPoints, consumeLots } from './ledger.js';
@@ -65,7 +66,7 @@ function refusal(reason, message, extra = {}) {
  * @returns {Promise<
  *   { ok: true, status: 'active'|'creating', replayed: boolean, redemptionId: string,
  *     code: string|null, pointsUsed: number, valuePaise: number, expiresAt: Date|null, available: number }
- *   | { ok: false, reason: 'INVALID_KEY'|'OWED'|'SHORT'|'RECOVERING'|'DISCOUNT_FAILED'|'REWARD_VOIDED'|'REWARD_EXPIRED'|'REWARD_USED'|'REWARD_RETURNED', message: string }
+ *   | { ok: false, reason: 'INVALID_KEY'|'CURRENCY_UNSUPPORTED'|'OWED'|'SHORT'|'RECOVERING'|'DISCOUNT_FAILED'|'REWARD_VOIDED'|'REWARD_EXPIRED'|'REWARD_USED'|'REWARD_RETURNED', message: string }
  * >}
  */
 export async function redeem({ shop, shopifyCustomerId, idempotencyKey }) {
@@ -74,6 +75,9 @@ export async function redeem({ shop, shopifyCustomerId, idempotencyKey }) {
   }
 
   const config = await loadConfig(shop);
+  if (!isTwoDecimalCurrency(config.currency)) {
+    return refusal('CURRENCY_UNSUPPORTED', 'Rewards cannot be redeemed in this store: its currency is not supported.');
+  }
   const customerId = String(shopifyCustomerId);
 
   const account = await prisma.loyaltyAccount.findUnique({

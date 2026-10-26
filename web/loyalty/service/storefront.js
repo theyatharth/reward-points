@@ -10,6 +10,7 @@ import { prisma } from '../../lib/prisma.js';
 import { DEFAULT_CONFIG } from '../rules/config.js';
 import { redeem } from './redemption.js';
 import { listForAccount, markAllRead } from './notifications.js';
+import { isTwoDecimalCurrency } from '../rules/currency.js';
 
 const decimal = (paise) => `${Math.floor(paise / 100)}.${String(paise % 100).padStart(2, '0')}`;
 const iso = (d) => (d ? d.toISOString() : null);
@@ -36,7 +37,7 @@ export async function shopIsConfigured(shop) {
 }
 
 const REFUSAL_STATUS = {
-  INVALID_KEY: 400, SHORT: 400, OWED: 409, RECOVERING: 409, DISCOUNT_FAILED: 502,
+  INVALID_KEY: 400, CURRENCY_UNSUPPORTED: 403, SHORT: 400, OWED: 409, RECOVERING: 409, DISCOUNT_FAILED: 502,
   REWARD_VOIDED: 410, REWARD_EXPIRED: 410, REWARD_USED: 410, REWARD_RETURNED: 410,
 };
 
@@ -88,6 +89,8 @@ export async function customerView({ shop, shopifyCustomerId, limit = 50 }) {
     history: [],
     notifications: { unread: 0, items: [] },
   };
+  // Currency guard: the program does not run in this currency; the storefront says so instead of showing a zero balance and a rate.
+  if (config.currency && !isTwoDecimalCurrency(config.currency)) view.unavailable = 'currency';
   if (!account) return view;
 
   view.balance = { available: account.available, pending: account.pending, owed: account.debt };

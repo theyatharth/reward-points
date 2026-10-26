@@ -14,6 +14,7 @@ import { normalizeTopic } from './topics.js';
 import { PermanentError } from './errors.js';
 import { notify } from './notifications.js';
 import { ensureShopConfig } from './install.js';
+import { isTwoDecimalCurrency, unsupportedCurrencyReason } from '../rules/currency.js';
 import { ShopNotSetUpError } from './errors.js';
 import { ShopifyGateway } from '../adapters/gateway.js';
 import { FakeShopifyGateway } from '../adapters/fake-gateway.js';
@@ -41,6 +42,12 @@ export async function processEvent(event) {
     if (!configRow) throw new ShopNotSetUpError(event.shop);
   }
   const config = configRow || DEFAULT_CONFIG;
+
+  // Currency guard: amounts are whole hundredths everywhere, so only two-decimal currencies work. For any other the event is skipped,
+  // visibly (status "skipped", the reason in lastError), and nothing is earned or reversed.
+  if (configRow && ['orders/paid', 'refunds/create', 'orders/cancelled'].includes(normalizeTopic(event.topic)) && !isTwoDecimalCurrency(configRow.currency)) {
+    return markSkipped(event.id, unsupportedCurrencyReason(configRow.currency));
+  }
 
   // Accept both forms: new events are stored in the slash form, but rows stored
   // before the intake map existed hold the library's enum form ("ORDERS_PAID").

@@ -49,6 +49,10 @@ export function formatMoney(value, code) {
   return `${n < 0 ? '-' : ''}${currencySymbol(code)}${text}`;
 }
 
+/** Why a shop in this currency earns and redeems nothing (shown in the console, on skipped events and in refusals). */
+export const unsupportedCurrencyReason = (code) =>
+  `The shop currency (${normalizeCurrency(code) ?? 'unknown'}) is not supported: only currencies with two decimals are, so no points are earned, reversed, redeemed or adjusted`;
+
 /**
  * Whether amounts in this currency can be kept as whole hundredths ("paise"), which every amount in this system assumes.
  * Only currencies with exactly two decimals are supported: JPY (none), KWD (three) and the like are not. The digits come from

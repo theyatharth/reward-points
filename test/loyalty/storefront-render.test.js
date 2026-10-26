@@ -458,3 +458,26 @@ describe('the generated stylesheet', () => {
     assert.ok(!/html\s*\{|body\s*\{/.test(CSS), 'no global element rules');
   });
 });
+
+describe('currency guard on the storefront', () => {
+  const off = (over = {}) => view({ unavailable: 'currency', balance: { available: 500, pending: 20, owed: 0 }, history: [{ date: '2026-10-08T12:00:00.000Z', kind: 'earned', points: 500, label: 'x' }], ...over });
+
+  test('the Rewards page says rewards are not available, with no balance, rate, code or redeem button', () => {
+    const E = load();
+    const body = new Node('div');
+    E.renderRewardsPage(body, off(), { onRedeem() {}, onCopy() {}, shopUrl: '/collections/all' });
+    assert.match(text(body), /Rewards are not available in this store right now/);
+    assert.equal(buttons(body).length, 0);
+    assert.doesNotMatch(text(body), /500|Redeem|Ways to earn/);
+  });
+
+  test('the widget panel says so too, and its button reads "Rewards", not a balance', () => {
+    const E = load();
+    const panel = new Node('div');
+    E.renderWidgetPanel(panel, off(), { pageUrl: '/pages/rewards' });
+    assert.match(text(panel), /Rewards are not available in this store right now/);
+    assert.equal(all(panel, (x) => x.tagName === 'a').length, 0);
+    assert.equal(E.widgetLabel(off()), 'Rewards');
+    assert.equal(E.widgetLabel(view({ balance: { available: 5, pending: 0, owed: 0 } })), '5 pts');
+  });
+});
