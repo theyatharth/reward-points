@@ -86,12 +86,12 @@ let webhookMiddleware;
 
 export async function startWebhookServer() {
   const shopify = await loadShopify();
-  const { webhookHandlers, requireWebhookSignature } = await import('../../web/routes/webhook.routes.js');
+  const { mountWebhooks } = await import('../../web/routes/webhook.routes.js');
   // processWebhooks() REGISTERS the handlers on the shared shopify instance: calling it twice would run every handler twice.
   // web/index.js calls it once; so does this helper, however many servers a test file starts.
-  webhookMiddleware ??= shopify.processWebhooks({ webhookHandlers });
+  webhookMiddleware ??= mountWebhooks(shopify);
   const app = express();
-  app.post(shopify.config.webhooks.path, requireWebhookSignature, webhookMiddleware);
+  app.post(shopify.config.webhooks.path, webhookMiddleware);
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}${shopify.config.webhooks.path}`;

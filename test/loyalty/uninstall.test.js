@@ -17,7 +17,8 @@ import { syncDirtyAccounts, syncRuleMetafields } from '../../web/loyalty/service
 import { runInstallSetup } from '../../web/loyalty/service/install.js';
 import { inactiveShops } from '../../web/loyalty/service/shop-state.js';
 import { startWebhookServer, loadShopify, installShop } from '../helpers/shopify-embedded.js';
-import { webhookHandlers } from '../../web/routes/webhook.routes.js';
+import { webhookHandlers, handleAppUninstalled } from '../../web/routes/webhook.routes.js';
+import { ShopifyGateway } from '../../web/loyalty/adapters/gateway.js';
 import { uniqueId } from '../helpers/ids.js';
 
 const newShop = () => `unin-${Date.now()}-${Math.floor(Math.random() * 1e6)}.myshopify.com`;
@@ -62,8 +63,117 @@ describe('Uninstall and scopes', () => {
     const row = await install();
     assert.deepStrictEqual([row.status, row.uninstalledAt], ['active', null]);
     assert.ok(!(await inactiveShops()).includes(shop));
-    // (shopify-app-express adds its own APP_UNINSTALLED handler that always deletes the shop's sessions; the next visit
-    // exchanges a new token and the afterAuth hook runs again, so a stale event costs one token exchange, not the shop.)
+    // shopify-app-express's own APP_UNINSTALLED handler (which deletes the sessions whatever happened) is removed at mount,
+    // so a stale event costs nothing: the session is still there.
+    assert.strictEqual(await prisma.session.count({ where: { shop } }), 1);
+  });
+
+  test('the library\'s own APP_UNINSTALLED handler is gone; ours is the only one', async () => {
+    const shopify = await loadShopify();
+    const handlers = shopify.api.webhooks.getHandlers('app/uninstalled');
+    assert.strictEqual(handlers.length, 1);
+    assert.strictEqual(handlers[0].callback, handleAppUninstalled);
+  });
+
+  // ---------- (a) a check that fails is never believed ----------
+
+  const failures = [
+    ['a network error', () => Object.assign(new Error('fetch failed'), { cause: { code: 'ECONNRESET' } })],
+    ['a 500 from Shopify', () => Object.assign(new Error('Internal Server Error'), { response: { code: 500 } })],
+    ['a 503 from Shopify', () => Object.assign(new Error('Service Unavailable'), { response: { code: 503 } })],
+    ['a 429 from Shopify', () => Object.assign(new Error('Throttled'), { response: { code: 429 } })],
+    ['a database error reading the session', () => Object.assign(new Error('connection terminated'), { code: 'P1001' })],
+  ];
+  for (const [what, make] of failures) {
+    test(`uninstall + ${what} on the token check: refused with 500 so Shopify redelivers; nothing marked, no session dropped`, async () => {
+      gw.injectFailure(make());
+      const r = await uninstall();
+      assert.strictEqual(r.status, 500);
+      const row = await install();
+      assert.deepStrictEqual([row.status, row.uninstalledAt], ['active', null]);
+      assert.strictEqual(await prisma.session.count({ where: { shop } }), 1);
+      assert.ok(!(await inactiveShops()).includes(shop));
+      // Shopify redelivers; this time the check answers (the token is refused) and the shop is marked.
+      assert.strictEqual((await uninstall()).status, 200);
+      assert.strictEqual((await install()).status, 'uninstalled');
+      assert.strictEqual(await prisma.session.count({ where: { shop } }), 0);
+    });
+  }
+
+  test('the real token check: false only for no session, 401 or 403; true on success; anything else throws', async () => {
+    const check = async ({ request, client }) => {
+      const g = new ShopifyGateway(shop);
+      g.getGraphqlClient = client ?? (async () => ({ request }));
+      return g.isTokenValid();
+    };
+    assert.strictEqual(await check({ request: async () => ({ data: { shop: { name: 'x' } } }) }), true);
+    for (const code of [401, 403]) assert.strictEqual(await check({ request: async () => { throw Object.assign(new Error('refused'), { response: { code } }); } }), false, String(code));
+    assert.strictEqual(await check({ client: async () => { throw Object.assign(new Error('No offline session found for shop x'), { code: 'NO_SESSION' }); } }), false);
+    for (const err of [new Error('fetch failed'), Object.assign(new Error('x'), { response: { code: 500 } }), Object.assign(new Error('x'), { response: { code: 502 } }), Object.assign(new Error('x'), { response: { code: 429 } }), Object.assign(new Error('x'), { response: { code: 404 } })]) {
+      await assert.rejects(check({ request: async () => { throw err; } }), (e) => e === err);
+    }
+    const dbError = new Error('Can\'t reach database server');
+    await assert.rejects(check({ client: async () => { throw dbError; } }), (e) => e === dbError);
+  });
+
+  // ---------- (b) self-heal ----------
+
+  const sendEvent = (topic, payload, opts) => hook.send(topic, shop, payload ?? { id: uniqueId(), customer: { id: 1 }, line_items: [] }, opts);
+  const markUninstalledRow = () => prisma.shopInstall.update({ where: { shop }, data: { status: 'uninstalled', uninstalledAt: new Date() } });
+
+  for (const topic of ['orders/paid', 'orders/cancelled', 'refunds/create']) {
+    test(`self-heal: a signed ${topic} for a shop marked uninstalled, with a working token, marks it active again`, async () => {
+      await markUninstalledRow();
+      gw.tokenValid = true;
+      const r = await sendEvent(topic, topic === 'refunds/create' ? { id: uniqueId(), order_id: uniqueId(), refund_line_items: [], transactions: [] } : undefined);
+      assert.strictEqual(r.status, 200);
+      const row = await install();
+      assert.deepStrictEqual([row.status, row.uninstalledAt], ['active', null]);
+      assert.ok(!(await inactiveShops()).includes(shop));
+      assert.strictEqual(await prisma.webhookEvent.count({ where: { shop, topic } }), 1, 'the event was stored too');
+    });
+  }
+
+  test('self-heal does not happen when the token is refused, when the check fails, or when the signature is wrong; the event is stored (or refused) regardless', async () => {
+    await markUninstalledRow();
+    gw.tokenValid = false;
+    assert.strictEqual((await sendEvent('orders/paid')).status, 200);
+    assert.strictEqual((await install()).status, 'uninstalled');
+    gw.tokenValid = true;
+    gw.injectFailure(new Error('fetch failed'));
+    assert.strictEqual((await sendEvent('orders/paid')).status, 200, 'a failed check never fails the webhook');
+    assert.strictEqual((await install()).status, 'uninstalled');
+    assert.strictEqual(await prisma.webhookEvent.count({ where: { shop, topic: 'orders/paid' } }), 2);
+    assert.strictEqual((await sendEvent('orders/paid', undefined, { hmac: 'AAAA' })).status, 401);
+    assert.strictEqual((await sendEvent('orders/paid', undefined, { hmac: null })).status, 401);
+    assert.strictEqual((await install()).status, 'uninstalled');
+    assert.strictEqual(await prisma.webhookEvent.count({ where: { shop, topic: 'orders/paid' } }), 2);
+    // Healed on the next event that works.
+    assert.strictEqual((await sendEvent('orders/paid')).status, 200);
+    assert.strictEqual((await install()).status, 'active');
+  });
+
+  test('an active shop costs no call to Shopify: the token is not checked', async () => {
+    gw.injectFailure(new Error('must not be consumed'));
+    assert.strictEqual((await sendEvent('orders/paid')).status, 200);
+    assert.strictEqual(gw.failures.length, 1);
+    // A shop with no ShopInstall row at all (onboarded before the table existed) counts as active too.
+    await prisma.shopInstall.delete({ where: { shop } });
+    assert.strictEqual((await sendEvent('orders/paid')).status, 200);
+    assert.strictEqual(gw.failures.length, 1);
+  });
+
+  test('a healed shop\'s waiting events are processed by the worker', async () => {
+    const customer = String(uniqueId());
+    await markUninstalledRow();
+    const order = { id: uniqueId(), customer: { id: customer }, processed_at: new Date().toISOString(), line_items: [{ id: 1, quantity: 1, price: '100', title: 'x' }] };
+    gw.tokenValid = false;
+    await sendEvent('orders/paid', order);
+    assert.strictEqual((await processPendingWebhooksWithStats({ shop })).picked, 0, 'waits while uninstalled');
+    gw.tokenValid = true;
+    await sendEvent('orders/cancelled', { id: uniqueId() });
+    assert.strictEqual((await install()).status, 'active');
+    assert.ok((await processPendingWebhooksWithStats({ shop })).picked >= 1);
   });
 
   test('jobs skip an uninstalled shop (events wait, lots stay pending, nothing is synced or deleted) until it is reinstalled', async () => {

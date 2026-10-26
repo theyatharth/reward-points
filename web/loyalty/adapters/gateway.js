@@ -4,6 +4,13 @@
 // Wraps calls to Shopify APIs (like creating discount codes) so they can be
 // mocked or fake-implemented during testing without making real network calls.
 
+/** No stored offline session: there is nothing to call Shopify with (code NO_SESSION, so a caller can tell it from a failure). */
+function noSession(shop) {
+  const err = new Error(`No offline session found for shop ${shop}`);
+  err.code = 'NO_SESSION';
+  return err;
+}
+
 export class ShopifyGateway {
   constructor(shop) {
     this.shop = shop;
@@ -19,7 +26,7 @@ export class ShopifyGateway {
     const sessionId = shopify.api.session.getOfflineId(this.shop);
     const session = await shopify.config.sessionStorage.loadSession(sessionId);
     if (!session) {
-      throw new Error(`No offline session found for shop ${this.shop}`);
+      throw noSession(this.shop);
     }
     return new shopify.api.clients.Rest({ session });
   }
@@ -65,7 +72,7 @@ export class ShopifyGateway {
     const sessionId = shopify.api.session.getOfflineId(this.shop);
     const session = await shopify.config.sessionStorage.loadSession(sessionId);
     if (!session) {
-      throw new Error(`No offline session found for shop ${this.shop}`);
+      throw noSession(this.shop);
     }
     return new shopify.api.clients.Graphql({ session });
   }
@@ -83,16 +90,18 @@ export class ShopifyGateway {
   }
 
   /**
-   * Whether the app's stored token still works on the shop. false when Shopify answers 401 or 403 (token revoked: the app was
-   * uninstalled, or there is no stored session at all); any other failure throws, because it says nothing about the install.
+   * Whether the app's stored token still works on the shop. false ONLY when there is no stored session or Shopify answers 401 or 403
+   * (token revoked: the app was uninstalled). Any other failure (network error, 5xx, 429, a database error reading the session)
+   * throws, because it says nothing about whether the app is installed.
    * @returns {Promise<boolean>}
    */
   async isTokenValid() {
     let client;
     try {
       client = await this.getGraphqlClient();
-    } catch {
-      return false; // no stored session: nothing to call Shopify with
+    } catch (err) {
+      if (err?.code === 'NO_SESSION') return false; // nothing to call Shopify with
+      throw err;
     }
     try {
       await client.request(`query tokenCheck { shop { name } }`);

@@ -76,7 +76,8 @@ Sync the changed files, `prisma migrate deploy` on the public database, `pm2 res
 ## Known behaviours worth knowing
 
 - The embedded page's Content-Security-Policy (`embeddedCsp` in `web/admin/router.js`) lets App Bridge load from `cdn.shopify.com` and talk to Shopify hosts. It has not been checked in a real Shopify admin; if the browser console reports a blocked request, widen it there.
-- `shopify-app-express` adds its own `app/uninstalled` handler that always deletes the shop's sessions. A late, stale uninstall event therefore costs one token exchange on the next visit; it does not switch the shop off (our handler checks that the stored token no longer works first).
+- `app/uninstalled` is believed only after a check with Shopify: the stored token must be missing or refused (401 or 403). If the check itself fails (network error, 5xx, 429, a database error) the webhook is refused with a 500 so Shopify sends it again, and the shop is not marked and its sessions are not dropped. `shopify-app-express` adds its own handler for this topic that deletes the sessions whatever happened (and the library runs every handler even when one throws); `mountWebhooks()` in `web/routes/webhook.routes.js` removes it, so only ours runs. A late, stale uninstall event after a reinstall changes nothing.
+- Self-heal: a signed `orders/paid`, `orders/cancelled` or `refunds/create` for a shop marked uninstalled whose token works marks the shop active again (no call to Shopify for a shop that is not marked).
 - Orders and refunds stored before the intake scrub existed keep their original payloads. The public database is new, so none exist there.
 - `shop/redact` erases the shop even if the shop reinstalled in the 48 hours since it uninstalled and Shopify still sends it late. Shopify's behaviour for that case is not confirmed here.
 

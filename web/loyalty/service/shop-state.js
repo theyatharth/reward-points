@@ -18,6 +18,12 @@ export async function inactiveShops() {
 /** A shop name list that can never match everything: Prisma's `notIn: []` is fine, SQL's `<> ALL('{}')` is true for every row. */
 export const notInactive = (inactive) => (inactive.length ? { notIn: inactive } : undefined);
 
+/** True only for a shop explicitly marked uninstalled (no row = active). */
+export async function isMarkedUninstalled(shop) {
+  const row = await prisma.shopInstall.findUnique({ where: { shop }, select: { status: true } });
+  return row?.status === 'uninstalled';
+}
+
 export async function markUninstalled(shop) {
   const t = now();
   await prisma.shopInstall.upsert({

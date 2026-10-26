@@ -18,77 +18,43 @@ import {
 import { promotePendingPoints } from '../lib/promotion.js';
 import PrivacyWebhookHandlers from '../privacy.js';
 import { storeWebhook } from '../loyalty/service/webhook.js';
-import { markUninstalled, updateScopes } from '../loyalty/service/shop-state.js';
+import { markUninstalled, markInstalled, isMarkedUninstalled, updateScopes } from '../loyalty/service/shop-state.js';
 import { gatewayFactory } from '../loyalty/service/ledger.js';
 
 /**
- * Webhook handler for ORDERS_PAID.
- * Awards points to the customer, but holds them as a PendingPoint for
- * HOLD_PERIOD_DAYS rather than crediting spendable CustomerPoint.points
- * directly — this is what makes handleRefundsCreate's clawback meaningful:
- * cancelling a still-pending order costs the customer nothing (nothing was
- * ever spendable), instead of the old buy → earn → redeem → refund exploit.
- * Protected against duplicate delivery via ProcessedOrder idempotency table.
+ * Self-heal. A signed orders/paid, orders/cancelled or refunds/create can only come from Shopify, and Shopify only sends them to an
+ * installed app. If the shop is marked uninstalled (a missed or mistaken uninstall, or a reinstall whose afterAuth never ran) and the
+ * stored token works, the shop is installed: mark it active again so its jobs resume. Any trouble here (no token, a failed check)
+ * leaves things as they are and never fails the webhook: the event is stored either way.
  */
-async function handleOrdersPaid(topic, shop, body, webhookId) {
-  console.log(`\n--- [WEBHOOK] ${topic} for ${shop} (ID: ${webhookId}) ---`);
+export async function reactivateIfInstalled(shop) {
   try {
-    const payload = JSON.parse(body);
-    await storeWebhook({
-      shop,
-      topic,
-      payload,
-      shopifyWebhookId: webhookId,
-    });
-    console.log(`Stored ${topic} webhook for deferred processing.`);
+    if (!(await isMarkedUninstalled(shop))) return false;
+    if (!(await gatewayFactory(shop).isTokenValid())) return false;
+    await markInstalled(shop);
+    console.log(`[uninstall] ${shop} was marked uninstalled but its token works and Shopify is sending events: marked active again`);
+    return true;
   } catch (error) {
-    console.error(`Failed to store ${topic} webhook:`, error.message);
-    // Rethrow to let Shopify know it failed so it can retry
-    throw error;
+    console.warn(`[uninstall] could not check whether ${shop} is installed again (${error.message}); left as it is`);
+    return false;
   }
 }
 
 /**
- * Webhook handler for REFUNDS_CREATE.
- * Claws back points proportional to the refund amount, pulling from
- * still-pending (unreleased) points first before ever touching spendable
- * balance or creating debt.
+ * Handler for ORDERS_PAID, REFUNDS_CREATE and ORDERS_CANCELLED: store the event for the worker (the ledger is written there, in one
+ * transaction, never in the request). A failure to store is rethrown so Shopify redelivers.
  */
-async function handleRefundsCreate(topic, shop, body, webhookId) {
+async function storeOrderEvent(topic, shop, body, webhookId) {
   console.log(`\n--- [WEBHOOK] ${topic} for ${shop} (ID: ${webhookId}) ---`);
   try {
     const payload = JSON.parse(body);
-    await storeWebhook({
-      shop,
-      topic,
-      payload,
-      shopifyWebhookId: webhookId,
-    });
+    await storeWebhook({ shop, topic, payload, shopifyWebhookId: webhookId });
     console.log(`Stored ${topic} webhook for deferred processing.`);
   } catch (error) {
     console.error(`Failed to store ${topic} webhook:`, error.message);
-    throw error;
+    throw error; // Shopify retries
   }
-}
-
-/**
- * Webhook handler for ORDERS_CANCELLED.
- */
-async function handleOrdersCancelled(topic, shop, body, webhookId) {
-  console.log(`\n--- [WEBHOOK] ${topic} for ${shop} (ID: ${webhookId}) ---`);
-  try {
-    const payload = JSON.parse(body);
-    await storeWebhook({
-      shop,
-      topic,
-      payload,
-      shopifyWebhookId: webhookId,
-    });
-    console.log(`Stored ${topic} webhook for deferred processing.`);
-  } catch (error) {
-    console.error(`Failed to store ${topic} webhook:`, error.message);
-    throw error;
-  }
+  await reactivateIfInstalled(shop);
 }
 
 /**
@@ -96,17 +62,21 @@ async function handleOrdersCancelled(topic, shop, body, webhookId) {
  * which are the access tokens. Nothing else is touched: the shop's data stays until Shopify sends shop/redact. A reinstall
  * marks it active again (loyalty/service/install.js, from the afterAuth hook).
  *
- * Webhooks can arrive late. If the stored token still works, the shop has already reinstalled and this event is old: it is ignored,
- * so a delayed uninstall can never switch off a live shop. (shopify-app-express adds its own handler for this topic that always
- * deletes the shop's sessions; after a stale event the next visit exchanges a new token and the afterAuth hook runs again.)
+ * The event is only believed after a check with Shopify: the stored token must be gone (no session) or refused (401 or 403).
+ *  - Token still works: the shop reinstalled and this event is old; ignored.
+ *  - The check itself fails (network error, 5xx, 429, a database error): THROWN, so Shopify answers 500 and redelivers the
+ *    webhook. A shop is never marked uninstalled, and its sessions never dropped, on a check that did not give an answer.
+ * shopify-app-express adds its own handler for this topic that deletes the shop's sessions whatever happened here (and the library
+ * runs every handler even when one throws); mountWebhooks() below removes it, because this one does that job, after the check.
  */
 export async function handleAppUninstalled(topic, shop, body, webhookId) {
   console.log(`\n--- [WEBHOOK] ${topic} for ${shop} ---`);
-  let stillInstalled = false;
+  let stillInstalled;
   try {
     stillInstalled = await gatewayFactory(shop).isTokenValid();
   } catch (error) {
-    console.warn(`[uninstall] could not check the token of ${shop} (${error.message}); treating the shop as uninstalled`);
+    console.error(`[uninstall] could not check the token of ${shop} (${error.message}); the shop is NOT marked uninstalled, the webhook is refused so Shopify sends it again`);
+    throw error;
   }
   if (stillInstalled) {
     console.log(`[uninstall] ${shop} still has a working token: this is an old event, ignored`);
@@ -150,17 +120,17 @@ export const webhookHandlers = {
   ORDERS_PAID: {
     deliveryMethod: DeliveryMethod.Http,
     callbackUrl: '/api/webhooks',
-    callback: handleOrdersPaid,
+    callback: storeOrderEvent,
   },
   REFUNDS_CREATE: {
     deliveryMethod: DeliveryMethod.Http,
     callbackUrl: '/api/webhooks',
-    callback: handleRefundsCreate,
+    callback: storeOrderEvent,
   },
   ORDERS_CANCELLED: {
     deliveryMethod: DeliveryMethod.Http,
     callbackUrl: '/api/webhooks',
-    callback: handleOrdersCancelled,
+    callback: storeOrderEvent,
   },
   APP_UNINSTALLED: {
     deliveryMethod: DeliveryMethod.Http,
@@ -173,3 +143,17 @@ export const webhookHandlers = {
     callback: handleAppScopesUpdate,
   },
 };
+
+/**
+ * The webhook route's middleware, as web/index.js mounts it: signature header required, then shopify.processWebhooks with the
+ * handlers above. processWebhooks registers the handlers on the shared shopify instance, so call this ONCE per process.
+ * It also removes shopify-app-express's own APP_UNINSTALLED handler (see handleAppUninstalled).
+ */
+export function mountWebhooks(shopify) {
+  const processing = shopify.processWebhooks({ webhookHandlers });
+  const handlers = shopify.api.webhooks.getHandlers('APP_UNINSTALLED'); // the live list the library calls, in order
+  const ours = handlers.filter((h) => h.callback === handleAppUninstalled);
+  if (ours.length !== 1) throw new Error('webhook setup: expected exactly one of our APP_UNINSTALLED handlers');
+  handlers.splice(0, handlers.length, ...ours);
+  return [requireWebhookSignature, ...[processing].flat()];
+}

@@ -5,7 +5,7 @@ import express from 'express';
 import serveStatic from 'serve-static';
 
 import shopify from './shopify.js';
-import { webhookHandlers, requireWebhookSignature } from './routes/webhook.routes.js';
+import { mountWebhooks } from './routes/webhook.routes.js';
 import proxyRouter from './routes/proxy.routes.js';
 import settingsRouter from './routes/settings.routes.js';
 import { createHealthRouter } from './routes/health.js';
@@ -53,11 +53,7 @@ app.get(
 // 2. WEBHOOKS — Must be registered BEFORE express.json() parses the body,
 //    because Shopify HMAC validation requires the raw body.
 // ---------------------------------------------------------------------------
-app.post(
-  shopify.config.webhooks.path,
-  requireWebhookSignature,
-  shopify.processWebhooks({ webhookHandlers })
-);
+app.post(shopify.config.webhooks.path, mountWebhooks(shopify));
 
 // ---------------------------------------------------------------------------
 // 3. APP PROXY — Public storefront routes (redeem, history)
