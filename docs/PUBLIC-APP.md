@@ -53,6 +53,9 @@ Everything that imports `web/lib/prisma.js` (web, worker, scripts) is checked at
 - **Intake scrub** (`web/lib/intake-scrub.js`): names, e-mails, phones, addresses, notes and device data are dropped from every webhook payload before it is stored. Customer id, lines, discounts, taxes and refunds are kept.
 - **Uninstall**: `app/uninstalled` marks the shop uninstalled, drops its sessions (the tokens); the jobs skip it; data stays until `shop/redact`; the next visit after a reinstall reactivates it. `app/scopes_update` stores the new scopes.
 - **`/healthz`**: 200 `{"ok":true}` when the database answers, 503 otherwise.
+- **Currency guard**: only currencies with two decimals work (every amount is whole hundredths). For any other (JPY, KWD, ...) the config is still created, but orders, refunds and cancellations are skipped with the reason in the event's `lastError`, redeeming and admin adjustments are refused with a clear message, the storefront says rewards are not available, and the console shows a red banner on every page.
+- **Neutral text and the program name**: nothing visible says "Ecofynd". The program is called "Reward Points" until the merchant renames it on the Rules page (1 to 40 characters, audited); the name is used by the storefront blocks (page heading, widget, history labels), by the title of new discount codes and by the console heading. A test fails if the word appears in anything shipped to a browser.
+- **Get started** (first page of the console for a new shop, until it is marked done or an order arrives): five steps with links that open the Shopify theme editor to turn on the widget (app embed) and add the Rewards block to a page. The link formats are in `web/admin/deep-links.js` only (from Shopify's "Theme app extensions > Configuration > Deep linking" page: `activateAppId=<api key>/<block handle>` and `addAppBlockId=<api key>/<block handle>&target=newAppsSection`). I have not been able to try them on a real store; Shopify's developer forum has reports of such links opening the editor without selecting the block, so the page says what to pick by hand.
 
 ## Deploy, first time (dev server, `/home/ubuntu/reward-points-app`)
 
@@ -73,6 +76,51 @@ Nothing here touches `reward-points-dev`, its database or the old production app
 
 Sync the changed files, `prisma migrate deploy` on the public database, `pm2 restart reward-points-app reward-points-app-worker`, check `/healthz`. If the toml, the scopes, the webhooks, the proxy or the extension changed: `shopify app deploy --config production`.
 
+## First install on a development store (checklist)
+
+Before you start: the deploy above is done (`/healthz` answers, `shopify app deploy --config production` has pushed the config and the extension), and you have a development store (Partner Dashboard > Stores) with at least one test customer. Keep two terminals open on the server: `pm2 logs reward-points-app` and `pm2 logs reward-points-app-worker`. Open the browser's developer tools (Console and Network tabs) in the tab where you will use the app.
+
+**1. Install**
+- Partner Dashboard > Apps > Reward Points > Test your app > choose the development store > Install. Approve the four permissions (read orders, read and write customers, write discounts).
+- Expect: the store admin opens the app (Apps > Reward Points) and the console loads inside the admin, on **Get started**.
+- Server log (library lines, from reading `@shopify/shopify-app-express`; wording may differ slightly): `[shopify-app/INFO] No valid session found | {shop: ...}` then `[shopify-app/INFO] Requesting offline access token | {shop: ...}` (the token exchange, once), then from our hook: `[install] <shop>: configuration created (INR, hold 30 days)`. A second visit logs none of these (the session exists).
+- Check the config row (through the guard wrapper; never print the connection string): `select shop, currency, "programName", "holdPeriodDays", "ledgerStartAt" from "LoyaltyConfig" where shop = '<shop>';` gives one row, `programName` = Reward Points, hold 30, `ledgerStartAt` = a minute ago. `select status, scopes from "ShopInstall" where shop = '<shop>';` gives `active` and the scopes.
+
+**2. Console**
+- Click through Overview, Customers, Orders & webhooks, Earning & redemption, Audit log. Rules shows the shop's currency and 30 days; rename the program (for example "Test Club"), save: the heading of the console changes at once.
+- Audit log: `app_installed` and `rules_changed` rows, the second with "Shopify user <number>" as the admin.
+
+**3. Theme**
+- On Get started: "Open the theme editor" (App embeds panel): switch on Floating Rewards Widget, save. "Create the page": a page titled Rewards. "Add the block": the theme editor on the page template; if the block is not selected for you, Add section > Apps > Rewards Page Dashboard. Save.
+- Storefront: log in as the test customer: the rewards button shows; `/pages/rewards` shows the page with the program name as its heading and "Start earning Test Club" (the live name comes from the app; the first paint uses the name in the theme metafield, which the worker pushes within a minute of a rename).
+
+**4. An order**
+- In the store admin create an order for the test customer (Orders > Create order, add a product, Mark as paid).
+- Server log: `[shopify-api/INFO] Receiving webhook request`, `--- [WEBHOOK] orders/paid for <shop> (ID: ...) ---`, `Stored orders/paid webhook for deferred processing.`, `[shopify-app/INFO] Webhook processed, returned status code 200`. Worker log: `[worker] tick: picked=1 processed=1 failed=0` within about 30 seconds.
+- Console: Orders & webhooks shows the event `processed`; Customers shows the customer with pending points (available after the 30-day hold; change the hold to 0 on the Rules page to see them unlock).
+
+**5. Uninstall and reinstall**
+- Apps > Reward Points > Delete. Server log: `[uninstall] <shop> marked uninstalled, sessions dropped (webhook ...)`. `ShopInstall.status` = `uninstalled`; the Session rows for the shop are gone; the config and the ledger are still there.
+- Install again: the token exchange lines appear once more and `ShopInstall.status` goes back to `active` (no `configuration created` line: the config already exists).
+
+**6. Privacy** (development store only): `shopify app webhook trigger --topic customers/data_request --address https://integrations.platinuminfo.tech/reward-points-app/api/webhooks --client-secret <the app secret>`; the request shows under Data requests. Do `customers/redact` for a throw-away customer and check the account's id became `redacted-...`. Never run `shop/redact` on a store you want to keep.
+
+**What each failure looks like**
+
+| What you see | What it means | What to do |
+|---|---|---|
+| The console shows "Open this app from Shopify" or "Your session ended" inside the admin; Network tab: `/admin/api/session` answers **401** with `{"error":"INVALID_SESSION_TOKEN"}` (and the header `X-Shopify-Retry-Invalid-Session-Request`) | The App Bridge session token was not accepted: signature (wrong `SHOPIFY_API_SECRET` for this app), audience (`SHOPIFY_API_KEY` is another app's), `iss` and `dest` not the same shop, or an expired token. | Compare `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` in the server's `.env` with the Partner Dashboard (do not print them); restart the app. A single 401 followed by success is normal: the console retries once with a fresh token. |
+| The console shows "Open this app from Shopify" and the Network tab shows **no** `/admin/api/...` request at all | `window.shopify` is missing or `shopify.idToken()` failed, so the console never sent a request: App Bridge did not load (the page was opened outside the Shopify admin, or its script was blocked). A request with no `Authorization` header would get **401** `{"error":"NOT_LOGGED_IN"}`. | Open the app from Apps in the admin. If it still happens inside the admin, see the next row. |
+| The page is blank or stays on "Loading", and the browser console says *Refused to load the script / Refused to connect ... because it violates the following Content Security Policy directive* | The embedded page's CSP (`embeddedCsp()` in `web/admin/router.js`) blocks something App Bridge needs. This policy has never been tried in a real admin. | Add the blocked host to the directive named in the message (usually `script-src` or `connect-src`), deploy, reload. Tell me what was blocked so it goes into the code and the tests. |
+| *Refused to display ... in a frame because an ancestor violates ... frame-ancestors* | The console page was loaded without `?shop=` (so only `admin.shopify.com` may frame it) or with a shop that is not `*.myshopify.com`. | Open the app from the admin; check the nginx block passes the query string (it does in the example). |
+| Console works, Get started step 1 says "being set up", Rules says there is no loyalty rule, and no `configuration created` line in the log | **No config row.** The hook could not read the shop currency. Look for `[install] <shop>: could not read the shop currency: ...` in the log. | If the reason contains `401` or `403`: the stored offline token is not accepted; uninstall and install again. If it is a network or 5xx error: open the console again (it retries on every open) or wait for the first order (the worker retries). Never create the row by hand with a guessed currency. |
+| Orders & webhooks shows events `failed` with "The shop ... is not set up yet" | Same cause: events wait (retried every 5 minutes for 7 days) until the config exists, then they are processed. | Fix the cause above; nothing is lost. |
+| Events `skipped` with "The shop currency (JPY) is not supported" and a red banner | The shop's currency has other than two decimals. | Nothing to fix: the program does not run for this shop by design. |
+| `[uninstall] could not check the token of <shop> (...); the shop is NOT marked uninstalled, the webhook is refused so Shopify sends it again` | The token check failed for a reason other than 401/403 (network, Shopify 5xx or 429, a database error). The webhook got a 500 and Shopify redelivers it. | Nothing, unless it repeats for hours: then check the server's network and the database. |
+| Webhooks answer **401** in the log (`Webhook processed, returned status code 401`) | The signature did not match: `SHOPIFY_API_SECRET` is wrong, or something between Shopify and the app changed the body (a proxy that rewrites it). | Check the secret; check the nginx block does not buffer or rewrite the body. |
+| `[db-guard] APP_ENV=production may connect only to the database named in LIVE_DATABASE_NAME` at start | `DATABASE_URL` names another database than `LIVE_DATABASE_NAME`. | Fix the `.env`; do not point it at the dev or old production database. |
+| `ADMIN_AUTH must be "password" or "shopify"` at start | A typo in `ADMIN_AUTH`. | Fix it (the ecosystem file sets `shopify`). |
+
 ## Known behaviours worth knowing
 
 - The embedded page's Content-Security-Policy (`embeddedCsp` in `web/admin/router.js`) lets App Bridge load from `cdn.shopify.com` and talk to Shopify hosts. It has not been checked in a real Shopify admin; if the browser console reports a blocked request, widen it there.
@@ -83,12 +131,9 @@ Sync the changed files, `prisma migrate deploy` on the public database, `pm2 res
 
 ## What is left (as of the last commit; see `docs/PROGRESS.md` for the log)
 
-Done: setup (toml, hosting files, guard, `/healthz`), embedded admin, install, privacy webhooks, uninstall and scopes, intake scrub.
+Done: setup (toml, hosting files, guard, `/healthz`), embedded admin, install, privacy webhooks, uninstall (with the failed-check rule and self-heal), intake scrub, currency guard, neutral text and the editable program name, Get started.
 
-Not yet built from the sprint brief:
-- **Currency guard:** only two-decimal currencies. `isTwoDecimalCurrency()` exists and the install step records it; the banner and "no points earned or redeemed" are not wired in yet.
-- **Neutral text:** "Ecofynd" still appears in the console, the theme blocks, notifications and discount titles; the program name is not yet merchant-editable.
-- **Setup page:** the "Get started" page with deep links is not built.
+Nothing from the sprint brief is left to build. What is left is to see it work: the checklist below, on a development store.
 
 Not part of the brief, but needed before submitting to the App Store:
 - A privacy policy and support URL for the listing, the listing text, icon and screenshots.
