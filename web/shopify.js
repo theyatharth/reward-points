@@ -65,6 +65,14 @@ const shopify = shopifyApp({
   },
   future: {
     tokenExchange: true,
+    // Shopify now refuses non-expiring offline tokens with 403 "Non-expiring access
+    // tokens are no longer accepted". This flag makes the library request a short-lived
+    // access token (with a refresh token) instead of the old permanent one. It lives here,
+    // at the shopifyApp() level (config.future), NOT inside api.future — the library reads
+    // it from config in perform-token-exchange.js, validate-authenticated-session.js, and
+    // auth-callback.js. Placing it in api.future is what produced the log line
+    // "Future flag expiringOfflineAccessTokens is disabled".
+    expiringOfflineAccessTokens: true,
   },
   hooks: {
     // Runs after token exchange (a shop's first visit) and after the OAuth callback. Creates the shop's rewards configuration; it

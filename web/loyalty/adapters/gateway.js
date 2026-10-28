@@ -11,6 +11,74 @@ function noSession(shop) {
   return err;
 }
 
+// ---------------------------------------------------------------------------
+// Shopify's "non-expiring access tokens are no longer accepted" error message.
+// A 403 carrying this text is NOT a sign that the app is uninstalled; it means
+// the stored token is the old permanent kind. isTokenValid() must rethrow it so
+// the caller sees a hard failure, not a false "uninstalled" verdict.
+// ---------------------------------------------------------------------------
+const NON_EXPIRING_RE = /non-expiring access token/i;
+
+// ---------------------------------------------------------------------------
+// Token refresh
+//
+// @shopify/shopify-api 14.0.1 exposes api.auth.refreshToken({ shop, refreshToken })
+// (see node_modules/@shopify/shopify-api/dist/cjs/lib/auth/index.js).  It posts
+// to /admin/oauth/access_token with grant_type=refresh_token and returns { session }.
+//
+// We call it whenever a stored offline session has an `expires` date within
+// REFRESH_BUFFER_MS of now (same threshold the library uses in its own middleware).
+// The refreshed session is stored back, replacing the old one.
+//
+// Concurrent-refresh guard: two worker processes can arrive here simultaneously.
+// Before writing we re-read the session and compare its `accessToken` to what we
+// read on entry. If it has already changed, another process won already — we simply
+// reload and return the new session rather than writing again.
+// ---------------------------------------------------------------------------
+const REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes, matching the library
+
+/**
+ * If the session is expiring soon and has a refreshToken, exchange it for a
+ * fresh one and save it. Returns the (possibly refreshed) session.
+ *
+ * @param {any} shopify  the shopifyApp() singleton from shopify.js
+ * @param {any} session  the loaded offline session
+ * @returns {Promise<any>} the refreshed session (or the original if no refresh was needed)
+ */
+async function refreshIfNeeded(shopify, session) {
+  if (!session.refreshToken) return session;
+
+  // isExpired(bufferMs) returns true when expires < now + buffer
+  if (!session.isExpired(REFRESH_BUFFER_MS)) return session;
+
+  const oldAccessToken = session.accessToken;
+
+  // Re-check under the assumption another process may have already refreshed.
+  const fresh = await shopify.config.sessionStorage.loadSession(session.id);
+  if (fresh && fresh.accessToken !== oldAccessToken) {
+    // Another process already refreshed; use their result.
+    console.log(`[token-refresh] ${session.shop}: concurrent refresh detected, using already-refreshed session`);
+    return fresh;
+  }
+
+  // We have the "oldest" token: refresh it.
+  try {
+    const { session: refreshed } = await shopify.api.auth.refreshToken({
+      shop: session.shop,
+      refreshToken: session.refreshToken,
+    });
+    await shopify.config.sessionStorage.storeSession(refreshed);
+    console.log(`[token-refresh] ${session.shop}: offline token refreshed successfully (expires ${refreshed.expires?.toISOString() ?? 'never'})`);
+    return refreshed;
+  } catch (err) {
+    // If the refresh itself fails (e.g. the refresh token is expired or revoked),
+    // log and return the original session so the next API call fails with the real
+    // Shopify error, which the caller handles (isTokenValid will catch the 401/403).
+    console.error(`[token-refresh] ${session.shop}: refresh failed (${err.message}); will try with old session`);
+    return session;
+  }
+}
+
 export class ShopifyGateway {
   constructor(shop) {
     this.shop = shop;
@@ -18,16 +86,18 @@ export class ShopifyGateway {
 
   /**
    * Helper to get an authenticated offline REST client for the shop.
+   * Refreshes the token first if it is near expiry.
    */
   async getRestClient() {
     // Imported lazily: shopify.js throws at import without SHOPIFY_API_KEY/SECRET/HOST,
     // and tests that only use the fake gateway must not need them.
     const { default: shopify } = await import('../../shopify.js');
     const sessionId = shopify.api.session.getOfflineId(this.shop);
-    const session = await shopify.config.sessionStorage.loadSession(sessionId);
+    let session = await shopify.config.sessionStorage.loadSession(sessionId);
     if (!session) {
       throw noSession(this.shop);
     }
+    session = await refreshIfNeeded(shopify, session);
     return new shopify.api.clients.Rest({ session });
   }
 
@@ -66,14 +136,16 @@ export class ShopifyGateway {
 
   /**
    * Helper to get an authenticated offline GraphQL client for the shop.
+   * Refreshes the token first if it is near expiry.
    */
   async getGraphqlClient() {
     const { default: shopify } = await import('../../shopify.js');
     const sessionId = shopify.api.session.getOfflineId(this.shop);
-    const session = await shopify.config.sessionStorage.loadSession(sessionId);
+    let session = await shopify.config.sessionStorage.loadSession(sessionId);
     if (!session) {
       throw noSession(this.shop);
     }
+    session = await refreshIfNeeded(shopify, session);
     return new shopify.api.clients.Graphql({ session });
   }
 
@@ -90,9 +162,17 @@ export class ShopifyGateway {
   }
 
   /**
-   * Whether the app's stored token still works on the shop. false ONLY when there is no stored session or Shopify answers 401 or 403
-   * (token revoked: the app was uninstalled). Any other failure (network error, 5xx, 429, a database error reading the session)
-   * throws, because it says nothing about whether the app is installed.
+   * Whether the app's stored token still works on the shop. false ONLY when there is no stored session
+   * or Shopify answers with a revoked-token 401 or 403 (the app was uninstalled).
+   *
+   * IMPORTANT: a 403 that carries "Non-expiring access tokens are no longer accepted" is NOT a sign of
+   * uninstall — it means the stored token is the old permanent kind and must be refreshed. That error
+   * is re-thrown so the caller sees a hard failure. Without this distinction every shop whose token has
+   * not yet been refreshed would be silently marked uninstalled.
+   *
+   * Any other failure (network error, 5xx, 429, a database error reading the session) also throws,
+   * because it says nothing about whether the app is installed.
+   *
    * @returns {Promise<boolean>}
    */
   async isTokenValid() {
@@ -108,7 +188,15 @@ export class ShopifyGateway {
       return true;
     } catch (err) {
       const code = err?.response?.code ?? err?.response?.status;
-      if (code === 401 || code === 403) return false;
+      if (code === 401 || code === 403) {
+        // A 403 carrying the "non-expiring" message means the old token type is
+        // rejected, NOT that the app is uninstalled. Re-throw so the caller fails hard.
+        const msg = err?.message ?? '';
+        if (NON_EXPIRING_RE.test(msg)) {
+          throw err;
+        }
+        return false; // genuine revoked-token response: the app is uninstalled
+      }
       throw err;
     }
   }
